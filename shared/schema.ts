@@ -1,12 +1,39 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, jsonb, real } from "drizzle-orm/pg-core";
+import { 
+  index,
+  jsonb,
+  pgTable, 
+  text, 
+  varchar, 
+  timestamp, 
+  integer, 
+  real 
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table.
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table.
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const files = pgTable("files", {
@@ -20,12 +47,13 @@ export const files = pgTable("files", {
   processedAt: timestamp("processed_at"),
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
   processingError: text("processing_error"),
-  userId: varchar("user_id"),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 });
 
 export const fileMetadata = pgTable("file_metadata", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fileId: varchar("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   summary: text("summary"),
   keywords: text("keywords").array(),
   topics: text("topics").array(),
@@ -41,12 +69,7 @@ export const searchHistory = pgTable("search_history", {
   query: text("query").notNull(),
   results: jsonb("results"),
   searchedAt: timestamp("searched_at").defaultNow().notNull(),
-  userId: varchar("user_id"),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 });
 
 export const insertFileSchema = createInsertSchema(files).omit({
@@ -65,7 +88,7 @@ export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit(
   searchedAt: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type File = typeof files.$inferSelect;

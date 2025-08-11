@@ -1,8 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 export function Navigation() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -14,8 +18,8 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="bg-white border-r border-slate-200 w-64 min-h-screen hidden lg:block">
-      <div className="p-6">
+    <nav className="bg-white border-r border-slate-200 w-64 min-h-screen hidden lg:flex flex-col">
+      <div className="p-6 flex-1">
         <div className="flex items-center space-x-2 mb-8">
           <FolderOpen className="text-blue-500 text-2xl" />
           <h1 className="text-xl font-bold text-slate-800">SmartFile Organizer</h1>
@@ -43,6 +47,40 @@ export function Navigation() {
           })}
         </div>
       </div>
+      
+      {/* User section at bottom */}
+      {user && (
+        <div className="p-6 border-t border-slate-200">
+          <div className="flex items-center space-x-3 mb-4">
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
+              <AvatarFallback>
+                <User className="w-5 h-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {user.firstName && user.lastName 
+                  ? `${user.firstName} ${user.lastName}`
+                  : user.email || "User"
+                }
+              </p>
+              {user.email && (
+                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+              )}
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={() => window.location.href = '/api/logout'}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      )}
     </nav>
   );
 }

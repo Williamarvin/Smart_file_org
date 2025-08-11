@@ -1,10 +1,14 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle, LogOut, User } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 export function MobileNavigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -56,6 +60,43 @@ export function MobileNavigation() {
                   </Link>
                 );
               })}
+              
+              {/* User section for mobile dropdown */}
+              {user && (
+                <div className="pt-4 border-t border-slate-200 mt-4">
+                  <div className="flex items-center space-x-3 px-4 py-3 mb-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
+                      <AvatarFallback>
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName}`
+                          : user.email || "User"
+                        }
+                      </p>
+                      {user.email && (
+                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mx-4"
+                    onClick={() => {
+                      setIsOpen(false);
+                      window.location.href = '/api/logout';
+                    }}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}

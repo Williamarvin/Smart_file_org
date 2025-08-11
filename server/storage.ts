@@ -1,7 +1,10 @@
 import { 
+  users,
   files, 
   fileMetadata, 
   searchHistory,
+  type User,
+  type UpsertUser,
   type File, 
   type InsertFile, 
   type FileMetadata,
@@ -14,26 +17,30 @@ import { db } from "./db";
 import { eq, desc, ilike, sql, and, inArray } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations (mandatory for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
   // File operations
-  createFile(file: InsertFile): Promise<File>;
-  getFile(id: string): Promise<File | undefined>;
-  getFiles(limit?: number, offset?: number): Promise<FileWithMetadata[]>;
-  updateFileProcessingStatus(id: string, status: string, error?: string): Promise<void>;
-  updateFileProcessedAt(id: string): Promise<void>;
-  deleteFile(id: string): Promise<void>;
+  createFile(file: InsertFile, userId: string): Promise<File>;
+  getFile(id: string, userId: string): Promise<File | undefined>;
+  getFiles(userId: string, limit?: number, offset?: number): Promise<FileWithMetadata[]>;
+  updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void>;
+  updateFileProcessedAt(id: string, userId: string): Promise<void>;
+  deleteFile(id: string, userId: string): Promise<void>;
   
   // File metadata operations
-  createFileMetadata(metadata: InsertFileMetadata): Promise<FileMetadata>;
-  getFileMetadata(fileId: string): Promise<FileMetadata | undefined>;
-  updateFileMetadata(fileId: string, metadata: Partial<InsertFileMetadata>): Promise<void>;
+  createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata>;
+  getFileMetadata(fileId: string, userId: string): Promise<FileMetadata | undefined>;
+  updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void>;
   
   // Search operations
-  searchFiles(query: string, limit?: number): Promise<FileWithMetadata[]>;
-  searchFilesBySimilarity(embedding: number[], limit?: number): Promise<FileWithMetadata[]>;
-  createSearchHistory(search: InsertSearchHistory): Promise<SearchHistory>;
+  searchFiles(query: string, userId: string, limit?: number): Promise<FileWithMetadata[]>;
+  searchFilesBySimilarity(embedding: number[], userId: string, limit?: number): Promise<FileWithMetadata[]>;
+  createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory>;
   
   // Statistics
-  getFileStats(): Promise<{
+  getFileStats(userId: string): Promise<{
     totalFiles: number;
     processedFiles: number;
     processingFiles: number;
@@ -42,31 +49,55 @@ export interface IStorage {
   }>;
   
   // Batch operations
-  getFilesByIds(ids: string[]): Promise<FileWithMetadata[]>;
+  getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]>;
+  getFilesByCategory(category: string, userId: string, limit?: number): Promise<FileWithMetadata[]>;
+  getCategories(userId: string): Promise<{ category: string; count: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createFile(insertFile: InsertFile): Promise<File> {
+  // User operations (mandatory for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async createFile(insertFile: InsertFile, userId: string): Promise<File> {
     const [file] = await db
       .insert(files)
-      .values(insertFile)
+      .values({ ...insertFile, userId })
       .returning();
     return file;
   }
 
-  async getFile(id: string): Promise<File | undefined> {
-    const [file] = await db.select().from(files).where(eq(files.id, id));
+  async getFile(id: string, userId: string): Promise<File | undefined> {
+    const [file] = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
   }
 
-  async getFiles(limit = 50, offset = 0): Promise<FileWithMetadata[]> {
+  async getFiles(userId: string, limit = 50, offset = 0): Promise<FileWithMetadata[]> {
     const result = await db
       .select({
         file: files,
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .where(eq(files.userId, userId))
       .orderBy(desc(files.uploadedAt))
       .limit(limit)
       .offset(offset);
@@ -77,55 +108,55 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async updateFileProcessingStatus(id: string, status: string, error?: string): Promise<void> {
+  async updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void> {
     await db
       .update(files)
       .set({ 
         processingStatus: status,
         processingError: error 
       })
-      .where(eq(files.id, id));
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
-  async updateFileProcessedAt(id: string): Promise<void> {
+  async updateFileProcessedAt(id: string, userId: string): Promise<void> {
     await db
       .update(files)
       .set({ 
         processedAt: new Date(),
         processingStatus: "completed"
       })
-      .where(eq(files.id, id));
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
-  async deleteFile(id: string): Promise<void> {
-    await db.delete(files).where(eq(files.id, id));
+  async deleteFile(id: string, userId: string): Promise<void> {
+    await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
-  async createFileMetadata(metadata: InsertFileMetadata): Promise<FileMetadata> {
+  async createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata> {
     const [result] = await db
       .insert(fileMetadata)
-      .values(metadata)
+      .values({ ...metadata, userId })
       .returning();
     return result;
   }
 
-  async getFileMetadata(fileId: string): Promise<FileMetadata | undefined> {
+  async getFileMetadata(fileId: string, userId: string): Promise<FileMetadata | undefined> {
     const [metadata] = await db
       .select()
       .from(fileMetadata)
-      .where(eq(fileMetadata.fileId, fileId));
+      .where(and(eq(fileMetadata.fileId, fileId), eq(fileMetadata.userId, userId)));
     return metadata || undefined;
   }
 
-  async updateFileMetadata(fileId: string, metadata: Partial<InsertFileMetadata>): Promise<void> {
+  async updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void> {
     await db
       .update(fileMetadata)
       .set(metadata)
-      .where(eq(fileMetadata.fileId, fileId));
+      .where(and(eq(fileMetadata.fileId, fileId), eq(fileMetadata.userId, userId)));
   }
 
-  async searchFiles(query: string, limit = 20): Promise<FileWithMetadata[]> {
-    console.log(`Storage: searching for "${query}"`);
+  async searchFiles(query: string, userId: string, limit = 20): Promise<FileWithMetadata[]> {
+    console.log(`Storage: searching for "${query}" for user ${userId}`);
     
     const result = await db
       .select({
@@ -133,9 +164,10 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
       .where(
         and(
+          eq(files.userId, userId),
           eq(files.processingStatus, "completed"),
           sql`(
             ${files.originalName} ILIKE ${`%${query}%`} OR
@@ -171,7 +203,7 @@ export class DatabaseStorage implements IStorage {
     return mappedResults;
   }
 
-  async searchFilesBySimilarity(embedding: number[], limit = 20): Promise<FileWithMetadata[]> {
+  async searchFilesBySimilarity(embedding: number[], userId: string, limit = 20): Promise<FileWithMetadata[]> {
     // Note: This is a simplified similarity search
     // In production, you'd want to use a proper vector database like pgvector
     const result = await db
@@ -180,9 +212,10 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
       .where(
         and(
+          eq(files.userId, userId),
           eq(files.processingStatus, "completed"),
           sql`${fileMetadata.embedding} IS NOT NULL`
         )
@@ -196,21 +229,23 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async createSearchHistory(search: InsertSearchHistory): Promise<SearchHistory> {
+  async createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory> {
     const [result] = await db
       .insert(searchHistory)
-      .values(search)
+      .values({ ...search, userId })
       .returning();
     return result;
   }
 
-  async getFilesByCategory(category: string, limit = 20): Promise<FileWithMetadata[]> {
+  async getFilesByCategory(category: string, userId: string, limit = 20): Promise<FileWithMetadata[]> {
     const result = await db.execute(
       sql`
         SELECT f.*, fm.*
         FROM files f
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.processing_status = 'completed'
+        WHERE f.user_id = ${userId}
+        AND f.processing_status = 'completed'
+        AND fm.user_id = ${userId}
         AND EXISTS (
           SELECT 1 FROM unnest(fm.categories) AS category_item 
           WHERE category_item ILIKE ${`%${category}%`}
@@ -233,6 +268,7 @@ export class DatabaseStorage implements IStorage {
       metadata: row.file_id ? {
         id: row.file_id,
         fileId: row.file_id,
+        userId: row.user_id,
         extractedText: row.extracted_text,
         summary: row.summary,
         keywords: row.keywords,
@@ -243,13 +279,15 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getCategories(): Promise<{ category: string; count: number }[]> {
+  async getCategories(userId: string): Promise<{ category: string; count: number }[]> {
     const result = await db.execute(
       sql`
         SELECT unnest(categories) as category, COUNT(*)::int as count
         FROM file_metadata fm
         INNER JOIN files f ON f.id = fm.file_id
         WHERE f.processing_status = 'completed'
+        AND f.user_id = ${userId}
+        AND fm.user_id = ${userId}
         GROUP BY unnest(categories)
         ORDER BY COUNT(*) DESC
       `
@@ -261,7 +299,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getFileStats(): Promise<{
+  async getFileStats(userId: string): Promise<{
     totalFiles: number;
     processedFiles: number;
     processingFiles: number;
@@ -276,12 +314,13 @@ export class DatabaseStorage implements IStorage {
         errorFiles: sql<number>`COUNT(CASE WHEN processing_status = 'error' THEN 1 END)::int`,
         totalSize: sql<number>`COALESCE(SUM(size), 0)::int`,
       })
-      .from(files);
+      .from(files)
+      .where(eq(files.userId, userId));
 
     return stats;
   }
 
-  async getFilesByIds(ids: string[]): Promise<FileWithMetadata[]> {
+  async getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]> {
     if (ids.length === 0) return [];
     
     const result = await db
@@ -290,8 +329,8 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
-      .where(inArray(files.id, ids));
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .where(and(inArray(files.id, ids), eq(files.userId, userId)));
 
     return result.map(row => ({
       ...row.file,
