@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { authenticateToken, type AuthenticatedRequest } from "./firebaseAuth";
 import multer from "multer";
 import PDFParse from "pdf-parse";
 import mammoth from "mammoth";
@@ -34,14 +34,23 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  await setupAuth(app);
-
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const userId = req.user!.uid;
+      let user = await storage.getUser(userId);
+      
+      // Create user if they don't exist
+      if (!user) {
+        user = await storage.upsertUser({
+          id: userId,
+          email: req.user!.email || null,
+          firstName: req.user!.name?.split(' ')[0] || null,
+          lastName: req.user!.name?.split(' ').slice(1).join(' ') || null,
+          profileImageUrl: req.user!.picture || null,
+        });
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -52,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const objectStorageService = new ObjectStorageService();
 
   // Get upload URL for file
-  app.post("/api/files/upload-url", isAuthenticated, async (req, res) => {
+  app.post("/api/files/upload-url", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       res.json({ uploadURL });
@@ -63,9 +72,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create file record after upload
-  app.post("/api/files", isAuthenticated, async (req: any, res) => {
+  app.post("/api/files", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const fileData = z.object({
         filename: z.string(),
         originalName: z.string(),
@@ -97,9 +106,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all files
-  app.get("/api/files", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
@@ -112,9 +121,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get files by category
-  app.get("/api/files/category/:category", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files/category/:category", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const category = req.params.category as string;
       const limit = parseInt(req.query.limit as string) || 20;
       
@@ -127,9 +136,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file categories with counts
-  app.get("/api/categories", isAuthenticated, async (req: any, res) => {
+  app.get("/api/categories", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const categories = await storage.getCategories(userId);
       res.json(categories);
     } catch (error) {
@@ -139,9 +148,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific file
-  app.get("/api/files/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const file = await storage.getFile(req.params.id, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
@@ -156,9 +165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete file
-  app.delete("/api/files/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/files/:id", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const file = await storage.getFile(req.params.id, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
@@ -209,9 +218,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file statistics
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/stats", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const stats = await storage.getFileStats(userId);
       res.json(stats);
     } catch (error) {
@@ -236,9 +245,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate content using existing files
-  app.post("/api/generate-content", isAuthenticated, async (req: any, res) => {
+  app.post("/api/generate-content", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const { prompt, fileIds, type } = z.object({
         prompt: z.string(),
         fileIds: z.array(z.string()),
@@ -269,9 +278,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat with files endpoint
-  app.post("/api/chat", isAuthenticated, async (req: any, res) => {
+  app.post("/api/chat", authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user!.uid;
       const { message, fileIds } = z.object({
         message: z.string(),
         fileIds: z.array(z.string()).optional().default([]),

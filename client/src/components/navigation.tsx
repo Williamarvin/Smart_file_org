@@ -3,10 +3,26 @@ import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, L
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 export function Navigation() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      toast({
+        title: "Sign Out Failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -53,17 +69,14 @@ export function Navigation() {
         <div className="p-6 border-t border-slate-200">
           <div className="flex items-center space-x-3 mb-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
+              <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
               <AvatarFallback>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-900 truncate">
-                {user.firstName && user.lastName 
-                  ? `${user.firstName} ${user.lastName}`
-                  : user.email || "User"
-                }
+                {user.displayName || user.email || "User"}
               </p>
               {user.email && (
                 <p className="text-xs text-slate-500 truncate">{user.email}</p>
@@ -74,7 +87,7 @@ export function Navigation() {
             variant="outline" 
             size="sm" 
             className="w-full"
-            onClick={() => window.location.href = '/api/logout'}
+            onClick={handleSignOut}
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
