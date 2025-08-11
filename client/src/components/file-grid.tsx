@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
 import { 
   FileText, 
   FileSpreadsheet, 
@@ -113,6 +114,7 @@ export default function FileGrid({
   isSearchResults = false, 
   searchQuery 
 }: FileGridProps) {
+  const [, navigate] = useLocation();
   
   if (isLoading) {
     return (
@@ -304,11 +306,11 @@ export default function FileGrid({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.open(file.objectPath, '_blank')}>
                               <Download className="mr-2 h-4 w-4" />
                               Download
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/file/${file.id}`)}>
                               <ExternalLink className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
