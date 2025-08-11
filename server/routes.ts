@@ -94,6 +94,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get files by category
+  app.get("/api/files/category/:category", async (req, res) => {
+    try {
+      const category = req.params.category as string;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const files = await storage.getFilesByCategory(category, limit);
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching files by category:", error);
+      res.status(500).json({ error: "Failed to fetch files by category" });
+    }
+  });
+
+  // Get file categories with counts
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
   // Get specific file
   app.get("/api/files/:id", async (req, res) => {
     try {

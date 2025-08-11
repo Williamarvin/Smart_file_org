@@ -201,6 +201,63 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getFilesByCategory(category: string, limit = 20): Promise<FileWithMetadata[]> {
+    const result = await db.execute(
+      sql`
+        SELECT f.*, fm.*
+        FROM files f
+        LEFT JOIN file_metadata fm ON f.id = fm.file_id
+        WHERE f.processing_status = 'completed'
+        AND EXISTS (
+          SELECT 1 FROM unnest(fm.categories) AS category_item 
+          WHERE category_item ILIKE ${`%${category}%`}
+        )
+        ORDER BY f.uploaded_at DESC
+        LIMIT ${limit}
+      `
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      filename: row.filename,
+      originalName: row.original_name,
+      mimeType: row.mime_type,
+      size: row.size,
+      objectPath: row.object_path,
+      processingStatus: row.processing_status,
+      uploadedAt: row.uploaded_at,
+      userId: row.user_id,
+      metadata: row.file_id ? {
+        id: row.file_id,
+        fileId: row.file_id,
+        extractedText: row.extracted_text,
+        summary: row.summary,
+        keywords: row.keywords,
+        topics: row.topics,
+        categories: row.categories,
+        processedAt: row.processed_at,
+      } : undefined,
+    }));
+  }
+
+  async getCategories(): Promise<{ category: string; count: number }[]> {
+    const result = await db.execute(
+      sql`
+        SELECT unnest(categories) as category, COUNT(*)::int as count
+        FROM file_metadata fm
+        INNER JOIN files f ON f.id = fm.file_id
+        WHERE f.processing_status = 'completed'
+        GROUP BY unnest(categories)
+        ORDER BY COUNT(*) DESC
+      `
+    );
+
+    return result.rows.map((row: any) => ({
+      category: row.category,
+      count: row.count,
+    }));
+  }
+
   async getFileStats(): Promise<{
     totalFiles: number;
     processedFiles: number;

@@ -2,10 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import QuickStats from "@/components/quick-stats";
 import RecentActivity from "@/components/recent-activity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Zap, Clock, TrendingUp } from "lucide-react";
+import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart } from "lucide-react";
 import { Link } from "wouter";
+import { useState } from "react";
 
 export function Dashboard() {
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryFiles, setCategoryFiles] = useState<any[]>([]);
+
   // Fetch files for recent activity
   const { data: files = [] } = useQuery({
     queryKey: ["/api/files"],
@@ -17,6 +21,32 @@ export function Dashboard() {
     queryKey: ["/api/stats"],
     refetchInterval: 10000,
   });
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+    refetchInterval: 10000,
+  });
+
+  // Fetch files by category when category is selected
+  const { data: filesByCategory = [], refetch: refetchCategoryFiles } = useQuery({
+    queryKey: ["/api/files/category", selectedCategory],
+    enabled: !!selectedCategory,
+  });
+
+  const getCategoryIcon = (category: string) => {
+    if (category.includes("personal") || category.includes("life")) return Heart;
+    if (category.includes("academic") || category.includes("education")) return GraduationCap;
+    if (category.includes("work") || category.includes("business")) return Briefcase;
+    return FolderOpen;
+  };
+
+  const getCategoryColor = (category: string) => {
+    if (category.includes("personal") || category.includes("life")) return "text-pink-600 bg-pink-100";
+    if (category.includes("academic") || category.includes("education")) return "text-blue-600 bg-blue-100";
+    if (category.includes("work") || category.includes("business")) return "text-green-600 bg-green-100";
+    return "text-gray-600 bg-gray-100";
+  };
 
   return (
     <div className="p-8">
@@ -76,10 +106,114 @@ export function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         {/* Statistics */}
         <div>
           <QuickStats stats={stats as any} />
+        </div>
+
+        {/* Categories */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <FolderOpen className="text-blue-500" />
+                <span>File Categories</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categories.length === 0 ? (
+                <div className="text-center py-6">
+                  <FolderOpen className="text-slate-400 text-3xl mx-auto mb-3" />
+                  <p className="text-slate-500">No categories yet</p>
+                  <p className="text-sm text-slate-400">Upload files to see categories</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {categories.slice(0, 6).map((cat: any) => {
+                    const Icon = getCategoryIcon(cat.category);
+                    const colorClass = getCategoryColor(cat.category);
+                    return (
+                      <div 
+                        key={cat.category}
+                        onClick={() => {
+                          setSelectedCategory(cat.category === selectedCategory ? null : cat.category);
+                        }}
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-lg ${colorClass}`}>
+                            <Icon className="text-sm" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800 capitalize">
+                              {cat.category.replace(/[/_]/g, ' ')}
+                            </p>
+                            <p className="text-sm text-slate-500">{cat.count} files</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-slate-400">
+                            {selectedCategory === cat.category ? 'Hide' : 'View'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Category Files */}
+          {selectedCategory && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Files in "{selectedCategory.replace(/[/_]/g, ' ')}"
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {filesByCategory.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-slate-500">No files found in this category</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filesByCategory.slice(0, 5).map((file: any) => (
+                      <div key={file.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
+                        <FileText className="text-blue-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-800 truncate">
+                            {file.originalName}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {new Date(file.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Link 
+                          href={`/browse?search=${encodeURIComponent(file.originalName.split('.')[0])}`}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    ))}
+                    {filesByCategory.length > 5 && (
+                      <div className="text-center pt-2">
+                        <Link 
+                          href={`/browse?category=${selectedCategory}`}
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View all {filesByCategory.length} files
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Recent Activity */}
