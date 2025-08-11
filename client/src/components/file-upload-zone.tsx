@@ -109,7 +109,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         {!uploadProgress && (
           <ObjectUploader
             maxNumberOfFiles={1}
-            maxFileSize={10485760} // 10MB
+            maxFileSize={104857600} // 100MB
             onGetUploadParameters={handleGetUploadParameters}
             onComplete={handleUploadComplete}
             buttonClassName="w-full"
@@ -121,7 +121,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
                 </div>
                 <div>
                   <p className="text-slate-600 font-medium">Drop files here or click to browse</p>
-                  <p className="text-sm text-slate-500 mt-1">Supports PDF, DOCX, TXT files up to 10MB</p>
+                  <p className="text-sm text-slate-500 mt-1">Supports PDF, DOCX, TXT files up to 100MB</p>
                 </div>
                 <div className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium">
                   <Plus className="mr-2 h-4 w-4" />

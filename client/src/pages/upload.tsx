@@ -77,13 +77,15 @@ export function Upload() {
         <p className="text-slate-600">Upload documents for AI-powered analysis and organization</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="space-y-8">
         {/* Upload Zone */}
-        <div>
+        <div className="max-w-4xl mx-auto">
           <FileUploadZone onUploadSuccess={handleFileUploadSuccess} />
-          
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Upload Instructions */}
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Zap className="text-blue-500" />
@@ -91,7 +93,7 @@ export function Upload() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <Brain className="text-purple-500 mt-1 flex-shrink-0" />
                   <div>
@@ -103,7 +105,7 @@ export function Upload() {
                   <FileText className="text-green-500 mt-1 flex-shrink-0" />
                   <div>
                     <h4 className="font-medium text-slate-800">Multi-format Support</h4>
-                    <p className="text-sm text-slate-600">Supports PDF, DOCX, and TXT files with text extraction</p>
+                    <p className="text-sm text-slate-600">Supports PDF, DOCX, and TXT files with text extraction up to 100MB</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
@@ -116,10 +118,8 @@ export function Upload() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Recent Uploads */}
-        <div>
+          {/* Recent Uploads */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Uploads</CardTitle>

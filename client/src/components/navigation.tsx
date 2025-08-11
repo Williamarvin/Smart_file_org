@@ -12,7 +12,7 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="bg-white border-r border-slate-200 w-64 min-h-screen">
+    <nav className="bg-white border-r border-slate-200 w-64 min-h-screen hidden lg:block">
       <div className="p-6">
         <div className="flex items-center space-x-2 mb-8">
           <FolderOpen className="text-blue-500 text-2xl" />
