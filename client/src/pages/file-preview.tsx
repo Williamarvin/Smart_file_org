@@ -1,6 +1,7 @@
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Download, FileText, AlertCircle, Bot, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, FileText, AlertCircle, Bot, Loader2, ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 export function FilePreview() {
   const { id } = useParams();
   const [, navigate] = useLocation();
+  const [pdfLoadError, setPdfLoadError] = useState(false);
 
   // Fetch file details
   const { data: file, isLoading, error } = useQuery({
@@ -137,15 +139,71 @@ export function FilePreview() {
           {file.mimeType === 'application/pdf' && (
             <Card>
               <CardHeader>
-                <CardTitle>Document Preview</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  Document Preview
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(file.objectPath, '_blank')}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Open in New Tab
+                  </Button>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="w-full h-[600px] border rounded-lg overflow-hidden">
-                  <iframe
-                    src={file.objectPath}
-                    className="w-full h-full"
-                    title={file.originalName}
-                  />
+                <div className="w-full h-[600px] border rounded-lg overflow-hidden bg-slate-100">
+                  {file.objectPath && !pdfLoadError ? (
+                    <iframe
+                      src={`${file.objectPath}#view=FitH`}
+                      className="w-full h-full"
+                      title={file.originalName}
+                      allow="fullscreen"
+                      onLoad={() => {
+                        console.log('PDF loaded successfully');
+                        setPdfLoadError(false);
+                      }}
+                      onError={() => {
+                        console.error('Failed to load PDF in iframe');
+                        setPdfLoadError(true);
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-center text-slate-500">
+                      <div>
+                        <FileText className="h-12 w-12 mx-auto mb-2 text-slate-400" />
+                        <p className="font-medium mb-2">
+                          {pdfLoadError ? 'PDF preview unavailable in browser' : 'PDF preview not available'}
+                        </p>
+                        <p className="text-sm mb-4">
+                          {pdfLoadError 
+                            ? 'Your browser blocked the PDF preview for security reasons.' 
+                            : 'Use the buttons above to view the file.'
+                          }
+                        </p>
+                        <div className="space-y-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => window.open(file.objectPath, '_blank')}
+                            className="w-full"
+                          >
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open PDF in New Tab
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleDownload}
+                            className="w-full"
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download PDF
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

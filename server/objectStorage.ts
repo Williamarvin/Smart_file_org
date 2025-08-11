@@ -109,6 +109,8 @@ export class ObjectStorageService {
         "Cache-Control": `${
           isPublic ? "public" : "private"
         }, max-age=${cacheTtlSec}`,
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy": "frame-ancestors 'self'",
       });
 
       // Stream the file to the response
