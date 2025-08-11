@@ -191,3 +191,60 @@ Please provide a comprehensive response based on the content and context of thes
     throw new Error("Failed to generate content: " + (error?.message || "Unknown error"));
   }
 }
+
+export async function chatWithFiles(
+  message: string,
+  files: Array<{ id: string; filename: string; extractedText?: string; metadata?: any }>
+): Promise<string> {
+  try {
+    let context = "";
+    
+    if (files.length > 0) {
+      // Create context from selected files
+      context = files.map(file => {
+        const text = file.extractedText || "";
+        const summary = file.metadata?.summary || "";
+        const keywords = file.metadata?.keywords?.join(", ") || "";
+        
+        return `=== ${file.filename} ===
+Summary: ${summary}
+Keywords: ${keywords}
+Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
+      }).join('\n\n');
+    } else {
+      context = "No specific files selected. User is asking a general question.";
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful AI assistant that can answer questions about uploaded documents. 
+You have access to the user's document content and can provide specific information, summaries, analysis, and insights.
+
+When answering:
+- Be concise but comprehensive
+- Reference specific documents when relevant
+- If no files are selected, provide general guidance about what the user can do
+- If the question cannot be answered from the provided context, say so clearly
+- Use a conversational, helpful tone
+
+Available document context:
+${context}`,
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    return response.choices[0].message.content || "I apologize, but I couldn't generate a response. Please try again.";
+  } catch (error: any) {
+    console.error("Failed to chat with files:", error);
+    throw new Error("Failed to process chat message: " + (error?.message || "Unknown error"));
+  }
+}

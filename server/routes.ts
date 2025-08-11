@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
 import multer from "multer";
 import PDFParse from "pdf-parse";
 import mammoth from "mammoth";
@@ -242,6 +242,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating content:", error);
       res.status(500).json({ error: "Failed to generate content" });
+    }
+  });
+
+  // Chat with files endpoint
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { message, fileIds } = z.object({
+        message: z.string(),
+        fileIds: z.array(z.string()).optional().default([]),
+      }).parse(req.body);
+
+      // Get context files
+      const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds) : [];
+      
+      // Generate response using AI
+      const response = await chatWithFiles(message, files);
+      
+      res.json({ 
+        response,
+        relatedFiles: fileIds
+      });
+    } catch (error) {
+      console.error("Error in chat:", error);
+      res.status(500).json({ error: "Failed to process chat message" });
     }
   });
 
