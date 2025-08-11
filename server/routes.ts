@@ -171,16 +171,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Search files
-  app.get("/api/search/:query", async (req, res) => {
+  // Browse/Search files - returns all files when query is empty, searches when query provided
+  app.get("/api/search/:query?", async (req, res) => {
     try {
       const query = req.params.query as string;
-      if (!query) {
-        return res.status(400).json({ error: "Search query is required" });
+      const userId = "demo-user";
+      
+      // If no query provided, return all files (browse mode)
+      if (!query || query.trim() === '') {
+        console.log("No search query provided, returning all files (browse mode)");
+        const files = await storage.getFiles(userId, 50, 0);
+        console.log(`Browse mode: returning ${files.length} files`);
+        res.json(files);
+        return;
       }
       
       console.log(`Searching for: "${query}"`);
-      const userId = "demo-user";
 
       // Use pgvector semantic similarity search with text fallback
       let files: any[] = [];
@@ -212,6 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           await storage.createSearchHistory({
             query,
+            userId,
             results: files.map(f => ({ id: f.id, similarity: 100 })),
           }, userId);
         } catch (error) {

@@ -14,7 +14,7 @@ import {
   type SearchHistory
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray, ne } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)

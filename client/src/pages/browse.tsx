@@ -10,16 +10,10 @@ export function Browse() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch files
-  const { data: files = [], isLoading: filesLoading } = useQuery({
-    queryKey: ["/api/files"],
+  // Unified endpoint: browse all files or search with query
+  const { data: files = [], isLoading } = useQuery({
+    queryKey: searchQuery ? ["/api/search", searchQuery] : ["/api/search"],
     refetchInterval: 5000,
-  });
-
-  // Search files
-  const { data: searchResults = [], isLoading: searchLoading } = useQuery({
-    queryKey: ["/api/search", searchQuery],
-    enabled: !!searchQuery,
   });
 
   // Delete file mutation
@@ -50,9 +44,7 @@ export function Browse() {
     deleteFileMutation.mutate(fileId);
   };
 
-  const displayFiles = searchQuery 
-    ? (Array.isArray(searchResults) ? searchResults : []) 
-    : (Array.isArray(files) ? files : []);
+  const displayFiles = Array.isArray(files) ? files : [];
 
   return (
     <div className="p-8">
@@ -65,8 +57,8 @@ export function Browse() {
       <div className="mb-8">
         <SearchBar 
           onSearch={handleSearch} 
-          isLoading={searchLoading}
-          hasResults={Array.isArray(searchResults) && searchResults.length > 0}
+          isLoading={isLoading}
+          hasResults={Array.isArray(files) && files.length > 0}
           query={searchQuery}
         />
       </div>
@@ -74,7 +66,7 @@ export function Browse() {
       {/* File Grid */}
       <FileGrid 
         files={displayFiles}
-        isLoading={filesLoading || searchLoading}
+        isLoading={isLoading}
         onDeleteFile={handleDeleteFile}
         isSearchResults={!!searchQuery}
         searchQuery={searchQuery}
