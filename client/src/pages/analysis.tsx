@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BarChart3, PieChart, TrendingUp, FileText, Clock, CheckCircle, AlertCircle, Brain } from "lucide-react";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 export function Analysis() {
   // Fetch file stats
@@ -16,12 +17,21 @@ export function Analysis() {
     refetchInterval: 10000,
   });
 
-  // Calculate category distribution
-  const categoryDistribution = Array.isArray(files) ? files.reduce((acc: any, file: any) => {
-    const category = file.metadata?.category || 'Uncategorized';
-    acc[category] = (acc[category] || 0) + 1;
-    return acc;
-  }, {}) : {};
+  // Fetch categories from API
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["/api/categories"],
+    refetchInterval: 10000,
+  });
+
+  // Prepare pie chart data
+  const pieChartData = Array.isArray(categories) ? categories.map((cat: any) => ({
+    name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+    value: cat.count,
+    percentage: categories.length > 0 ? ((cat.count / categories.reduce((sum: number, c: any) => sum + c.count, 0)) * 100).toFixed(1) : 0
+  })) : [];
+
+  // Colors for pie chart
+  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'];
 
   // Calculate processing status distribution
   const processingStats = Array.isArray(files) ? files.reduce((acc: any, file: any) => {
@@ -132,7 +142,7 @@ export function Analysis() {
           </CardContent>
         </Card>
 
-        {/* Category Distribution */}
+        {/* Category Distribution Pie Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -141,28 +151,60 @@ export function Analysis() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {Object.keys(categoryDistribution).length === 0 ? (
+            {pieChartData.length === 0 ? (
               <div className="text-center py-8">
                 <PieChart className="text-slate-400 text-4xl mx-auto mb-4" />
                 <p className="text-slate-500">No categories yet</p>
                 <p className="text-sm text-slate-400">Upload and process files to see categories</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {Object.entries(categoryDistribution).map(([category, count]: [string, any]) => (
-                  <div key={category} className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-600">{category}</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-slate-200 rounded-full h-2">
+              <div className="space-y-4">
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percentage }) => `${name} (${percentage}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: any, name: any) => [
+                          `${value} files`, 
+                          name
+                        ]}
+                      />
+                      <Legend />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Category breakdown */}
+                <div className="space-y-2 pt-4 border-t">
+                  {pieChartData.map((item, index) => (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
                         <div 
-                          className="bg-blue-500 h-2 rounded-full"
-                          style={{ width: `${(count / totalFiles) * 100}%` }}
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
+                        <span className="text-sm font-medium text-slate-600">{item.name}</span>
                       </div>
-                      <span className="text-sm text-slate-600 w-8">{count}</span>
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-slate-800">{item.percentage}%</span>
+                        <span className="text-xs text-slate-500 ml-2">({item.value} files)</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
