@@ -81,7 +81,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: fileData.size,
         objectPath,
         processingStatus: "pending",
-      }, userId);
+        userId: "demo-user",
+      });
 
       // Start processing in the background
       processFileAsync(file.id, userId);
@@ -100,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const files = await storage.getFiles(userId = "demo-user", limit, offset);
+      const files = await storage.getFiles("demo-user", limit, offset);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -115,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = req.params.category as string;
       const limit = parseInt(req.query.limit as string) || 20;
       
-      const files = await storage.getFilesByCategory(category, userId = "demo-user", limit);
+      const files = await storage.getFilesByCategory(category, "demo-user", limit);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files by category:", error);
@@ -323,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedText: extractedText.slice(0, 10000), // Store first 10k chars
         embedding,
         confidence: metadata.confidence,
-      }, userId);
+      });
 
       await storage.updateFileProcessedAt(fileId, userId);
 

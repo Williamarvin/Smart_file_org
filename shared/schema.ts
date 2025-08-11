@@ -53,7 +53,6 @@ export const files = pgTable("files", {
 export const fileMetadata = pgTable("file_metadata", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fileId: varchar("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   summary: text("summary"),
   keywords: text("keywords").array(),
   topics: text("topics").array(),

@@ -144,7 +144,7 @@ export class DatabaseStorage implements IStorage {
     const [metadata] = await db
       .select()
       .from(fileMetadata)
-      .where(and(eq(fileMetadata.fileId, fileId), eq(fileMetadata.userId, userId)));
+      .where(and(eq(fileMetadata.fileId, fileId)));
     return metadata || undefined;
   }
 
@@ -152,7 +152,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(fileMetadata)
       .set(metadata)
-      .where(and(eq(fileMetadata.fileId, fileId), eq(fileMetadata.userId, userId)));
+      .where(and(eq(fileMetadata.fileId, fileId)));
   }
 
   async searchFiles(query: string, userId: string, limit = 20): Promise<FileWithMetadata[]> {
@@ -164,7 +164,7 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId)))
       .where(
         and(
           eq(files.userId, userId),
@@ -212,7 +212,7 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId)))
       .where(
         and(
           eq(files.userId, userId),
@@ -327,7 +327,7 @@ export class DatabaseStorage implements IStorage {
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId)))
       .where(and(inArray(files.id, ids), eq(files.userId, userId)));
 
     return result.map(row => ({
