@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import QuickStats from "@/components/quick-stats";
 import RecentActivity from "@/components/recent-activity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles } from "lucide-react";
+import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles, PieChart } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 export function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -126,6 +127,54 @@ export function Dashboard() {
         {/* Statistics */}
         <div>
           <QuickStats stats={stats as any} />
+        </div>
+
+        {/* Category Distribution Chart */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <PieChart className="text-purple-500" />
+                <span>Category Distribution</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {categories.length === 0 ? (
+                <div className="text-center py-8">
+                  <PieChart className="mx-auto text-4xl text-slate-400 mb-2" />
+                  <p className="text-slate-500">No data to display</p>
+                  <p className="text-sm text-slate-400">Upload and process files to see distribution</p>
+                </div>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={categories.map((cat: any, index: number) => ({
+                          name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+                          value: cat.count,
+                          percentage: categories.length > 0 ? ((cat.count / categories.reduce((sum: number, c: any) => sum + c.count, 0)) * 100).toFixed(1) : 0
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percentage }: any) => `${name} (${percentage}%)`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categories.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'][index % 7]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Categories */}
