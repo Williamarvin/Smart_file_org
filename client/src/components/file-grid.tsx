@@ -46,6 +46,7 @@ interface FileItem {
   processedAt?: string;
   processingStatus: string;
   processingError?: string;
+  similarity?: number; // Add similarity score for search results
   metadata?: {
     summary?: string;
     keywords?: string[];
@@ -223,10 +224,12 @@ export default function FileGrid({
                           <h3 className="font-medium text-slate-900 truncate group-hover:text-blue-600">
                             {file.originalName}
                           </h3>
-                          {/* Show relevance indicator for search results */}
-                          {isSearchResults && file.processingStatus === 'completed' && (
-                            <div className="text-xs text-blue-600 font-medium">
-                              Relevant match
+                          {/* Show similarity percentage for search results */}
+                          {isSearchResults && file.processingStatus === 'completed' && file.similarity && (
+                            <div className="text-xs text-green-600 font-medium flex items-center">
+                              <div className="bg-green-100 px-2 py-1 rounded-full">
+                                {Math.round(file.similarity * 100)}% match
+                              </div>
                             </div>
                           )}
                         </div>

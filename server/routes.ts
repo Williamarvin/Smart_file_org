@@ -211,7 +211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Found ${files.length} files matching "${query}"`);
-      console.log(`Files:`, files.map(f => ({ id: f.id, filename: f.filename, hasMetadata: !!f.metadata })));
+      console.log(`Files:`, files.map(f => ({ 
+        id: f.id, 
+        filename: f.filename, 
+        hasMetadata: !!f.metadata,
+        similarity: f.similarity ? (f.similarity * 100).toFixed(1) + '%' : 'N/A'
+      })));
       
       // Store search history
       if (files.length > 0) {
