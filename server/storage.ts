@@ -97,7 +97,12 @@ export class DatabaseStorage implements IStorage {
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
-      .where(eq(files.userId, userId))
+      .where(
+        and(
+          eq(files.userId, userId),
+          ne(files.processingStatus, "error") // Exclude failed files
+        )
+      )
       .orderBy(desc(files.uploadedAt))
       .limit(limit)
       .offset(offset);
