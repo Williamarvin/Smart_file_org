@@ -3,6 +3,7 @@ import {
   files, 
   fileMetadata, 
   searchHistory,
+  folders,
   type User,
   type UpsertUser,
   type File, 
@@ -11,10 +12,13 @@ import {
   type InsertFileMetadata,
   type FileWithMetadata,
   type InsertSearchHistory,
-  type SearchHistory
+  type SearchHistory,
+  type Folder,
+  type InsertFolder,
+  type FolderWithChildren,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray, ne } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray, ne, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -52,6 +56,19 @@ export interface IStorage {
   getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]>;
   getFilesByCategory(category: string, userId: string, limit?: number): Promise<FileWithMetadata[]>;
   getCategories(userId: string): Promise<{ category: string; count: number }[]>;
+  
+  // Folder operations
+  createFolder(folder: InsertFolder, userId: string): Promise<Folder>;
+  getFolder(id: string, userId: string): Promise<Folder | undefined>;
+  getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]>;
+  updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void>;
+  deleteFolder(id: string, userId: string): Promise<void>;
+  moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void>;
+  getFolderPath(folderId: string, userId: string): Promise<string>;
+  
+  // File-folder operations
+  moveFileToFolder(fileId: string, folderId: string | null, userId: string): Promise<void>;
+  getFilesInFolder(folderId: string | null, userId: string): Promise<FileWithMetadata[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -386,6 +403,190 @@ export class DatabaseStorage implements IStorage {
       ...row.file,
       metadata: row.metadata || undefined,
     }));
+  }
+
+  // Folder operations
+  async createFolder(folderData: InsertFolder, userId: string): Promise<Folder> {
+    console.log(`Storage: creating folder for user ${userId}`, folderData);
+    
+    // Build the full path
+    let fullPath = `/${folderData.name}`;
+    if (folderData.parentId) {
+      const parentPath = await this.getFolderPath(folderData.parentId, userId);
+      fullPath = `${parentPath}/${folderData.name}`;
+    }
+    
+    const [folder] = await db
+      .insert(folders)
+      .values({
+        ...folderData,
+        path: fullPath,
+        userId,
+      })
+      .returning();
+    
+    return folder;
+  }
+
+  async getFolder(id: string, userId: string): Promise<Folder | undefined> {
+    const [folder] = await db
+      .select()
+      .from(folders)
+      .where(and(eq(folders.id, id), eq(folders.userId, userId)));
+    
+    return folder;
+  }
+
+  async getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]> {
+    console.log(`Storage: getting folders for user ${userId}, parent: ${parentId}`);
+    
+    const folderQuery = db
+      .select()
+      .from(folders)
+      .where(and(
+        eq(folders.userId, userId),
+        parentId === null || parentId === undefined 
+          ? isNull(folders.parentId)
+          : eq(folders.parentId, parentId)
+      ))
+      .orderBy(folders.name);
+
+    const folderResults = await folderQuery;
+    
+    // Get file counts for each folder
+    const foldersWithChildren: FolderWithChildren[] = [];
+    
+    for (const folder of folderResults) {
+      // Get children folders
+      const children = await db
+        .select()
+        .from(folders)
+        .where(and(eq(folders.parentId, folder.id), eq(folders.userId, userId)))
+        .orderBy(folders.name);
+      
+      // Get files in folder
+      const folderFiles = await db
+        .select()
+        .from(files)
+        .where(and(eq(files.folderId, folder.id), eq(files.userId, userId)))
+        .orderBy(files.filename);
+
+      foldersWithChildren.push({
+        ...folder,
+        children,
+        files: folderFiles,
+      });
+    }
+    
+    return foldersWithChildren;
+  }
+
+  async updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void> {
+    console.log(`Storage: updating folder ${id} for user ${userId}`, updates);
+    
+    // If name is being updated, update the path
+    if (updates.name) {
+      const folder = await this.getFolder(id, userId);
+      if (folder) {
+        let newPath = `/${updates.name}`;
+        if (folder.parentId) {
+          const parentPath = await this.getFolderPath(folder.parentId, userId);
+          newPath = `${parentPath}/${updates.name}`;
+        }
+        updates.path = newPath;
+      }
+    }
+    
+    await db
+      .update(folders)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(folders.id, id), eq(folders.userId, userId)));
+  }
+
+  async deleteFolder(id: string, userId: string): Promise<void> {
+    console.log(`Storage: deleting folder ${id} for user ${userId}`);
+    
+    // Move all files in this folder to root (null folderId)
+    await db
+      .update(files)
+      .set({ folderId: null })
+      .where(and(eq(files.folderId, id), eq(files.userId, userId)));
+    
+    // Move all child folders to root
+    await db
+      .update(folders)
+      .set({ parentId: null })
+      .where(and(eq(folders.parentId, id), eq(folders.userId, userId)));
+    
+    // Delete the folder
+    await db
+      .delete(folders)
+      .where(and(eq(folders.id, id), eq(folders.userId, userId)));
+  }
+
+  async moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void> {
+    console.log(`Storage: moving contents from folder ${fromFolderId} to ${toFolderId} for user ${userId}`);
+    
+    // Move all files
+    await db
+      .update(files)
+      .set({ folderId: toFolderId })
+      .where(and(eq(files.folderId, fromFolderId), eq(files.userId, userId)));
+    
+    // Move all subfolders
+    await db
+      .update(folders)
+      .set({ parentId: toFolderId })
+      .where(and(eq(folders.parentId, fromFolderId), eq(folders.userId, userId)));
+  }
+
+  async getFolderPath(folderId: string, userId: string): Promise<string> {
+    const folder = await this.getFolder(folderId, userId);
+    if (!folder) return "";
+    return folder.path;
+  }
+
+  // File-folder operations
+  async moveFileToFolder(fileId: string, folderId: string | null, userId: string): Promise<void> {
+    console.log(`Storage: moving file ${fileId} to folder ${folderId} for user ${userId}`);
+    
+    await db
+      .update(files)
+      .set({ folderId })
+      .where(and(eq(files.id, fileId), eq(files.userId, userId)));
+  }
+
+  async getFilesInFolder(folderId: string | null, userId: string): Promise<FileWithMetadata[]> {
+    console.log(`Storage: getting files in folder ${folderId} for user ${userId}`);
+    
+    const query = db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+        metadata: fileMetadata,
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(and(
+        eq(files.userId, userId),
+        folderId === null ? isNull(files.folderId) : eq(files.folderId, folderId)
+      ))
+      .orderBy(desc(files.uploadedAt));
+
+    return await query;
   }
 }
 

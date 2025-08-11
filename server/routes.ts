@@ -368,6 +368,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Folder management endpoints
+  app.get("/api/folders", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const parentId = req.query.parentId === 'null' ? null : req.query.parentId;
+      console.log(`Getting folders for parent: ${parentId}`);
+      
+      const folders = await storage.getFolders(userId, parentId);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error getting folders:", error);
+      res.status(500).json({ error: "Failed to get folders" });
+    }
+  });
+
+  app.post("/api/folders", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const folderData = z.object({
+        name: z.string().min(1),
+        parentId: z.string().optional().nullable(),
+        color: z.string().optional(),
+        description: z.string().optional(),
+      }).parse(req.body);
+
+      const folder = await storage.createFolder(folderData, userId);
+      res.status(201).json(folder);
+    } catch (error) {
+      console.error("Error creating folder:", error);
+      res.status(500).json({ error: "Failed to create folder" });
+    }
+  });
+
+  app.put("/api/folders/:id", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { id } = req.params;
+      const updates = z.object({
+        name: z.string().min(1).optional(),
+        color: z.string().optional(),
+        description: z.string().optional(),
+      }).parse(req.body);
+
+      await storage.updateFolder(id, userId, updates);
+      const folder = await storage.getFolder(id, userId);
+      res.json(folder);
+    } catch (error) {
+      console.error("Error updating folder:", error);
+      res.status(500).json({ error: "Failed to update folder" });
+    }
+  });
+
+  app.delete("/api/folders/:id", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { id } = req.params;
+
+      await storage.deleteFolder(id, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      res.status(500).json({ error: "Failed to delete folder" });
+    }
+  });
+
+  app.get("/api/folders/:id/files", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { id } = req.params;
+      const folderId = id === 'root' ? null : id;
+
+      const files = await storage.getFilesInFolder(folderId, userId);
+      res.json(files);
+    } catch (error) {
+      console.error("Error getting files in folder:", error);
+      res.status(500).json({ error: "Failed to get files" });
+    }
+  });
+
+  app.put("/api/files/:fileId/move", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { fileId } = req.params;
+      const { folderId } = z.object({
+        folderId: z.string().nullable(),
+      }).parse(req.body);
+
+      await storage.moveFileToFolder(fileId, folderId, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error moving file:", error);
+      res.status(500).json({ error: "Failed to move file" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
