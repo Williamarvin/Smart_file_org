@@ -182,20 +182,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Searching for: "${query}"`);
       const userId = "demo-user";
 
-      // For now, use text search as primary while debugging semantic search
+      // Use pgvector semantic similarity search with text fallback
       let files: any[] = [];
       
-      console.log("Using text search...");
-      files = await storage.searchFiles(query, userId, 20);
-      console.log(`Text search found ${files.length} files`);
-      
-      // TODO: Re-enable semantic search once debugging is complete
-      /*
       try {
-        console.log("Attempting semantic similarity search...");
+        console.log("Attempting pgvector semantic similarity search...");
         const queryEmbedding = await generateSearchEmbedding(query);
         files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
-        console.log(`Semantic search found ${files.length} files`);
+        console.log(`Pgvector semantic search found ${files.length} files`);
         
         // If semantic search found no results, fallback to text search
         if (files.length === 0) {
@@ -209,7 +203,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         files = await storage.searchFiles(query, userId, 20);
         console.log(`Text search found ${files.length} files`);
       }
-      */
 
       console.log(`Found ${files.length} files matching "${query}"`);
       console.log(`Files:`, files.map(f => ({ id: f.id, filename: f.filename, hasMetadata: !!f.metadata })));

@@ -1,6 +1,6 @@
 # Overview
 
-This is a full-stack document management and search application that allows users to upload, process, and search through documents using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT), generates metadata and embeddings using OpenAI, and provides semantic search capabilities. Built with a React frontend and Express.js backend, the application features a modern multi-page navigation system with dedicated sections for dashboard overview, file browsing, uploading, and analytics.
+This is a full-stack document management and search application that allows users to upload, process, and search through documents using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT), generates metadata and embeddings using OpenAI, and provides semantic search capabilities powered by PostgreSQL pgvector for optimized vector similarity search. Built with a React frontend and Express.js backend, the application features a modern multi-page navigation system with dedicated sections for dashboard overview, file browsing, uploading, and analytics.
 
 # User Preferences
 
@@ -27,13 +27,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Data Storage Architecture
 - **Primary Database**: PostgreSQL via Neon serverless with connection pooling
+- **Vector Store**: PostgreSQL pgvector extension for optimized vector similarity search
 - **Schema Design**: 
   - `files` table for file metadata and processing status
-  - `file_metadata` table for AI-extracted content analysis with vector embeddings
+  - `file_metadata` table for AI-extracted content analysis with optimized vector embeddings
   - `search_history` table for search analytics
   - `users` table for authentication (prepared for future use)
 - **File Storage**: Google Cloud Storage buckets with object-level access control
-- **Vector Search**: PostgreSQL arrays storing OpenAI embeddings for semantic similarity search
+- **Vector Search**: pgvector with HNSW indexing for fast semantic similarity search at scale
 
 ## Key Features
 - **Multi-Page Navigation**: Separate dedicated pages for different functions

@@ -7,8 +7,22 @@ import {
   varchar, 
   timestamp, 
   integer, 
-  real 
+  real,
+  customType
 } from "drizzle-orm/pg-core";
+
+// Define vector type for pgvector
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "vector(1536)";
+  },
+  toDriver(value: number[]): string {
+    return JSON.stringify(value);
+  },
+  fromDriver(value: string): number[] {
+    return JSON.parse(value);
+  },
+});
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -58,7 +72,8 @@ export const fileMetadata = pgTable("file_metadata", {
   topics: text("topics").array(),
   categories: text("categories").array(),
   extractedText: text("extracted_text"),
-  embedding: real("embedding").array(),
+  embedding: real("embedding").array(), // Legacy - keeping for migration
+  embeddingVector: vector("embedding_vector"), // New optimized vector column
   confidence: real("confidence"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
