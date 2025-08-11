@@ -191,9 +191,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
         console.log(`Pgvector semantic search found ${files.length} files`);
         
-        // If semantic search found no results, fallback to text search
+        // If semantic search found no relevant results, fallback to text search
         if (files.length === 0) {
-          console.log("Semantic search returned no results, trying text search fallback...");
+          console.log("Semantic search returned no relevant results (similarity threshold not met), trying text search fallback...");
           files = await storage.searchFiles(query, userId, 20);
           console.log(`Text search fallback found ${files.length} files`);
         }

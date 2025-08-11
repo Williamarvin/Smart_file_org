@@ -272,8 +272,11 @@ export class DatabaseStorage implements IStorage {
       similarity: f.similarity.toFixed(3) 
     })));
 
-    console.log(`Storage: returning ${mappedResults.length} relevant files sorted by similarity`);
-    return mappedResults;
+    // Filter out results with low similarity (threshold: 0.15 for relevance)
+    const relevantResults = mappedResults.filter(file => file.similarity > 0.15);
+    
+    console.log(`Storage: filtered ${mappedResults.length} results to ${relevantResults.length} relevant files (similarity > 0.15)`);
+    return relevantResults;
   }
 
   async createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory> {
