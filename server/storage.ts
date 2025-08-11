@@ -40,6 +40,9 @@ export interface IStorage {
     errorFiles: number;
     totalSize: number;
   }>;
+  
+  // Batch operations
+  getFilesByIds(ids: string[]): Promise<FileWithMetadata[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +279,24 @@ export class DatabaseStorage implements IStorage {
       .from(files);
 
     return stats;
+  }
+
+  async getFilesByIds(ids: string[]): Promise<FileWithMetadata[]> {
+    if (ids.length === 0) return [];
+    
+    const result = await db
+      .select({
+        file: files,
+        metadata: fileMetadata,
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(sql`${files.id} = ANY(${ids})`);
+
+    return result.map(row => ({
+      ...row.file,
+      metadata: row.metadata || undefined,
+    }));
   }
 }
 

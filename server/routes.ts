@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { extractFileMetadata, generateContentEmbedding, findSimilarContent } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles } from "./openai";
 import multer from "multer";
 import PDFParse from "pdf-parse";
 import mammoth from "mammoth";
@@ -210,6 +210,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.sendStatus(404);
       }
       return res.sendStatus(500);
+    }
+  });
+
+  // Generate content using existing files
+  app.post("/api/generate-content", async (req, res) => {
+    try {
+      const { prompt, fileIds, type } = z.object({
+        prompt: z.string(),
+        fileIds: z.array(z.string()),
+        type: z.string(),
+      }).parse(req.body);
+
+      // Get files and their content
+      const files = await storage.getFilesByIds(fileIds);
+      if (files.length === 0) {
+        return res.status(400).json({ error: "No valid files found" });
+      }
+
+      // Combine file contents for context
+      const fileContents = files.map(file => ({
+        filename: file.filename,
+        content: file.extractedText || "",
+        category: file.metadata?.category || "uncategorized"
+      }));
+
+      // Generate content using AI
+      const generatedContent = await generateContentFromFiles(prompt, fileContents, type);
+      
+      res.json({ content: generatedContent });
+    } catch (error) {
+      console.error("Error generating content:", error);
+      res.status(500).json({ error: "Failed to generate content" });
     }
   });
 

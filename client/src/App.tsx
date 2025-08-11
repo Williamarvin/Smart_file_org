@@ -9,6 +9,7 @@ import { Dashboard } from "@/pages/dashboard";
 import { Browse } from "@/pages/browse";
 import { Upload } from "@/pages/upload";
 import { Analysis } from "@/pages/analysis";
+import { Generate } from "@/pages/generate";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
             <Route path="/browse" component={Browse} />
             <Route path="/upload" component={Upload} />
             <Route path="/analysis" component={Analysis} />
+            <Route path="/generate" component={Generate} />
             <Route component={NotFound} />
           </Switch>
         </div>

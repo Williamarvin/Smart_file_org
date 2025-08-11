@@ -137,3 +137,57 @@ Respond with only a JSON array of indices, e.g., [2, 0, 1, 3] where the first nu
     return [];
   }
 }
+
+export async function generateContentFromFiles(
+  prompt: string, 
+  fileContents: Array<{ filename: string; content: string; category: string }>,
+  generationType: string
+): Promise<string> {
+  try {
+    // Create context from files
+    const context = fileContents.map(file => 
+      `=== ${file.filename} (${file.category}) ===\n${file.content}`
+    ).join('\n\n');
+
+    // Limit context to avoid token limits
+    const maxContextLength = 15000;
+    const truncatedContext = context.length > maxContextLength 
+      ? context.slice(0, maxContextLength) + "\n\n[Content truncated...]"
+      : context;
+
+    const systemPrompts = {
+      summary: "You are an expert summarizer and analyst. Create comprehensive summaries and analysis based on the provided documents.",
+      report: "You are a professional report writer. Create detailed, well-structured reports based on the provided documents.",
+      insights: "You are a strategic analyst. Extract key insights, patterns, and actionable information from the provided documents.",
+      recommendations: "You are a strategic advisor. Provide specific, actionable recommendations based on the analysis of the provided documents.",
+      comparison: "You are a comparative analyst. Compare and contrast the key themes, topics, and insights across the provided documents.",
+      creative: "You are a creative content writer. Generate engaging, original content inspired by the themes and information in the provided documents."
+    };
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: systemPrompts[generationType as keyof typeof systemPrompts] || systemPrompts.summary,
+        },
+        {
+          role: "user",
+          content: `Based on the following documents, ${prompt}
+
+Documents:
+${truncatedContext}
+
+Please provide a comprehensive response based on the content and context of these documents.`,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    return response.choices[0].message.content || "Unable to generate content.";
+  } catch (error: any) {
+    console.error("Failed to generate content:", error);
+    throw new Error("Failed to generate content: " + (error?.message || "Unknown error"));
+  }
+}

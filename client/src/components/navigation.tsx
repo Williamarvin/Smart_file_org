@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles } from "lucide-react";
 
 export function Navigation() {
   const [location] = useLocation();
@@ -9,6 +9,7 @@ export function Navigation() {
     { path: "/browse", icon: FolderOpen, label: "Browse Files" },
     { path: "/upload", icon: Upload, label: "Upload Files" },
     { path: "/analysis", icon: BarChart3, label: "Analysis" },
+    { path: "/generate", icon: Sparkles, label: "Generate Content" },
   ];
 
   return (
