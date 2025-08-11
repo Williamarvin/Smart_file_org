@@ -128,14 +128,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Search files
-  app.get("/api/search", async (req, res) => {
+  app.get("/api/search/:query", async (req, res) => {
     try {
-      const query = req.query.q as string;
+      const query = req.params.query as string;
       if (!query) {
         return res.status(400).json({ error: "Search query is required" });
       }
+      
+      console.log(`Searching for: "${query}"`);
 
       const files = await storage.searchFiles(query);
+      console.log(`Found ${files.length} files matching "${query}"`);
       
       // Get metadata for similarity ranking
       const filesWithMetadata = files.filter(f => f.metadata);

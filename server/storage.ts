@@ -122,6 +122,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchFiles(query: string, limit = 20): Promise<FileWithMetadata[]> {
+    console.log(`Storage: searching for "${query}"`);
+    
     const result = await db
       .select({
         file: files,
@@ -155,10 +157,15 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(files.uploadedAt))
       .limit(limit);
 
-    return result.map(row => ({
+    console.log(`Storage: found ${result.length} raw results`);
+    
+    const mappedResults = result.map(row => ({
       ...row.file,
       metadata: row.metadata || undefined,
     }));
+    
+    console.log(`Storage: returning ${mappedResults.length} mapped results`);
+    return mappedResults;
   }
 
   async searchFilesBySimilarity(embedding: number[], limit = 20): Promise<FileWithMetadata[]> {
