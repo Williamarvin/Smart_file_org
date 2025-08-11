@@ -18,7 +18,8 @@ import {
   Grid3X3,
   List,
   ChevronDown,
-  FolderOpen
+  FolderOpen,
+  Move
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FileItem {
   id: string;
@@ -64,6 +66,9 @@ interface FileGridProps {
   onMoveFile?: (fileId: string) => void;
   isSearchResults?: boolean;
   searchQuery?: string;
+  isSelectionMode?: boolean;
+  selectedFileIds?: Set<string>;
+  onSelectFile?: (fileId: string) => void;
 }
 
 const getFileIcon = (mimeType: string) => {
@@ -116,7 +121,10 @@ export default function FileGrid({
   onDeleteFile, 
   onMoveFile,
   isSearchResults = false, 
-  searchQuery 
+  searchQuery,
+  isSelectionMode = false,
+  selectedFileIds = new Set(),
+  onSelectFile
 }: FileGridProps) {
   const [, navigate] = useLocation();
   
@@ -209,9 +217,21 @@ export default function FileGrid({
                 return (
                   <div
                     key={file.id}
-                    className="group border border-slate-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 hover:border-blue-300"
+                    className={`group border border-slate-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 hover:border-blue-300 ${
+                      isSelectionMode && selectedFileIds.has(file.id) ? 'ring-2 ring-blue-500 border-blue-500' : ''
+                    }`}
                   >
                     <div className="flex items-start space-x-3">
+                      {/* Selection Checkbox (only in selection mode) */}
+                      {isSelectionMode && (
+                        <div className="flex items-center pt-1">
+                          <Checkbox
+                            checked={selectedFileIds.has(file.id)}
+                            onCheckedChange={() => onSelectFile?.(file.id)}
+                          />
+                        </div>
+                      )}
+                      
                       {/* File Icon */}
                       <div className={`w-12 h-12 ${iconColors} rounded-lg flex items-center justify-center flex-shrink-0`}>
                         {file.processingStatus === 'processing' ? (
@@ -303,9 +323,10 @@ export default function FileGrid({
                         </div>
                       </div>
                       
-                      {/* Actions Menu */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <DropdownMenu>
+                      {/* Actions Menu (hidden in selection mode) */}
+                      {!isSelectionMode && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
                               <MoreVertical className="h-4 w-4" />
@@ -322,7 +343,7 @@ export default function FileGrid({
                             </DropdownMenuItem>
                             {onMoveFile && (
                               <DropdownMenuItem onClick={() => onMoveFile(file.id)}>
-                                <FolderOpen className="mr-2 h-4 w-4" />
+                                <Move className="mr-2 h-4 w-4" />
                                 Move to Folder
                               </DropdownMenuItem>
                             )}
@@ -335,7 +356,8 @@ export default function FileGrid({
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

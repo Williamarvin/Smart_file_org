@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move } from "lucide-react";
+import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square } from "lucide-react";
 import SearchBar from "@/components/search-bar";
 import FileGrid from "@/components/file-grid";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FolderType {
   id: string;
@@ -52,8 +53,9 @@ export function Browse() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderDescription, setNewFolderDescription] = useState("");
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedMoveFolder, setSelectedMoveFolder] = useState<string>("");
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -158,24 +160,32 @@ export function Browse() {
     },
   });
 
-  // Move file mutation
-  const moveFileMutation = useMutation({
-    mutationFn: ({ fileId, folderId }: { fileId: string; folderId: string | null }) =>
-      apiRequest("PUT", `/api/files/${fileId}/move`, { folderId }),
+  // Move files mutation (supports multiple files)
+  const moveFilesMutation = useMutation({
+    mutationFn: async ({ fileIds, folderId }: { fileIds: string[]; folderId: string | null }) => {
+      // Move files one by one
+      const results = await Promise.all(
+        fileIds.map(fileId => 
+          apiRequest("PUT", `/api/files/${fileId}/move`, { folderId })
+        )
+      );
+      return results;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/files"] });
       setIsMoveDialogOpen(false);
-      setSelectedFileId(null);
+      setSelectedFileIds(new Set());
       setSelectedMoveFolder("");
+      setIsSelectionMode(false);
       toast({
-        title: "File moved",
-        description: "File has been moved successfully.",
+        title: "Files moved",
+        description: `Successfully moved ${selectedFileIds.size} file${selectedFileIds.size > 1 ? 's' : ''}.`,
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error moving file",
+        title: "Error moving files",
         description: error.message || "Something went wrong",
         variant: "destructive",
       });
@@ -195,17 +205,42 @@ export function Browse() {
   };
 
   const handleMoveFile = (fileId: string) => {
-    setSelectedFileId(fileId);
+    setSelectedFileIds(new Set([fileId]));
+    setIsMoveDialogOpen(true);
+  };
+
+  const handleMoveSelectedFiles = () => {
+    if (selectedFileIds.size === 0) return;
     setIsMoveDialogOpen(true);
   };
 
   const handleConfirmMove = () => {
-    if (!selectedFileId || selectedMoveFolder === "") return;
+    if (selectedFileIds.size === 0 || selectedMoveFolder === "") return;
     
-    moveFileMutation.mutate({
-      fileId: selectedFileId,
+    moveFilesMutation.mutate({
+      fileIds: Array.from(selectedFileIds),
       folderId: selectedMoveFolder === "root" ? null : selectedMoveFolder,
     });
+  };
+
+  const handleSelectFile = (fileId: string) => {
+    const newSelected = new Set(selectedFileIds);
+    if (newSelected.has(fileId)) {
+      newSelected.delete(fileId);
+    } else {
+      newSelected.add(fileId);
+    }
+    setSelectedFileIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const allFileIds = Array.isArray(displayFiles) ? displayFiles.map(f => f.id) : [];
+    setSelectedFileIds(new Set(allFileIds));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFileIds(new Set());
+    setIsSelectionMode(false);
   };
 
   const handleCreateFolder = () => {
@@ -276,14 +311,57 @@ export function Browse() {
             ))}
           </div>
 
-          {/* Create Folder Button */}
-          <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <FolderPlus className="h-4 w-4 mr-2" />
-                New Folder
-              </Button>
-            </DialogTrigger>
+          {/* Action Controls */}
+          <div className="flex gap-2">
+            {/* Selection Mode Controls */}
+            {isSelectionMode ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  disabled={!displayFiles || displayFiles.length === 0}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleClearSelection}
+                >
+                  Clear ({selectedFileIds.size})
+                </Button>
+                <Button
+                  onClick={handleMoveSelectedFiles}
+                  disabled={selectedFileIds.size === 0}
+                  size="sm"
+                >
+                  <Move className="w-4 h-4 mr-2" />
+                  Move Selected
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSelectionMode(true)}
+                  size="sm"
+                  disabled={!displayFiles || displayFiles.length === 0}
+                >
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  Select Files
+                </Button>
+              </>
+            )}
+            
+            {/* Create Folder Button */}
+            <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  New Folder
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Folder</DialogTitle>
@@ -325,6 +403,7 @@ export function Browse() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       )}
 
@@ -332,9 +411,9 @@ export function Browse() {
       <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Move File to Folder</DialogTitle>
+            <DialogTitle>Move {selectedFileIds.size} File{selectedFileIds.size > 1 ? 's' : ''} to Folder</DialogTitle>
             <DialogDescription>
-              Choose a destination folder for this file.
+              Choose a destination folder for the selected file{selectedFileIds.size > 1 ? 's' : ''}.
             </DialogDescription>
           </DialogHeader>
           
@@ -361,9 +440,9 @@ export function Browse() {
             </Button>
             <Button 
               onClick={handleConfirmMove}
-              disabled={!selectedMoveFolder || moveFileMutation.isPending}
+              disabled={!selectedMoveFolder || moveFilesMutation.isPending}
             >
-              {moveFileMutation.isPending ? "Moving..." : "Move File"}
+              {moveFilesMutation.isPending ? "Moving..." : `Move ${selectedFileIds.size} File${selectedFileIds.size > 1 ? 's' : ''}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -434,6 +513,9 @@ export function Browse() {
           onMoveFile={handleMoveFile}
           isSearchResults={!!searchQuery}
           searchQuery={searchQuery}
+          isSelectionMode={isSelectionMode}
+          selectedFileIds={selectedFileIds}
+          onSelectFile={handleSelectFile}
         />
       </div>
     </div>
