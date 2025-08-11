@@ -50,6 +50,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Folders table for hierarchical organization
+export const folders = pgTable("folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  parentId: varchar("parent_id"), // Self-reference - will add FK later
+  path: text("path").notNull(), // Full path like "/Documents/Work/Projects"
+  color: text("color"), // Optional folder color
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+});
+
 export const files = pgTable("files", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   filename: text("filename").notNull(),
@@ -57,6 +70,7 @@ export const files = pgTable("files", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
+  folderId: varchar("folder_id").references(() => folders.id, { onDelete: "set null" }), // Files can exist without folders (root level)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
@@ -102,6 +116,42 @@ export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit(
   searchedAt: true,
 });
 
+export const insertFolderSchema = createInsertSchema(folders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Relations
+import { relations } from "drizzle-orm";
+
+export const usersRelations = relations(users, ({ many }) => ({
+  files: many(files),
+  folders: many(folders),
+  searchHistory: many(searchHistory),
+}));
+
+export const foldersRelations = relations(folders, ({ one, many }) => ({
+  parent: one(folders, { fields: [folders.parentId], references: [folders.id] }),
+  children: many(folders),
+  files: many(files),
+  user: one(users, { fields: [folders.userId], references: [users.id] }),
+}));
+
+export const filesRelations = relations(files, ({ one }) => ({
+  folder: one(folders, { fields: [files.folderId], references: [folders.id] }),
+  user: one(users, { fields: [files.userId], references: [users.id] }),
+  metadata: one(fileMetadata, { fields: [files.id], references: [fileMetadata.fileId] }),
+}));
+
+export const fileMetadataRelations = relations(fileMetadata, ({ one }) => ({
+  file: one(files, { fields: [fileMetadata.fileId], references: [files.id] }),
+}));
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, { fields: [searchHistory.userId], references: [users.id] }),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
@@ -110,7 +160,16 @@ export type InsertFileMetadata = z.infer<typeof insertFileMetadataSchema>;
 export type FileMetadata = typeof fileMetadata.$inferSelect;
 export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
 export type SearchHistory = typeof searchHistory.$inferSelect;
+export type InsertFolder = z.infer<typeof insertFolderSchema>;
+export type Folder = typeof folders.$inferSelect;
 
 export type FileWithMetadata = File & {
   metadata?: FileMetadata;
+  folder?: Folder;
+};
+
+export type FolderWithChildren = Folder & {
+  children?: Folder[];
+  files?: File[];
+  parent?: Folder;
 };
