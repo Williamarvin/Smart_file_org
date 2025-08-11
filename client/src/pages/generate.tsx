@@ -98,7 +98,7 @@ export function Generate() {
     URL.revokeObjectURL(url);
   };
 
-  const processedFiles = Array.isArray(files) ? files.filter((file: any) => file.processing_status === "completed") : [];
+  const processedFiles = Array.isArray(files) ? files.filter((file: any) => file.processingStatus === "completed") : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-4 md:p-8">
