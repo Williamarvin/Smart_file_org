@@ -50,27 +50,36 @@ export function Browse() {
   // Get folders for current level
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ["/api/folders", currentFolderId],
-    queryFn: () => apiRequest(`/api/folders?parentId=${currentFolderId || 'null'}`),
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/folders?parentId=${currentFolderId || 'null'}`);
+      return res.json();
+    },
   });
 
   // Get files in current folder
   const { data: folderFiles = [], isLoading: filesLoading } = useQuery({
     queryKey: ["/api/folders", currentFolderId, "files"],
-    queryFn: () => apiRequest(`/api/folders/${currentFolderId || 'root'}/files`),
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/folders/${currentFolderId || 'root'}/files`);
+      return res.json();
+    },
     enabled: !searchQuery, // Only load folder files when not searching
   });
 
   // Search files across all folders
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
     queryKey: ["/api/search", searchQuery],
-    queryFn: () => apiRequest(`/api/search?query=${encodeURIComponent(searchQuery)}`),
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/search?query=${encodeURIComponent(searchQuery)}`);
+      return res.json();
+    },
     enabled: !!searchQuery,
   });
 
   // Create folder mutation
   const createFolderMutation = useMutation({
     mutationFn: (folderData: { name: string; parentId?: string | null; description?: string }) =>
-      apiRequest("/api/folders", "POST", folderData),
+      apiRequest("POST", "/api/folders", folderData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
       setIsCreateFolderOpen(false);
@@ -92,7 +101,7 @@ export function Browse() {
 
   // Delete file mutation
   const deleteFileMutation = useMutation({
-    mutationFn: (fileId: string) => apiRequest(`/api/files/${fileId}`, "DELETE"),
+    mutationFn: (fileId: string) => apiRequest("DELETE", `/api/files/${fileId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/files"] });
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
@@ -113,7 +122,7 @@ export function Browse() {
 
   // Delete folder mutation
   const deleteFolderMutation = useMutation({
-    mutationFn: (folderId: string) => apiRequest(`/api/folders/${folderId}`, "DELETE"),
+    mutationFn: (folderId: string) => apiRequest("DELETE", `/api/folders/${folderId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
       toast({
@@ -163,7 +172,8 @@ export function Browse() {
     
     // For now, just show current folder name - in a full implementation,
     // we'd build the full path from the folder hierarchy
-    const currentFolder = folders.find(f => f.id === currentFolderId);
+    const foldersArray = Array.isArray(folders) ? folders : [];
+    const currentFolder = foldersArray.find((f: FolderType) => f.id === currentFolderId);
     return [
       { name: "Root", id: null },
       ...(currentFolder ? [{ name: currentFolder.name, id: currentFolder.id }] : [])
@@ -262,11 +272,11 @@ export function Browse() {
       )}
 
       {/* Folders Grid */}
-      {!searchQuery && folders.length > 0 && (
+      {!searchQuery && Array.isArray(folders) && folders.length > 0 && (
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Folders</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {folders.map((folder: FolderType) => (
+            {(Array.isArray(folders) ? folders : []).map((folder: FolderType) => (
               <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
                 <div className="flex items-start justify-between">
                   <div 
@@ -316,7 +326,7 @@ export function Browse() {
       <div>
         {searchQuery && (
           <h3 className="text-lg font-semibold text-slate-800 mb-4">
-            Search Results {searchResults.length > 0 && `(${searchResults.length})`}
+            Search Results {Array.isArray(searchResults) && searchResults.length > 0 && `(${searchResults.length})`}
           </h3>
         )}
         <FileGrid 
