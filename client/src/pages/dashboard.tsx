@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import QuickStats from "@/components/quick-stats";
 import RecentActivity from "@/components/recent-activity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart } from "lucide-react";
+import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 
@@ -56,7 +56,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href="/upload">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-200">
             <CardContent className="p-6">
@@ -99,6 +99,22 @@ export function Dashboard() {
                 <div>
                   <h3 className="font-semibold text-slate-800">Analysis</h3>
                   <p className="text-sm text-slate-600">View insights and statistics</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/chat">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <MessageCircle className="text-orange-600 text-xl" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800">Chat with Files</h3>
+                  <p className="text-sm text-slate-600">Ask AI about your documents</p>
                 </div>
               </div>
             </CardContent>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Menu } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 export function MobileNavigation() {
@@ -11,6 +11,8 @@ export function MobileNavigation() {
     { path: "/browse", icon: FolderOpen, label: "Browse Files" },
     { path: "/upload", icon: Upload, label: "Upload Files" },
     { path: "/analysis", icon: BarChart3, label: "Analysis" },
+    { path: "/generate", icon: Sparkles, label: "Generate Content" },
+    { path: "/chat", icon: MessageCircle, label: "Chat with Files" },
   ];
 
   return (
@@ -61,7 +63,7 @@ export function MobileNavigation() {
 
       {/* Bottom Navigation Bar for Mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40">
-        <div className="grid grid-cols-4 gap-1 p-2">
+        <div className="grid grid-cols-6 gap-1 p-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path;
