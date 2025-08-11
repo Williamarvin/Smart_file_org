@@ -11,7 +11,7 @@ import {
   type SearchHistory
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // File operations
@@ -291,7 +291,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
-      .where(sql`${files.id} = ANY(${ids})`);
+      .where(inArray(files.id, ids));
 
     return result.map(row => ({
       ...row.file,
