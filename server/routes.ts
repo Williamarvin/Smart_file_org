@@ -369,6 +369,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Folder management endpoints
+  // Get all folders (for move dialog)
+  app.get("/api/folders/all", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log("Getting all folders for user:", userId);
+      const allFolders = await storage.getAllFolders(userId);
+      res.json(allFolders);
+    } catch (error) {
+      console.error("Error getting all folders:", error);
+      res.status(500).json({ error: "Failed to get folders" });
+    }
+  });
+
   app.get("/api/folders", async (req: any, res) => {
     try {
       const userId = "demo-user";

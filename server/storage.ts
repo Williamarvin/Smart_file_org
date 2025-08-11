@@ -61,6 +61,7 @@ export interface IStorage {
   createFolder(folder: InsertFolder, userId: string): Promise<Folder>;
   getFolder(id: string, userId: string): Promise<Folder | undefined>;
   getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]>;
+  getAllFolders(userId: string): Promise<Folder[]>;
   updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void>;
   deleteFolder(id: string, userId: string): Promise<void>;
   moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void>;
@@ -479,6 +480,18 @@ export class DatabaseStorage implements IStorage {
     }
     
     return foldersWithChildren;
+  }
+
+  async getAllFolders(userId: string): Promise<Folder[]> {
+    console.log(`Storage: getting all folders for user ${userId}`);
+    
+    const result = await db
+      .select()
+      .from(folders)
+      .where(eq(folders.userId, userId))
+      .orderBy(folders.path);
+    
+    return result;
   }
 
   async updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void> {

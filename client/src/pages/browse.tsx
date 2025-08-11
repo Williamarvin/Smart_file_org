@@ -23,6 +23,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +51,9 @@ export function Browse() {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderDescription, setNewFolderDescription] = useState("");
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedMoveFolder, setSelectedMoveFolder] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -52,6 +62,15 @@ export function Browse() {
     queryKey: ["/api/folders", currentFolderId],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/folders?parentId=${currentFolderId || 'null'}`);
+      return res.json();
+    },
+  });
+
+  // Get all folders for move dialog
+  const { data: allFolders = [] } = useQuery({
+    queryKey: ["/api/folders", "all"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/folders/all");
       return res.json();
     },
   });
@@ -139,6 +158,30 @@ export function Browse() {
     },
   });
 
+  // Move file mutation
+  const moveFileMutation = useMutation({
+    mutationFn: ({ fileId, folderId }: { fileId: string; folderId: string | null }) =>
+      apiRequest("PUT", `/api/files/${fileId}/move`, { folderId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      setIsMoveDialogOpen(false);
+      setSelectedFileId(null);
+      setSelectedMoveFolder("");
+      toast({
+        title: "File moved",
+        description: "File has been moved successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error moving file",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
@@ -149,6 +192,20 @@ export function Browse() {
 
   const handleDeleteFolder = (folderId: string) => {
     deleteFolderMutation.mutate(folderId);
+  };
+
+  const handleMoveFile = (fileId: string) => {
+    setSelectedFileId(fileId);
+    setIsMoveDialogOpen(true);
+  };
+
+  const handleConfirmMove = () => {
+    if (!selectedFileId || selectedMoveFolder === "") return;
+    
+    moveFileMutation.mutate({
+      fileId: selectedFileId,
+      folderId: selectedMoveFolder === "root" ? null : selectedMoveFolder,
+    });
   };
 
   const handleCreateFolder = () => {
@@ -271,6 +328,47 @@ export function Browse() {
         </div>
       )}
 
+      {/* Move File Dialog */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move File to Folder</DialogTitle>
+            <DialogDescription>
+              Choose a destination folder for this file.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Label htmlFor="moveFolder">Destination Folder</Label>
+            <Select value={selectedMoveFolder} onValueChange={setSelectedMoveFolder}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Select a folder..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">Root (No folder)</SelectItem>
+                {Array.isArray(allFolders) && allFolders.map((folder: FolderType) => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    📁 {folder.path || folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMoveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmMove}
+              disabled={!selectedMoveFolder || moveFileMutation.isPending}
+            >
+              {moveFileMutation.isPending ? "Moving..." : "Move File"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Folders Grid */}
       {!searchQuery && Array.isArray(folders) && folders.length > 0 && (
         <div className="mb-8">
@@ -333,6 +431,7 @@ export function Browse() {
           files={Array.isArray(displayFiles) ? displayFiles : []}
           isLoading={isLoading}
           onDeleteFile={handleDeleteFile}
+          onMoveFile={handleMoveFile}
           isSearchResults={!!searchQuery}
           searchQuery={searchQuery}
         />

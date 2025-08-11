@@ -17,7 +17,8 @@ import {
   Bot,
   Grid3X3,
   List,
-  ChevronDown
+  ChevronDown,
+  FolderOpen
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,6 +61,7 @@ interface FileGridProps {
   files: FileItem[];
   isLoading: boolean;
   onDeleteFile: (fileId: string) => void;
+  onMoveFile?: (fileId: string) => void;
   isSearchResults?: boolean;
   searchQuery?: string;
 }
@@ -112,6 +114,7 @@ export default function FileGrid({
   files, 
   isLoading, 
   onDeleteFile, 
+  onMoveFile,
   isSearchResults = false, 
   searchQuery 
 }: FileGridProps) {
@@ -317,6 +320,12 @@ export default function FileGrid({
                               <ExternalLink className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
+                            {onMoveFile && (
+                              <DropdownMenuItem onClick={() => onMoveFile(file.id)}>
+                                <FolderOpen className="mr-2 h-4 w-4" />
+                                Move to Folder
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem 
                               onClick={() => onDeleteFile(file.id)}
                               className="text-red-600"
