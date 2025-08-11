@@ -1,6 +1,6 @@
 # Overview
 
-This is a full-stack document management and search application that allows users to upload, process, and search through documents using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT), generates metadata and embeddings using OpenAI, and provides semantic search capabilities. Built with a React frontend and Express.js backend, the application offers a modern file management interface with real-time processing status updates and intelligent content discovery features.
+This is a full-stack document management and search application that allows users to upload, process, and search through documents using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT), generates metadata and embeddings using OpenAI, and provides semantic search capabilities. Built with a React frontend and Express.js backend, the application features a modern multi-page navigation system with dedicated sections for dashboard overview, file browsing, uploading, and analytics.
 
 # User Preferences
 
@@ -12,7 +12,8 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: React with TypeScript using Vite as the build tool
 - **UI Library**: Shadcn/UI components built on Radix UI primitives with Tailwind CSS for styling
 - **State Management**: TanStack Query for server state management and caching
-- **Routing**: Wouter for lightweight client-side routing
+- **Routing**: Wouter for lightweight client-side routing with multi-page navigation
+- **Navigation**: Sidebar-based navigation with dedicated pages for Dashboard, Browse, Upload, and Analysis
 - **File Upload**: Uppy.js with AWS S3 integration for direct-to-cloud uploads
 - **Design System**: Modern, accessible component library with consistent styling using CSS variables
 
@@ -35,11 +36,15 @@ Preferred communication style: Simple, everyday language.
 - **Vector Search**: PostgreSQL arrays storing OpenAI embeddings for semantic similarity search
 
 ## Key Features
+- **Multi-Page Navigation**: Separate dedicated pages for different functions
+  - Dashboard: Overview with quick actions and recent activity
+  - Browse: File exploration with advanced search capabilities  
+  - Upload: Dedicated file upload interface with processing status
+  - Analysis: Comprehensive statistics and insights dashboard
 - **Document Processing Pipeline**: Automated text extraction, AI analysis, and embedding generation
 - **Semantic Search**: Vector similarity search combined with traditional text search
 - **Real-time Updates**: Live processing status updates via polling
 - **File Management**: Upload, preview, delete operations with progress tracking
-- **Analytics**: Search history and file statistics dashboard
 
 # External Dependencies
 
