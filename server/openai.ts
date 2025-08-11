@@ -1,4 +1,8 @@
 import OpenAI from "openai";
+import fs from "fs";
+import path from "path";
+import { spawn } from "child_process";
+import ffmpegPath from "ffmpeg-static";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
@@ -68,6 +72,74 @@ Focus on extracting metadata that would be useful for similarity search and cont
   } catch (error: any) {
     console.error("Failed to extract metadata with GPT:", error);
     throw new Error("Failed to analyze document content: " + (error?.message || "Unknown error"));
+  }
+}
+
+// Extract audio from video file using FFmpeg
+async function extractAudioFromVideo(videoPath: string): Promise<string> {
+  const audioPath = videoPath.replace(/\.[^/.]+$/, '.wav');
+  
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn(ffmpegPath!, [
+      '-i', videoPath,
+      '-vn', // No video
+      '-acodec', 'pcm_s16le', // WAV format
+      '-ar', '16000', // 16kHz sample rate (optimal for Whisper)
+      '-ac', '1', // Mono
+      '-y', // Overwrite output file
+      audioPath
+    ]);
+
+    ffmpeg.on('close', (code) => {
+      if (code === 0) {
+        resolve(audioPath);
+      } else {
+        reject(new Error(`FFmpeg failed with code ${code}`));
+      }
+    });
+
+    ffmpeg.on('error', (error) => {
+      reject(error);
+    });
+  });
+}
+
+// Transcribe video using Whisper
+export async function transcribeVideo(videoPath: string): Promise<string> {
+  try {
+    console.log(`Starting video transcription for: ${videoPath}`);
+    
+    // Extract audio from video
+    const audioPath = await extractAudioFromVideo(videoPath);
+    
+    try {
+      // Transcribe using Whisper
+      const audioReadStream = fs.createReadStream(audioPath);
+      
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioReadStream,
+        model: "whisper-1",
+        language: "en", // Can be made configurable
+        response_format: "verbose_json",
+      });
+      
+      // Clean up temporary audio file
+      fs.unlinkSync(audioPath);
+      
+      console.log(`Video transcription completed. Length: ${transcription.text?.length || 0} characters`);
+      return transcription.text || "";
+      
+    } catch (transcriptionError) {
+      // Clean up audio file even if transcription fails
+      if (fs.existsSync(audioPath)) {
+        fs.unlinkSync(audioPath);
+      }
+      throw transcriptionError;
+    }
+    
+  } catch (error: any) {
+    console.error("Failed to transcribe video:", error);
+    throw new Error("Failed to transcribe video: " + (error?.message || "Unknown error"));
   }
 }
 

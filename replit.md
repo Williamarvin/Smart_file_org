@@ -1,6 +1,6 @@
 # Overview
 
-This is a full-stack document management and search application that allows users to upload, process, and search through documents using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT), generates metadata and embeddings using OpenAI, and provides semantic search capabilities powered by PostgreSQL pgvector for optimized vector similarity search. Built with a React frontend and Express.js backend, the application features a modern multi-page navigation system with dedicated sections for dashboard overview, file browsing, uploading, and analytics.
+This is a full-stack document management and search application that allows users to upload, process, and search through documents and videos using AI-powered content analysis. The system extracts text from various file formats (PDF, DOCX, TXT) and transcribes video content using OpenAI's Whisper model, generates metadata and embeddings using OpenAI GPT-4o, and provides semantic search capabilities powered by PostgreSQL pgvector for optimized vector similarity search. Built with a React frontend and Express.js backend, the application features a modern multi-page navigation system with dedicated sections for dashboard overview, file browsing, uploading, and analytics.
 
 # User Preferences
 
@@ -20,8 +20,8 @@ Preferred communication style: Simple, everyday language.
 ## Backend Architecture
 - **Framework**: Express.js server with TypeScript
 - **Database ORM**: Drizzle ORM with PostgreSQL as the primary database
-- **File Processing**: Async document processing pipeline that extracts text from PDFs, DOCX, and text files
-- **AI Integration**: OpenAI GPT-4o for metadata extraction and content embeddings generation
+- **File Processing**: Async document and video processing pipeline that extracts text from PDFs, DOCX, text files, and transcribes video files using Whisper
+- **AI Integration**: OpenAI GPT-4o for metadata extraction and content embeddings generation, plus Whisper for video transcription
 - **Object Storage**: Google Cloud Storage with custom ACL (Access Control List) system for fine-grained permissions
 - **Development**: Hot reload with Vite integration for seamless full-stack development
 
@@ -42,7 +42,8 @@ Preferred communication style: Simple, everyday language.
   - Browse: File exploration with advanced search capabilities  
   - Upload: Dedicated file upload interface with processing status
   - Analysis: Comprehensive statistics and insights dashboard
-- **Document Processing Pipeline**: Automated text extraction, AI analysis, and embedding generation
+- **Document & Video Processing Pipeline**: Automated text extraction from documents, video transcription via Whisper, AI analysis, and embedding generation
+- **Bulk File Operations**: Multi-file selection with bulk moving capabilities for efficient document organization
 - **Semantic Search**: Vector similarity search combined with traditional text search
 - **Real-time Updates**: Live processing status updates via polling
 - **File Management**: Upload, preview, delete operations with progress tracking
@@ -60,6 +61,8 @@ Preferred communication style: Simple, everyday language.
 - **File Processing**: 
   - `pdf-parse` for PDF text extraction
   - `mammoth` for DOCX document processing
+  - `ffmpeg-static` for video audio extraction
+  - OpenAI Whisper for video transcription
   - `multer` for multipart form handling
 - **UI Components**: Comprehensive Shadcn/UI component library with Radix UI primitives
 - **Development Tools**: 

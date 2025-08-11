@@ -26,21 +26,35 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     try {
       for (const file of Array.from(files)) {
         // Validate file type
-        const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+        const allowedTypes = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          // Video formats
+          'video/mp4',
+          'video/avi',
+          'video/mov',
+          'video/wmv',
+          'video/flv',
+          'video/webm',
+          'video/mkv'
+        ];
         if (!allowedTypes.includes(file.type)) {
           toast({
             title: "Invalid File Type",
-            description: `File "${file.name}" is not supported. Please upload PDF, DOCX, or TXT files only.`,
+            description: `File "${file.name}" is not supported. Please upload PDF, DOCX, TXT, or video files (MP4, AVI, MOV, WMV, FLV, WebM, MKV).`,
             variant: "destructive",
           });
           continue;
         }
 
-        // Validate file size (100MB)
-        if (file.size > 104857600) {
+        // Validate file size (100MB for documents, 500MB for videos)
+        const maxSize = file.type.startsWith('video/') ? 524288000 : 104857600; // 500MB for videos, 100MB for documents
+        const maxSizeLabel = file.type.startsWith('video/') ? '500MB' : '100MB';
+        if (file.size > maxSize) {
           toast({
             title: "File Too Large",
-            description: `File "${file.name}" exceeds 100MB limit.`,
+            description: `File "${file.name}" exceeds ${maxSizeLabel} limit.`,
             variant: "destructive",
           });
           continue;
@@ -108,7 +122,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.docx,.txt"
+        accept=".pdf,.docx,.txt,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -123,7 +137,8 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       </Button>
 
       <div className="text-sm text-slate-500">
-        <p>Supports PDF, DOCX, and TXT files up to 100MB</p>
+        <p>Supports PDF, DOCX, TXT files (up to 100MB) and video files (up to 500MB)</p>
+        <p>Video files will be processed using AI transcription for searchable content</p>
         <p>Click to select multiple files from your computer</p>
       </div>
 

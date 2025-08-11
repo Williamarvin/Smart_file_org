@@ -2,12 +2,15 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
 import mammoth from "mammoth";
 import { z } from "zod";
+import fs from "fs";
+import path from "path";
+import { nanoid } from "nanoid";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -24,6 +27,31 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
       
       case "text/plain":
         return buffer.toString("utf-8");
+      
+      // Video file types
+      case "video/mp4":
+      case "video/avi":
+      case "video/mov":
+      case "video/wmv":
+      case "video/flv":
+      case "video/webm":
+      case "video/mkv":
+        // For video files, we need to save the buffer to a temporary file first
+        const tempVideoPath = path.join('/tmp', `video_${nanoid()}_${filename}`);
+        fs.writeFileSync(tempVideoPath, buffer);
+        
+        try {
+          const transcription = await transcribeVideo(tempVideoPath);
+          // Clean up temporary file
+          fs.unlinkSync(tempVideoPath);
+          return transcription;
+        } catch (videoError) {
+          // Clean up temporary file even if transcription fails
+          if (fs.existsSync(tempVideoPath)) {
+            fs.unlinkSync(tempVideoPath);
+          }
+          throw videoError;
+        }
       
       default:
         throw new Error(`Unsupported file type: ${mimeType}`);
@@ -406,7 +434,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: z.string().optional(),
       }).parse(req.body);
 
-      const folder = await storage.createFolder(folderData, userId);
+      const folder = await storage.createFolder({
+        path: `/${folderData.name}`,
+        name: folderData.name,
+        userId: userId,
+        color: folderData.color || undefined,
+        description: folderData.description || undefined,
+        parentId: folderData.parentId || null,
+      });
       res.status(201).json(folder);
     } catch (error) {
       console.error("Error creating folder:", error);

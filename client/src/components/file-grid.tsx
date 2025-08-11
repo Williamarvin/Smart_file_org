@@ -6,6 +6,7 @@ import {
   FileText, 
   FileSpreadsheet, 
   FileImage, 
+  FileVideo,
   File as FileIcon,
   MoreVertical,
   Star,
@@ -77,6 +78,7 @@ const getFileIcon = (mimeType: string) => {
   if (mimeType.includes('text')) return FileText;
   if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return FileSpreadsheet;
   if (mimeType.includes('image')) return FileImage;
+  if (mimeType.includes('video')) return FileVideo;
   return FileIcon;
 };
 
@@ -86,6 +88,7 @@ const getFileIconColor = (mimeType: string) => {
   if (mimeType.includes('text')) return 'text-gray-600 bg-gray-100';
   if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'text-green-600 bg-green-100';
   if (mimeType.includes('image')) return 'text-purple-600 bg-purple-100';
+  if (mimeType.includes('video')) return 'text-orange-600 bg-orange-100';
   return 'text-slate-600 bg-slate-100';
 };
 
