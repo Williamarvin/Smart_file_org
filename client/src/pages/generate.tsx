@@ -91,63 +91,131 @@ export function Generate() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Extract title from content or generate one based on generation type
+    let documentTitle = "Generated Content";
+    const firstLine = generatedContent.split('\n')[0];
+    
+    // Check if first line looks like a title (starts with ** or is short)
+    if (firstLine.startsWith('**') && firstLine.endsWith('**')) {
+      documentTitle = firstLine.replace(/\*\*/g, '').trim();
+    } else if (firstLine.length < 100 && !firstLine.includes('.')) {
+      documentTitle = firstLine;
+    } else {
+      // Generate title based on generation type
+      const typeMap = {
+        'summary': 'Document Summary and Analysis',
+        'report': 'Detailed Report',
+        'insights': 'Key Insights and Findings',
+        'recommendations': 'Recommendations and Action Items',
+        'comparison': 'Comparative Analysis',
+        'creative': 'Creative Content'
+      };
+      documentTitle = typeMap[generationType] || 'Generated Content';
+    }
+
+    // Process content to convert markdown-style formatting to HTML
+    const processedContent = generatedContent
+      // Convert **text** to <strong>text</strong>
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Convert section headers (lines starting with **)
+      .replace(/^\*\*(.*?)\*\*$/gm, '<h3>$1</h3>')
+      // Convert line breaks
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
     // Create HTML content for PDF
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Generated Content</title>
+        <title>${documentTitle}</title>
         <style>
           body {
             font-family: 'Times New Roman', serif;
-            line-height: 1.6;
+            line-height: 1.7;
             max-width: 8.5in;
-            margin: 1in auto;
-            color: #333;
+            margin: 0.8in auto;
+            color: #2c3e50;
             background: white;
+            font-size: 12pt;
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 3px solid #34495e;
+            padding-bottom: 25px;
+            margin-bottom: 40px;
+            page-break-after: avoid;
           }
           .title {
-            font-size: 24px;
+            font-size: 28pt;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            letter-spacing: 1px;
           }
-          .date {
-            font-size: 14px;
-            color: #666;
+          .subtitle {
+            font-size: 14pt;
+            color: #7f8c8d;
+            font-style: italic;
           }
           .content {
-            white-space: pre-wrap;
-            font-size: 12px;
             text-align: justify;
+            text-indent: 0;
+          }
+          .content p {
+            margin-bottom: 16px;
+            line-height: 1.8;
+          }
+          .content h3 {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 30px 0 15px 0;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            page-break-after: avoid;
+          }
+          .content strong {
+            font-weight: bold;
+            color: #2c3e50;
           }
           .footer {
-            margin-top: 40px;
+            margin-top: 50px;
             text-align: center;
-            font-size: 10px;
-            color: #888;
-            border-top: 1px solid #ddd;
+            font-size: 10pt;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
             padding-top: 20px;
+            page-break-inside: avoid;
           }
           @media print {
-            body { margin: 0; }
-            .header { page-break-after: avoid; }
+            body { 
+              margin: 0.5in; 
+              font-size: 11pt;
+            }
+            .header { 
+              page-break-after: avoid;
+            }
+            .content h3 {
+              page-break-after: avoid;
+            }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="title">AI Generated Content</div>
-          <div class="date">Generated on ${new Date().toLocaleDateString()}</div>
+          <div class="title">${documentTitle}</div>
+          <div class="subtitle">Generated on ${new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</div>
         </div>
-        <div class="content">${generatedContent.replace(/\n/g, '<br>')}</div>
+        <div class="content">
+          <p>${processedContent}</p>
+        </div>
         <div class="footer">
-          Generated by SmartFile Organizer - AI Content Generation
+          Generated by SmartFile Organizer AI Content Generation System
         </div>
       </body>
       </html>
@@ -165,8 +233,8 @@ export function Generate() {
     }, 500);
 
     toast({
-      title: "PDF Download",
-      description: "Print dialog opened. Choose 'Save as PDF' to download.",
+      title: "PDF Ready",
+      description: "Professional PDF opened in print dialog. Choose 'Save as PDF' to download.",
     });
   };
 
