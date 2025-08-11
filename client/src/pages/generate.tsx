@@ -9,6 +9,45 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Sparkles, FileText, Brain, Copy, Download, Wand2 } from "lucide-react";
 
+const CUSTOM_PROMPTS = {
+  summary: [
+    "Create a comprehensive executive summary highlighting the key points, main findings, and actionable insights from these documents.",
+    "Summarize the most important themes and topics covered in these documents with specific examples and details.",
+    "Provide a detailed overview of the content, identifying the core concepts and their relationships across all documents.",
+    "Generate a structured summary with main points, supporting details, and key takeaways for quick reference."
+  ],
+  report: [
+    "Create a professional report analyzing the key findings, trends, and patterns identified across these documents.",
+    "Generate a comprehensive research report with introduction, methodology, findings, and conclusions based on the document content.",
+    "Produce a detailed analytical report examining the main themes, supporting evidence, and strategic implications.",
+    "Create a formal business report with executive summary, detailed analysis, and actionable recommendations."
+  ],
+  insights: [
+    "Extract the most valuable insights and hidden patterns that emerge from analyzing these documents together.",
+    "Identify key trends, correlations, and surprising discoveries that aren't immediately obvious from individual documents.",
+    "Uncover strategic insights and competitive advantages that can be derived from the information in these documents.",
+    "Analyze the data to reveal actionable insights that could inform decision-making and future strategy."
+  ],
+  recommendations: [
+    "Provide specific, actionable recommendations based on the analysis of these documents, including implementation steps.",
+    "Generate strategic recommendations with clear priorities, timelines, and expected outcomes based on the document content.",
+    "Create a comprehensive action plan with specific recommendations, resource requirements, and success metrics.",
+    "Develop tactical recommendations addressing the key challenges and opportunities identified in these documents."
+  ],
+  comparison: [
+    "Compare and contrast the main themes, methodologies, and conclusions across these documents, highlighting similarities and differences.",
+    "Analyze the different perspectives and approaches presented in these documents, identifying areas of agreement and divergence.",
+    "Create a comparative analysis examining how different documents address similar topics or problems.",
+    "Generate a side-by-side comparison of key concepts, strategies, and outcomes presented across the selected documents."
+  ],
+  creative: [
+    "Create an engaging narrative or story inspired by the themes and concepts found in these documents.",
+    "Generate creative content that reimagines the information in these documents through a new lens or format.",
+    "Develop innovative ideas and creative solutions based on the inspiration drawn from these document themes.",
+    "Craft compelling content that creatively interprets and presents the key ideas from these documents."
+  ]
+};
+
 export function Generate() {
   const [prompt, setPrompt] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -363,6 +402,26 @@ export function Generate() {
                   onChange={(e) => setPrompt(e.target.value)}
                   className="min-h-[120px]"
                 />
+                
+                {/* Custom Prompt Suggestions */}
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-slate-700 mb-3">Quick Start Prompts:</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {CUSTOM_PROMPTS[generationType as keyof typeof CUSTOM_PROMPTS]?.map((promptText, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setPrompt(promptText)}
+                        className="text-left p-3 text-sm bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors group"
+                      >
+                        <div className="flex items-start space-x-2">
+                          <Wand2 className="flex-shrink-0 w-4 h-4 text-purple-500 mt-0.5 group-hover:text-purple-600" />
+                          <span className="text-slate-700 group-hover:text-slate-800">{promptText}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
                 <div className="mt-4">
                   <Button
                     onClick={handleGenerate}
