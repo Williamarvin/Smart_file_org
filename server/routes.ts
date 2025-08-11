@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -180,8 +180,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Searching for: "${query}"`);
+      const userId = "demo-user";
 
-      const files = await storage.searchFiles(query);
+      // For now, use text search as primary while debugging semantic search
+      let files: any[] = [];
+      
+      console.log("Using text search...");
+      files = await storage.searchFiles(query, userId, 20);
+      console.log(`Text search found ${files.length} files`);
+      
+      // TODO: Re-enable semantic search once debugging is complete
+      /*
+      try {
+        console.log("Attempting semantic similarity search...");
+        const queryEmbedding = await generateSearchEmbedding(query);
+        files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
+        console.log(`Semantic search found ${files.length} files`);
+        
+        // If semantic search found no results, fallback to text search
+        if (files.length === 0) {
+          console.log("Semantic search returned no results, trying text search fallback...");
+          files = await storage.searchFiles(query, userId, 20);
+          console.log(`Text search fallback found ${files.length} files`);
+        }
+      } catch (embeddingError) {
+        console.error("Semantic search failed, falling back to text search:", embeddingError);
+        // Fallback to text-based search
+        files = await storage.searchFiles(query, userId, 20);
+        console.log(`Text search found ${files.length} files`);
+      }
+      */
+
       console.log(`Found ${files.length} files matching "${query}"`);
       console.log(`Files:`, files.map(f => ({ id: f.id, filename: f.filename, hasMetadata: !!f.metadata })));
       
@@ -191,8 +220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createSearchHistory({
             query,
             results: files.map(f => ({ id: f.id, similarity: 100 })),
-            userId: null,
-          });
+          }, userId);
         } catch (error) {
           console.error("Error storing search history:", error);
         }
@@ -252,8 +280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Combine file contents for context
       const fileContents = files.map(file => ({
         filename: file.filename,
-        content: file.extractedText || "",
-        category: file.metadata?.category || "uncategorized"
+        content: file.metadata?.extractedText || "",
+        category: file.metadata?.categories?.[0] || "uncategorized"
       }));
 
       // Generate content using AI

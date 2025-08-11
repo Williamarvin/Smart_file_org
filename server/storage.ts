@@ -203,9 +203,10 @@ export class DatabaseStorage implements IStorage {
     return mappedResults;
   }
 
-  async searchFilesBySimilarity(embedding: number[], userId: string, limit = 20): Promise<FileWithMetadata[]> {
-    // Note: This is a simplified similarity search
-    // In production, you'd want to use a proper vector database like pgvector
+  async searchFilesBySimilarity(embedding: number[], userId: string = "demo-user", limit = 20): Promise<FileWithMetadata[]> {
+    console.log(`Storage: semantic search for user ${userId}`);
+    
+    // Get all files with embeddings
     const result = await db
       .select({
         file: files,
@@ -219,14 +220,44 @@ export class DatabaseStorage implements IStorage {
           eq(files.processingStatus, "completed"),
           sql`${fileMetadata.embedding} IS NOT NULL`
         )
-      )
-      .orderBy(desc(files.uploadedAt))
-      .limit(limit);
+      );
 
-    return result.map(row => ({
-      ...row.file,
-      metadata: row.metadata || undefined,
-    }));
+    console.log(`Storage: found ${result.length} files with embeddings`);
+
+    // Calculate cosine similarity for each file
+    const filesWithSimilarity = result.map(row => {
+      const fileEmbedding = row.metadata?.embedding;
+      let similarity = 0;
+      
+      if (fileEmbedding && Array.isArray(fileEmbedding)) {
+        // Calculate cosine similarity
+        const dotProduct = embedding.reduce((sum, val, i) => sum + val * fileEmbedding[i], 0);
+        const magnitude1 = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+        const magnitude2 = Math.sqrt(fileEmbedding.reduce((sum, val) => sum + val * val, 0));
+        similarity = dotProduct / (magnitude1 * magnitude2);
+      }
+      
+      return {
+        ...row.file,
+        metadata: row.metadata || undefined,
+        similarity
+      };
+    });
+
+    // Debug: Log similarity scores before filtering
+    console.log(`Storage: similarity scores:`, filesWithSimilarity.map(f => ({ 
+      filename: f.filename, 
+      similarity: f.similarity.toFixed(3) 
+    })));
+
+    // Sort by similarity (highest first) and filter relevant results (similarity > 0.4)
+    const sortedFiles = filesWithSimilarity
+      .filter(file => file.similarity > 0.4) // Lower threshold for more results
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
+
+    console.log(`Storage: returning ${sortedFiles.length} relevant files sorted by similarity`);
+    return sortedFiles;
   }
 
   async createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory> {
@@ -262,18 +293,20 @@ export class DatabaseStorage implements IStorage {
       size: row.size,
       objectPath: row.object_path,
       processingStatus: row.processing_status,
+      processedAt: row.processed_at,
+      processingError: row.processing_error,
       uploadedAt: row.uploaded_at,
       userId: row.user_id,
       metadata: row.file_id ? {
         id: row.file_id,
         fileId: row.file_id,
-        userId: row.user_id,
         extractedText: row.extracted_text,
         summary: row.summary,
         keywords: row.keywords,
         topics: row.topics,
         categories: row.categories,
-        processedAt: row.processed_at,
+        embedding: row.embedding,
+        confidence: row.confidence,
       } : undefined,
     }));
   }
