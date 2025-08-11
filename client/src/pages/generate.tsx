@@ -392,14 +392,17 @@ export function Generate() {
                         size="sm"
                         variant="outline"
                         onClick={copyToClipboard}
+                        title="Copy to clipboard"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={downloadContent}
                         title="Download as PDF"
+                        className="bg-purple-50 border-purple-200 hover:bg-purple-100"
                       >
                         <Download className="h-4 w-4 mr-1" />
                         PDF
@@ -422,10 +425,19 @@ export function Generate() {
                   </div>
                 ) : generatedContent ? (
                   <div className="prose prose-slate max-w-none">
-                    <div className="bg-slate-50 rounded-lg p-4 border">
-                      <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
-                        {generatedContent}
-                      </pre>
+                    <div className="bg-white rounded-lg p-6 border shadow-sm">
+                      <div 
+                        className="text-sm text-slate-800 leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                          __html: generatedContent
+                            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+                            .replace(/^\*\*(.*?)\*\*$/gm, '<h3 class="text-lg font-bold text-slate-900 mt-6 mb-3 border-l-4 border-blue-500 pl-3">$1</h3>')
+                            .replace(/\n\n/g, '</p><p class="mb-4">')
+                            .replace(/\n/g, '<br>')
+                            .replace(/^(.)/gm, '<p class="mb-4">$1')
+                            .replace(/<p class="mb-4">(<h3|<\/p>)/g, '$1')
+                        }}
+                      />
                     </div>
                   </div>
                 ) : (
