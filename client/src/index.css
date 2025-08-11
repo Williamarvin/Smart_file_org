@@ -69,6 +69,23 @@
   --purple-600: hsl(271, 81%, 56%);
 }
 
+/* Ensure file upload components have proper z-index */
+.file-upload-zone {
+  position: relative;
+  z-index: 10;
+}
+
+.file-upload-zone button {
+  position: relative;
+  z-index: 20;
+}
+
+/* Prevent webview overlays from interfering */
+.upload-page-container {
+  position: relative;
+  z-index: 1;
+}
+
 .dark {
   --background: hsl(222, 84%, 5%);
   --foreground: hsl(210, 40%, 98%);

@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { ObjectUploader } from "./ObjectUploader";
 import { CloudUploadIcon, Plus, Check, Bot } from "lucide-react";
 import type { UploadResult } from "@uppy/core";
 

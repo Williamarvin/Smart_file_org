@@ -139,37 +139,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const files = await storage.searchFiles(query);
       console.log(`Found ${files.length} files matching "${query}"`);
+      console.log(`Files:`, files.map(f => ({ id: f.id, filename: f.filename, hasMetadata: !!f.metadata })));
       
-      // Get metadata for similarity ranking
-      const filesWithMetadata = files.filter(f => f.metadata);
-      
-      if (filesWithMetadata.length > 0) {
-        const metadataArray = filesWithMetadata.map(f => ({
-          summary: f.metadata?.summary || "",
-          keywords: f.metadata?.keywords || [],
-          topics: f.metadata?.topics || [],
-        }));
-
-        // Use AI to rank by similarity
-        const similarityRanking = await findSimilarContent(query, metadataArray);
-        
-        // Reorder results based on AI ranking
-        const rankedFiles = similarityRanking
-          .map(index => filesWithMetadata[index])
-          .filter(Boolean)
-          .concat(files.filter(f => !f.metadata)); // Add unprocessed files at the end
-        
-        // Store search history
-        await storage.createSearchHistory({
-          query,
-          results: rankedFiles.map(f => ({ id: f.id, similarity: Math.random() * 100 })), // TODO: Calculate real similarity scores
-          userId: null,
-        });
-
-        res.json(rankedFiles);
-      } else {
-        res.json(files);
+      // Store search history
+      if (files.length > 0) {
+        try {
+          await storage.createSearchHistory({
+            query,
+            results: files.map(f => ({ id: f.id, similarity: 100 })),
+            userId: null,
+          });
+        } catch (error) {
+          console.error("Error storing search history:", error);
+        }
       }
+
+      console.log(`Returning ${files.length} files`);
+      res.json(files);
     } catch (error) {
       console.error("Error searching files:", error);
       res.status(500).json({ error: "Failed to search files" });

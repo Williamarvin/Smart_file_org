@@ -71,13 +71,13 @@ export function Upload() {
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Upload Files</h1>
+    <div className="upload-page-container p-4 lg:p-8 min-h-screen relative">
+      <div className="mb-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 mb-2">Upload Files</h1>
         <p className="text-slate-600">Upload documents for AI-powered analysis and organization</p>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6 relative z-10">
         {/* Upload Zone */}
         <div className="max-w-4xl mx-auto">
           <FileUploadZone onUploadSuccess={handleFileUploadSuccess} />
