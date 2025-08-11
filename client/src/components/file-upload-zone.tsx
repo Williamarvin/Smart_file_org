@@ -47,12 +47,11 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
 
         // Get upload URL
-        const uploadResponse = await apiRequest("/api/objects/upload", {
-          method: "POST",
-        });
+        const uploadResponse = await apiRequest("POST", "/api/files/upload-url", {});
+        const uploadData = await uploadResponse.json();
 
         // Upload file directly
-        const uploadResult = await fetch(uploadResponse.uploadURL, {
+        const uploadResult = await fetch(uploadData.uploadURL, {
           method: "PUT",
           body: file,
           headers: {
@@ -70,13 +69,10 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           originalName: file.name,
           mimeType: file.type,
           size: file.size,
-          uploadURL: uploadResponse.uploadURL,
+          uploadURL: uploadData.uploadURL,
         };
 
-        await apiRequest("/api/files", {
-          method: "POST",
-          body: fileData,
-        });
+        await apiRequest("POST", "/api/files", fileData);
       }
 
       // Invalidate queries to refresh the UI
