@@ -76,10 +76,10 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createFile(insertFile: InsertFile, userId: string): Promise<File> {
+  async createFile(insertFile: InsertFile & { userId: string }): Promise<File> {
     const [file] = await db
       .insert(files)
-      .values({ ...insertFile, userId })
+      .values(insertFile)
       .returning();
     return file;
   }
@@ -89,14 +89,14 @@ export class DatabaseStorage implements IStorage {
     return file || undefined;
   }
 
-  async getFiles(userId: string, limit = 50, offset = 0): Promise<FileWithMetadata[]> {
+  async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
     const result = await db
       .select({
         file: files,
         metadata: fileMetadata,
       })
       .from(files)
-      .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId), eq(fileMetadata.userId, userId)))
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
       .where(eq(files.userId, userId))
       .orderBy(desc(files.uploadedAt))
       .limit(limit)
@@ -132,10 +132,10 @@ export class DatabaseStorage implements IStorage {
     await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
-  async createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata> {
+  async createFileMetadata(metadata: InsertFileMetadata): Promise<FileMetadata> {
     const [result] = await db
       .insert(fileMetadata)
-      .values({ ...metadata, userId })
+      .values(metadata)
       .returning();
     return result;
   }
@@ -245,7 +245,6 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
         WHERE f.user_id = ${userId}
         AND f.processing_status = 'completed'
-        AND fm.user_id = ${userId}
         AND EXISTS (
           SELECT 1 FROM unnest(fm.categories) AS category_item 
           WHERE category_item ILIKE ${`%${category}%`}
@@ -287,7 +286,6 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN files f ON f.id = fm.file_id
         WHERE f.processing_status = 'completed'
         AND f.user_id = ${userId}
-        AND fm.user_id = ${userId}
         GROUP BY unnest(categories)
         ORDER BY COUNT(*) DESC
       `

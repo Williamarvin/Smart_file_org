@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles } from "./openai";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
 import mammoth from "mammoth";
@@ -34,25 +34,22 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  await setupAuth(app);
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
+  // Mock user endpoint - no authentication
+  app.get('/api/auth/user', async (req: any, res) => {
+    // Return a mock user for testing
+    res.json({
+      id: "demo-user",
+      email: "demo@example.com",
+      firstName: "Demo",
+      lastName: "User",
+      profileImageUrl: null
+    });
   });
 
   const objectStorageService = new ObjectStorageService();
 
   // Get upload URL for file
-  app.post("/api/files/upload-url", isAuthenticated, async (req: any, res) => {
+  app.post("/api/files/upload-url", async (req: any, res) => {
     try {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       res.json({ uploadURL });
@@ -63,9 +60,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create file record after upload
-  app.post("/api/files", isAuthenticated, async (req: any, res) => {
+  app.post("/api/files", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const fileData = z.object({
         filename: z.string(),
         originalName: z.string(),
@@ -97,13 +94,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all files
-  app.get("/api/files", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const files = await storage.getFiles(userId, limit, offset);
+      const files = await storage.getFiles(userId = "demo-user", limit, offset);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -112,13 +109,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get files by category
-  app.get("/api/files/category/:category", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files/category/:category", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const category = req.params.category as string;
       const limit = parseInt(req.query.limit as string) || 20;
       
-      const files = await storage.getFilesByCategory(category, userId, limit);
+      const files = await storage.getFilesByCategory(category, userId = "demo-user", limit);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files by category:", error);
@@ -127,9 +124,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file categories with counts
-  app.get("/api/categories", isAuthenticated, async (req: any, res) => {
+  app.get("/api/categories", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const categories = await storage.getCategories(userId);
       res.json(categories);
     } catch (error) {
@@ -139,9 +136,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific file
-  app.get("/api/files/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/files/:id", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const file = await storage.getFile(req.params.id, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
@@ -156,9 +153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete file
-  app.delete("/api/files/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/files/:id", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const file = await storage.getFile(req.params.id, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
@@ -209,9 +206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file statistics
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/stats", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const stats = await storage.getFileStats(userId);
       res.json(stats);
     } catch (error) {
@@ -236,9 +233,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate content using existing files
-  app.post("/api/generate-content", isAuthenticated, async (req: any, res) => {
+  app.post("/api/generate-content", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const { prompt, fileIds, type } = z.object({
         prompt: z.string(),
         fileIds: z.array(z.string()),
@@ -269,9 +266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat with files endpoint
-  app.post("/api/chat", isAuthenticated, async (req: any, res) => {
+  app.post("/api/chat", async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = "demo-user";
       const { message, fileIds } = z.object({
         message: z.string(),
         fileIds: z.array(z.string()).optional().default([]),

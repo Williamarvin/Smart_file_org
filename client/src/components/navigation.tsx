@@ -1,12 +1,17 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, LogOut, User } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 
 export function Navigation() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  
+  // Mock user for display
+  const user = {
+    firstName: "Demo",
+    lastName: "User",
+    email: "demo@example.com",
+    profileImageUrl: null
+  };
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -70,15 +75,7 @@ export function Navigation() {
               )}
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full"
-            onClick={() => window.location.href = '/api/logout'}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+
         </div>
       )}
     </nav>
