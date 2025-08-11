@@ -4,28 +4,11 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast";
 
 export function MobileNavigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
-
-  const handleSignOut = async () => {
-    try {
-      setIsOpen(false);
-      await signOut(auth);
-    } catch (error: any) {
-      toast({
-        title: "Sign Out Failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const navItems = [
     { path: "/", icon: Home, label: "Dashboard" },
@@ -83,14 +66,17 @@ export function MobileNavigation() {
                 <div className="pt-4 border-t border-slate-200 mt-4">
                   <div className="flex items-center space-x-3 px-4 py-3 mb-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                      <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
                       <AvatarFallback>
                         <User className="w-4 h-4" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">
-                        {user.displayName || user.email || "User"}
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName}`
+                          : user.email || "User"
+                        }
                       </p>
                       {user.email && (
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
@@ -101,7 +87,10 @@ export function MobileNavigation() {
                     variant="outline" 
                     size="sm" 
                     className="w-full mx-4"
-                    onClick={handleSignOut}
+                    onClick={() => {
+                      setIsOpen(false);
+                      window.location.href = '/api/logout';
+                    }}
                   >
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
