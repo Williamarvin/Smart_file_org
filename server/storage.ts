@@ -95,14 +95,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // All files now use cloud storage only (bytea column removed)
+    // Implement dual storage: PostgreSQL bytea (up to 1GB) + Google Cloud Storage
+    const maxBytea = 1073741823; // Just under 1 GiB (1,073,741,823 bytes)
+    const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
+    
     const insertData = {
       ...insertFile,
       userId,
-      storageType: 'cloud' // All files use cloud storage
+      fileData: shouldStoreBytea ? rawFileData : null, // Store in bytea if ≤ 1GB
+      storageType: 'dual' as const // Both database and cloud storage
     };
     
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, cloud storage only`);
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, bytea: ${shouldStoreBytea ? 'yes' : 'no (>1GB)'}`);
     
     const [file] = await db
       .insert(files)
@@ -112,47 +116,97 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFile(id: string, userId: string): Promise<File | undefined> {
+    // Optimized query that excludes bytea for performance (use getFileData for bytea)
     const [file] = await db
-      .select()
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        fileData: sql<Buffer | null>`NULL`, // Exclude bytea for performance
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+      })
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
   }
 
-  // Get file data from cloud storage only (bytea column removed)
+  // Get file data from PostgreSQL bytea (up to 1GB files)
   async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
-    // File data is now stored only in cloud storage, not in database
-    // This method is kept for API compatibility but returns undefined
-    console.log(`getFileData called for ${id} - data now stored in cloud only`);
-    return undefined;
-  }
-
-  // Check if file has cloud storage (database storage removed)
-  async hasFileData(id: string, userId: string): Promise<boolean> {
     const [file] = await db
-      .select({ storageType: files.storageType })
+      .select({ fileData: files.fileData })
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     
-    // All files now use cloud storage only
-    return !!(file?.storageType === 'cloud' || file?.storageType === 'dual');
+    return file?.fileData as Buffer || undefined;
   }
 
-  // Get files for cloud storage (bytea column removed, method kept for compatibility)
+  // Check if file has bytea data in database
+  async hasFileData(id: string, userId: string): Promise<boolean> {
+    const [file] = await db
+      .select({ fileData: files.fileData, storageType: files.storageType })
+      .from(files)
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    
+    return !!(file?.fileData || file?.storageType === 'dual');
+  }
+
+  // Get files that need bytea backfill (dual storage files ≤ 1GB without bytea data)
   async getFilesWithoutBytea(userId: string): Promise<File[]> {
     const result = await db
-      .select()
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+      })
       .from(files)
-      .where(eq(files.userId, userId))
-      .orderBy(asc(files.size));
+      .where(
+        and(
+          eq(files.userId, userId),
+          isNull(files.fileData), // Files without bytea data
+          sql`${files.size} <= 1073741823`, // Only files ≤ 1GB should have bytea
+          eq(files.storageType, 'dual') // Only dual storage files need backfill
+        )
+      )
+      .orderBy(asc(files.size)); // Start with smaller files first
     
     return result;
   }
 
-  // Update file data - now no-op since bytea column removed
+  // Update file data in PostgreSQL bytea (for dual storage)
   async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
-    console.log(`updateFileData called for ${id} - bytea storage disabled`);
-    // No-op since file_data column has been removed
+    const maxBytea = 1073741823; // Just under 1 GiB
+    
+    if (fileData.length > maxBytea) {
+      console.log(`File too large for bytea storage: ${fileData.length} bytes > ${maxBytea} bytes`);
+      return; // Skip if file is too large for bytea
+    }
+    
+    await db
+      .update(files)
+      .set({ fileData })
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    
+    console.log(`Updated bytea data for file ${id}: ${fileData.length} bytes`);
   }
 
   // Update storage type

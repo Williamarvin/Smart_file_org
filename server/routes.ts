@@ -462,19 +462,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("File not found");
       }
 
-      // Get file data - all files now use cloud storage only
+      // Get file data using dual storage strategy (PostgreSQL bytea + Google Cloud Storage)
       let fileData: Buffer;
       if (rawFileData) {
         fileData = rawFileData;
-        console.log("Using raw file data");
-        console.log(`Using cloud storage for file: ${file.filename}`);
+        console.log("Using raw file data from upload");
+        
+        // Store in database if ≤ 1GB for dual storage
+        if (file.storageType === 'dual' && fileData.length <= 1073741823 && !await storage.hasFileData(fileId, userId)) {
+          await storage.updateFileData(fileId, userId, rawFileData);
+          console.log(`Stored file data in PostgreSQL bytea: ${file.filename}`);
+        }
       } else {
-        // Get from object storage
-        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-        const [downloadedData] = await objectFile.download();
-        fileData = downloadedData;
-        console.log("Downloaded file data from object storage");
-        console.log(`Downloaded from cloud storage: ${file.filename}`);
+        // Try to get from database first (faster access for files ≤ 1GB)
+        const bytea = await storage.getFileData(fileId, userId);
+        if (bytea) {
+          fileData = bytea;
+          console.log("Retrieved file data from PostgreSQL bytea");
+        } else {
+          // Fallback to Google Cloud Storage
+          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+          const [downloadedData] = await objectFile.download();
+          fileData = downloadedData;
+          console.log("Retrieved file data from Google Cloud Storage");
+          
+          // Backfill bytea storage if file is ≤ 1GB
+          if (file.storageType === 'dual' && fileData.length <= 1073741823) {
+            await storage.updateFileData(fileId, userId, fileData);
+            console.log(`Backfilled PostgreSQL bytea storage: ${file.filename}`);
+          }
+        }
       }
 
       // Extract text from file

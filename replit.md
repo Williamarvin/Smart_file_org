@@ -8,17 +8,17 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
-## Database Performance Fix (Aug 12, 2025)
-- **Issue**: Fixed critical database performance problem caused by storing large binary files (up to 65MB) in PostgreSQL bytea columns
+## Dual Storage Implementation (Aug 12, 2025)
+- **Issue**: Fixed critical database performance problem caused by storing large binary files in PostgreSQL bytea columns
 - **Impact**: 351MB of bytea data was causing query timeouts and memory issues
-- **Final Solution**: 
-  - **REMOVED bytea column entirely** from files table to prevent any future issues
-  - Created backup table `files_bytea_backup` with all original bytea data
-  - Updated storage strategy: **ALL files now use cloud-only storage**
-  - Modified all database queries to work without bytea column
-  - Fixed all application code to handle cloud-only storage
+- **Final Solution**: **Implemented optimal dual storage strategy**
+  - **PostgreSQL bytea storage**: Files ≤ 1GB (PostgreSQL max: 1,073,741,823 bytes)
+  - **Google Cloud Storage**: All files stored as backup/fallback
+  - **Smart access**: Try bytea first (faster), fallback to cloud storage
+  - **Optimized queries**: Exclude bytea column from regular queries for performance
+  - **Auto-backfill**: Files ≤ 1GB automatically stored in both locations
 - **Result**: Complete elimination of SQL errors, API response times stable at ~300-600ms
-- **Storage Strategy**: Pure cloud storage for maximum performance and scalability
+- **Storage Strategy**: Dual storage maximizes both performance (bytea) and scalability (cloud)
 
 # System Architecture
 
