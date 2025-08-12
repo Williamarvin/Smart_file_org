@@ -38,7 +38,7 @@ Requirements:
 - Summary: Write a clear, informative summary that captures the essence of the document
 - Keywords: Extract 5-15 relevant keywords and key phrases that someone might search for
 - Topics: Identify 3-8 main topics or themes covered
-- Categories: Classify into 2-5 broad categories (e.g., personal/life, academics, business, technical, legal, educational, health, finance, entertainment, work, etc.)
+- Categories: Select 1-2 categories from this list ONLY: [Business, Education, Technology, Entertainment, Health, Finance, Science, News, Personal, Reference]
 - Confidence: Rate your confidence in the analysis from 0.0 to 1.0
 
 Focus on extracting metadata that would be useful for similarity search and content discovery.

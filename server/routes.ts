@@ -153,10 +153,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file categories with counts
+  // Category mapping function to standardize categories
+  function normalizeCategory(category: string): string {
+    const categoryMap: { [key: string]: string } = {
+      'educational': 'Education',
+      'education': 'Education',
+      'academic': 'Education',
+      'learning': 'Education',
+      'business': 'Business',
+      'corporate': 'Business',
+      'work': 'Business',
+      'professional': 'Business',
+      'technical': 'Technology',
+      'technology': 'Technology',
+      'tech': 'Technology',
+      'programming': 'Technology',
+      'software': 'Technology',
+      'entertainment': 'Entertainment',
+      'fun': 'Entertainment',
+      'music': 'Entertainment',
+      'video': 'Entertainment',
+      'health': 'Health',
+      'medical': 'Health',
+      'wellness': 'Health',
+      'finance': 'Finance',
+      'financial': 'Finance',
+      'money': 'Finance',
+      'investment': 'Finance',
+      'science': 'Science',
+      'research': 'Science',
+      'scientific': 'Science',
+      'news': 'News',
+      'current events': 'News',
+      'politics': 'News',
+      'personal': 'Personal',
+      'life': 'Personal',
+      'diary': 'Personal',
+      'reference': 'Reference',
+      'documentation': 'Reference',
+      'manual': 'Reference',
+      'guide': 'Reference'
+    };
+    
+    return categoryMap[category.toLowerCase()] || 'Reference';
+  }
+
   app.get("/api/categories", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const categories = await storage.getCategories(userId);
+      const rawCategories = await storage.getCategories(userId);
+      
+      // Normalize and aggregate categories
+      const normalizedCategories: { [key: string]: number } = {};
+      for (const cat of rawCategories) {
+        const normalized = normalizeCategory(cat.category);
+        normalizedCategories[normalized] = (normalizedCategories[normalized] || 0) + cat.count;
+      }
+      
+      // Convert back to array format
+      const categories = Object.entries(normalizedCategories).map(([category, count]) => ({
+        category,
+        count
+      })).sort((a, b) => b.count - a.count);
+      
       res.json(categories);
     } catch (error) {
       console.error("Error fetching categories:", error);
