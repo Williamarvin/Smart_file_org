@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileText } from "lucide-react";
+import { Plus, Upload, FileText, Video } from "lucide-react";
 
 interface FileUploadZoneProps {
   onUploadSuccess?: () => void;
@@ -10,6 +10,7 @@ interface FileUploadZoneProps {
 
 export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ total: 0, processed: 0, current: "" });
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,9 +23,13 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    const fileArray = Array.from(files);
+    setUploadProgress({ total: fileArray.length, processed: 0, current: "" });
 
     try {
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setUploadProgress({ total: fileArray.length, processed: i, current: file.name });
         // Validate file type
         const allowedTypes = [
           'application/pdf',
@@ -87,6 +92,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         };
 
         await apiRequest("POST", "/api/files", fileData);
+        setUploadProgress({ total: fileArray.length, processed: i + 1, current: "" });
       }
 
       // Invalidate queries to refresh the UI
@@ -96,7 +102,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
       toast({
         title: "Upload Successful",
-        description: `${files.length} file(s) uploaded and queued for AI processing.`,
+        description: `${fileArray.length} file(s) uploaded and queued for AI processing.`,
       });
 
       onUploadSuccess?.();
@@ -109,6 +115,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       });
     } finally {
       setIsUploading(false);
+      setUploadProgress({ total: 0, processed: 0, current: "" });
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -143,11 +150,39 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       </div>
 
       {isUploading && (
-        <div className="mt-4">
-          <div className="w-full bg-slate-200 rounded-full h-2 max-w-xs mx-auto">
-            <div className="bg-blue-600 h-2 rounded-full animate-pulse w-full"></div>
+        <div className="mt-6 p-4 bg-slate-50 rounded-lg border max-w-md mx-auto">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span className="font-medium">Upload Progress</span>
+              <span>{uploadProgress.processed}/{uploadProgress.total} files</span>
+            </div>
+            
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(uploadProgress.processed / uploadProgress.total) * 100}%` }}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-1 text-green-600">
+                  <FileText className="h-3 w-3" />
+                  <span>Processed: {uploadProgress.processed}</span>
+                </div>
+                <div className="flex items-center gap-1 text-blue-600">
+                  <Upload className="h-3 w-3" />
+                  <span>Processing: {uploadProgress.total - uploadProgress.processed}</span>
+                </div>
+              </div>
+              
+              {uploadProgress.current && (
+                <p className="text-xs text-slate-500 truncate">
+                  Currently uploading: {uploadProgress.current}
+                </p>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-slate-600 mt-2">Processing upload...</p>
         </div>
       )}
     </div>
