@@ -95,17 +95,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // Store files under 100MB in database for faster processing
-    const shouldStoreInDb = rawFileData && rawFileData.length < 100 * 1024 * 1024; // 100MB limit
-    
+    // All files now use cloud storage only (bytea column removed)
     const insertData = {
       ...insertFile,
       userId,
-      fileData: shouldStoreInDb ? rawFileData : null, // Only store small files in DB
-      storageType: shouldStoreInDb ? 'dual' : 'cloud' // Set storage type appropriately
+      storageType: 'cloud' // All files use cloud storage
     };
     
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, storing in DB: ${shouldStoreInDb}`);
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, cloud storage only`);
     
     const [file] = await db
       .insert(files)
@@ -116,86 +113,46 @@ export class DatabaseStorage implements IStorage {
 
   async getFile(id: string, userId: string): Promise<File | undefined> {
     const [file] = await db
-      .select({
-        id: files.id,
-        filename: files.filename,
-        originalName: files.originalName,
-        mimeType: files.mimeType,
-        size: files.size,
-        objectPath: files.objectPath,
-        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
-        folderId: files.folderId,
-        uploadedAt: files.uploadedAt,
-        processedAt: files.processedAt,
-        storageType: files.storageType,
-        processingStatus: files.processingStatus,
-        processingError: files.processingError,
-        userId: files.userId,
-      })
+      .select()
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
   }
 
-  // Get file data from database (BYTEA)
+  // Get file data from cloud storage only (bytea column removed)
   async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
-    const [file] = await db
-      .select({ fileData: files.fileData })
-      .from(files)
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
-    
-    return file?.fileData as Buffer || undefined;
+    // File data is now stored only in cloud storage, not in database
+    // This method is kept for API compatibility but returns undefined
+    console.log(`getFileData called for ${id} - data now stored in cloud only`);
+    return undefined;
   }
 
-  // Check if file has database storage
+  // Check if file has cloud storage (database storage removed)
   async hasFileData(id: string, userId: string): Promise<boolean> {
     const [file] = await db
-      .select({ fileData: files.fileData, storageType: files.storageType })
+      .select({ storageType: files.storageType })
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     
-    return !!(file?.fileData || file?.storageType === 'dual' || file?.storageType === 'database');
+    // All files now use cloud storage only
+    return !!(file?.storageType === 'cloud' || file?.storageType === 'dual');
   }
 
-  // Get files that don't have BYTEA data for backfill (only dual storage files under 100MB)
+  // Get files for cloud storage (bytea column removed, method kept for compatibility)
   async getFilesWithoutBytea(userId: string): Promise<File[]> {
     const result = await db
-      .select({
-        id: files.id,
-        filename: files.filename,
-        originalName: files.originalName,
-        mimeType: files.mimeType,
-        size: files.size,
-        objectPath: files.objectPath,
-        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
-        folderId: files.folderId,
-        uploadedAt: files.uploadedAt,
-        processedAt: files.processedAt,
-        storageType: files.storageType,
-        processingStatus: files.processingStatus,
-        processingError: files.processingError,
-        userId: files.userId,
-      })
+      .select()
       .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.fileData), // Files without BYTEA data
-          lt(files.size, 104857600), // Only files under 100MB should have bytea
-          eq(files.storageType, 'dual') // Only dual storage files need backfill
-        )
-      )
-      .orderBy(asc(files.size)); // Start with smaller files first
+      .where(eq(files.userId, userId))
+      .orderBy(asc(files.size));
     
     return result;
   }
 
-  // Update file data for backfill
+  // Update file data - now no-op since bytea column removed
   async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
-    await db
-      .update(files)
-      .set({ fileData })
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    console.log(`updateFileData called for ${id} - bytea storage disabled`);
+    // No-op since file_data column has been removed
   }
 
   // Update storage type

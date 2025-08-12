@@ -462,29 +462,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("File not found");
       }
 
-      // Get file data - prefer database storage for faster access
+      // Get file data - all files now use cloud storage only
       let fileData: Buffer;
       if (rawFileData) {
         fileData = rawFileData;
-        console.log("Using raw file data from dual storage");
-        
-        // Store in database if this is a dual storage file and doesn't have bytea yet
-        if (file.storageType === 'dual' && !file.fileData) {
-          await storage.updateFileData(fileId, userId, rawFileData);
-          console.log(`Stored file data in database for dual storage: ${file.filename}`);
-        }
+        console.log("Using raw file data");
+        console.log(`Using cloud storage for file: ${file.filename}`);
       } else {
-        // Fallback to object storage
+        // Get from object storage
         const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
         const [downloadedData] = await objectFile.download();
         fileData = downloadedData;
         console.log("Downloaded file data from object storage");
-        
-        // Store in database if this is a dual storage file under 100MB
-        if (file.storageType === 'dual' && file.size < 100 * 1024 * 1024 && !file.fileData) {
-          await storage.updateFileData(fileId, userId, fileData);
-          console.log(`Backfilled file data in database for dual storage: ${file.filename}`);
-        }
+        console.log(`Downloaded from cloud storage: ${file.filename}`);
       }
 
       // Extract text from file

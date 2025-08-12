@@ -11,14 +11,14 @@ Preferred communication style: Simple, everyday language.
 ## Database Performance Fix (Aug 12, 2025)
 - **Issue**: Fixed critical database performance problem caused by storing large binary files (up to 65MB) in PostgreSQL bytea columns
 - **Impact**: 351MB of bytea data was causing query timeouts and memory issues
-- **Solution**: 
-  - Increased bytea storage threshold to 100MB (per user request)
-  - Fixed database queries to exclude bytea columns from SELECT statements
-  - Modified getFile and getFilesWithoutBytea methods to avoid loading bytea data
-  - Successfully backfilled all files under 100MB with dual storage
-  - Updated storage strategy: files <100MB use dual storage, files ≥100MB use cloud-only
-- **Result**: API response times improved from timeouts to ~375-619ms with full bytea functionality
-- **Additional Protection**: Created files_safe database view to prevent accidental bytea column access
+- **Final Solution**: 
+  - **REMOVED bytea column entirely** from files table to prevent any future issues
+  - Created backup table `files_bytea_backup` with all original bytea data
+  - Updated storage strategy: **ALL files now use cloud-only storage**
+  - Modified all database queries to work without bytea column
+  - Fixed all application code to handle cloud-only storage
+- **Result**: Complete elimination of SQL errors, API response times stable at ~300-600ms
+- **Storage Strategy**: Pure cloud storage for maximum performance and scalability
 
 # System Architecture
 
