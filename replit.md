@@ -8,20 +8,24 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
-## Storage Architecture Cleanup (Aug 12, 2025)
-- **Issue**: Removed complex dual storage architecture that was causing SQL query issues with bytea columns
-- **Impact**: Simplified database architecture by eliminating all bytea storage and related complexity
-- **Final Solution**: **Cloud-only storage strategy**
-  - **Google Cloud Storage**: All files stored in cloud only (unlimited capacity)
-  - **Simple database**: Single `files` table with metadata only (no binary data)
-  - **Clean queries**: All SQL queries fast and simple without bytea complications
-  - **Eliminated complexity**: Removed all bytea tables, triggers, sync functions, and dual storage logic
-- **Result**: Completely clean architecture, all SQL errors eliminated, simplified codebase
-- **Database Architecture**: 
-  - `files` table: Single clean table with file metadata only
-  - All file data stored in Google Cloud Storage exclusively
-  - Simple, fast, scalable architecture without bytea complications
-- **Storage Strategy**: Cloud-only maximizes simplicity, reliability, and unlimited scalability
+## Hybrid Storage Implementation (Aug 12, 2025)
+- **Architecture**: **Hybrid storage system** combining best of both worlds
+- **Implementation**: 
+  - **Google Cloud Storage**: ALL files stored in cloud (unlimited capacity, reliability)
+  - **BYTEA Caching**: Files ≤50MB also cached in PostgreSQL BYTEA column for faster access
+  - **Smart Retrieval**: System automatically chooses fastest source (BYTEA first, cloud fallback)
+  - **Automatic Backfill**: Small files get cached in BYTEA on first access
+- **Performance Benefits**:
+  - **Fast Access**: Small files (≤50MB) served from database cache
+  - **Large File Support**: Files >50MB use cloud storage (no database size limits)
+  - **Reliability**: All files always available in cloud storage as primary source
+  - **Scalability**: Unlimited cloud capacity with database acceleration for common files
+- **Technical Details**:
+  - Added `file_content BYTEA` column to `files` table
+  - 50MB threshold for BYTEA caching (optimal balance)
+  - Hybrid retrieval logic in storage layer
+  - All TypeScript types updated for hybrid architecture
+- **Result**: **Best of both worlds** - fast database access for small files + unlimited cloud scalability
 
 # System Architecture
 
