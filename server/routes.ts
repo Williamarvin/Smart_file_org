@@ -112,9 +112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: userId,
       }, userId);
 
-      // Start processing in the background with raw file data for dual storage
-      const rawFileData = req.file?.buffer;
-      processFileAsync(file.id, userId, rawFileData);
+      // Start processing in the background - don't pass raw file data to avoid DB storage
+      processFileAsync(file.id, userId);
 
       res.json(file);
     } catch (error) {

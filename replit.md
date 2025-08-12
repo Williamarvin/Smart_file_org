@@ -6,6 +6,18 @@ This is a full-stack document management and search application that allows user
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+## Database Performance Fix (Aug 12, 2025)
+- **Issue**: Fixed critical database performance problem caused by storing large binary files (up to 65MB) in PostgreSQL bytea columns
+- **Impact**: 351MB of bytea data was causing query timeouts and memory issues
+- **Solution**: 
+  - Cleared existing bytea data from database
+  - Updated storage strategy to only store files < 1MB in database bytea
+  - Large files now use cloud-only storage for better performance
+  - Modified createFile method with size-based storage logic
+- **Result**: API response times improved from timeouts to ~685ms
+
 # System Architecture
 
 ## Frontend Architecture

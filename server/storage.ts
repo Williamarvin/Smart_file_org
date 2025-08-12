@@ -95,13 +95,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // Prepare file data with dual storage capability
+    // Only store small files (< 1MB) in database to avoid performance issues
+    const shouldStoreInDb = rawFileData && rawFileData.length < 1024 * 1024; // 1MB limit
+    
     const insertData = {
       ...insertFile,
       userId,
-      fileData: rawFileData, // Store in database if provided
-      storageType: rawFileData ? 'dual' : 'cloud' // Set storage type based on whether we have raw data
+      fileData: shouldStoreInDb ? rawFileData : null, // Only store small files in DB
+      storageType: shouldStoreInDb ? 'dual' : 'cloud' // Set storage type appropriately
     };
+    
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size}, storing in DB: ${shouldStoreInDb}`);
     
     const [file] = await db
       .insert(files)
