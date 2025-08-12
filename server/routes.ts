@@ -354,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve files from database (BYTEA) - faster for dual storage
+  // Serve files from cloud storage
   app.get("/api/files/:fileId/data", async (req: any, res) => {
     try {
       const userId = "demo-user";
@@ -366,28 +366,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
-      // Try to get file data from database first (faster)
-      const fileData = await storage.getFileData(fileId, userId);
+      // Get file data from Google Cloud Storage only
+      const objectStorageService = new ObjectStorageService();
+      const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+      const [data] = await objectFile.download();
       
-      if (fileData) {
-        // Serve from database
-        // Sanitize filename for header
-        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
-        res.set({
-          'Content-Type': file.mimeType,
-          'Content-Length': fileData.length.toString(),
-          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
-          'Cache-Control': 'private, max-age=3600'
-        });
-        res.send(fileData);
-        console.log(`Served file ${file.originalName} from database (${fileData.length} bytes)`);
-      } else {
-        // Fallback to object storage
-        const objectStorageService = new ObjectStorageService();
-        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-        objectStorageService.downloadObject(objectFile, res);
-        console.log(`Served file ${file.originalName} from object storage (fallback)`);
-      }
+      // Sanitize filename for header
+      const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
+      res.set({
+        'Content-Type': file.mimeType,
+        'Content-Length': data.length.toString(),
+        'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
+        'Cache-Control': 'private, max-age=3600'
+      });
+      res.send(data);
+      console.log(`Served file ${file.originalName} from cloud storage (${data.length} bytes)`);
     } catch (error) {
       console.error("Error serving file data:", error);
       res.status(500).json({ error: "Failed to serve file" });
@@ -462,36 +455,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("File not found");
       }
 
-      // Get file data using dual storage strategy (PostgreSQL bytea + Google Cloud Storage)
+      // Get file data from Google Cloud Storage only
       let fileData: Buffer;
       if (rawFileData) {
         fileData = rawFileData;
         console.log("Using raw file data from upload");
-        
-        // Store in database if ≤ 1GB for dual storage
-        if (file.storageType === 'dual' && fileData.length <= 1073741823 && !await storage.hasFileData(fileId, userId)) {
-          await storage.updateFileData(fileId, userId, rawFileData);
-          console.log(`Stored file data in PostgreSQL bytea: ${file.filename}`);
-        }
       } else {
-        // Try to get from database first (faster access for files ≤ 1GB)
-        const bytea = await storage.getFileData(fileId, userId);
-        if (bytea) {
-          fileData = bytea;
-          console.log("Retrieved file data from PostgreSQL bytea");
-        } else {
-          // Fallback to Google Cloud Storage
-          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-          const [downloadedData] = await objectFile.download();
-          fileData = downloadedData;
-          console.log("Retrieved file data from Google Cloud Storage");
-          
-          // Backfill bytea storage if file is ≤ 1GB
-          if (file.storageType === 'dual' && fileData.length <= 1073741823) {
-            await storage.updateFileData(fileId, userId, fileData);
-            console.log(`Backfilled PostgreSQL bytea storage: ${file.filename}`);
-          }
-        }
+        // Get from Google Cloud Storage
+        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        const [downloadedData] = await objectFile.download();
+        fileData = downloadedData;
+        console.log("Retrieved file data from cloud storage");
       }
 
       // Extract text from file

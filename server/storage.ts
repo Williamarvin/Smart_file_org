@@ -20,7 +20,7 @@ import {
 import { db } from "./db";
 import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle-orm";
 
-// Internal table access for bytea operations
+// Storage interface for cloud-only file management
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -97,141 +97,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // Implement dual storage: PostgreSQL bytea (up to 1GB) + Google Cloud Storage
-    const maxBytea = 1073741823; // Just under 1 GiB (1,073,741,823 bytes)
-    const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, storage: cloud-only`);
     
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, bytea: ${shouldStoreBytea ? 'yes' : 'no (>1GB)'}`);
-    
-    // Insert into schema-isolated bytea table
-    const result = await db.execute(sql`
-      INSERT INTO bytea_internal._files_internal_bytea (
-        filename, original_name, mime_type, size, object_path,
-        file_data, user_id, storage_type, processing_status
-      ) VALUES (
-        ${insertFile.filename}, ${insertFile.originalName}, ${insertFile.mimeType},
-        ${insertFile.size}, ${insertFile.objectPath}, ${shouldStoreBytea ? rawFileData : null},
-        ${userId}, 'dual', 'pending'
-      ) RETURNING *
-    `);
-    
-    const insertedId = result.rows[0].id;
-    
-    // Return file data through safe view  
+    // Insert into files table - cloud storage only
     const [file] = await db
-      .select()
-      .from(files)
-      .where(sql`id = ${insertedId}`);
+      .insert(files)
+      .values({
+        ...insertFile,
+        userId,
+        storageType: 'cloud',
+        processingStatus: 'pending'
+      })
+      .returning();
     
     return file;
   }
 
   async getFile(id: string, userId: string): Promise<File | undefined> {
-    // Optimized query that excludes bytea for performance (use getFileData for bytea)
     const [file] = await db
-      .select({
-        id: files.id,
-        filename: files.filename,
-        originalName: files.originalName,
-        mimeType: files.mimeType,
-        size: files.size,
-        objectPath: files.objectPath,
-        // fileData excluded - not in files view
-        folderId: files.folderId,
-        uploadedAt: files.uploadedAt,
-        processedAt: files.processedAt,
-        storageType: files.storageType,
-        processingStatus: files.processingStatus,
-        processingError: files.processingError,
-        userId: files.userId,
-      })
+      .select()
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
   }
 
-  // Get file data from PostgreSQL bytea (up to 1GB files) - use hidden bytea table
-  async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
-    const result = await db.execute(sql`
-      SELECT file_data 
-      FROM bytea_internal._files_internal_bytea 
-      WHERE id = ${id} AND user_id = ${userId}
-    `);
-    
-    const fileData = result.rows[0]?.file_data;
-    return fileData ? Buffer.from(fileData as any) : undefined;
-  }
-
-  // Check if file has bytea data in database - use internal table
-  async hasFileData(id: string, userId: string): Promise<boolean> {
-    const result = await db.execute(sql`
-      SELECT file_data IS NOT NULL as has_data, storage_type
-      FROM bytea_internal._files_internal_bytea 
-      WHERE id = ${id} AND user_id = ${userId}
-    `);
-    
-    const row = result.rows[0];
-    return !!(row?.has_data || row?.storage_type === 'dual');
-  }
-
-  // Get files that need bytea backfill (dual storage files ≤ 1GB without bytea data)
-  async getFilesWithoutBytea(userId: string): Promise<File[]> {
-    const result = await db
-      .select({
-        id: files.id,
-        filename: files.filename,
-        originalName: files.originalName,
-        mimeType: files.mimeType,
-        size: files.size,
-        objectPath: files.objectPath,
-        // fileData excluded - not in files view
-        folderId: files.folderId,
-        uploadedAt: files.uploadedAt,
-        processedAt: files.processedAt,
-        storageType: files.storageType,
-        processingStatus: files.processingStatus,
-        processingError: files.processingError,
-        userId: files.userId,
-      })
-      .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          sql`id NOT IN (SELECT id FROM bytea_internal._files_internal_bytea WHERE file_data IS NOT NULL)`, // Files without bytea data
-          sql`${files.size} <= 1073741823`, // Only files ≤ 1GB should have bytea
-          eq(files.storageType, 'dual') // Only dual storage files need backfill
-        )
-      )
-      .orderBy(asc(files.size)); // Start with smaller files first
-    
-    return result;
-  }
-
-  // Update file data in PostgreSQL bytea (for dual storage) - use internal table
-  async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
-    const maxBytea = 1073741823; // Just under 1 GiB
-    
-    if (fileData.length > maxBytea) {
-      console.log(`File too large for bytea storage: ${fileData.length} bytes > ${maxBytea} bytes`);
-      return; // Skip if file is too large for bytea
-    }
-    
-    await db.execute(sql`
-      UPDATE bytea_internal._files_internal_bytea 
-      SET file_data = ${fileData}
-      WHERE id = ${id} AND user_id = ${userId}
-    `);
-    
-    console.log(`Updated bytea data for file ${id}: ${fileData.length} bytes`);
-  }
-
-  // Update storage type
-  async updateStorageType(id: string, userId: string, storageType: string): Promise<void> {
-    await db
-      .update(files)
-      .set({ storageType })
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
-  }
+  // Note: File data is stored in Google Cloud Storage only
 
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
     const result = await db
@@ -263,26 +153,22 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
-    return result.map(row => {
-      // Return file data without the fileData bytea column to avoid serialization issues
-      return {
-        id: row.id,
-        filename: row.filename,
-        originalName: row.originalName,
-        mimeType: row.mimeType,
-        size: row.size,
-        objectPath: row.objectPath,
-        fileData: null, // Set to null for API responses - bytea excluded from query
-        folderId: row.folderId,
-        uploadedAt: row.uploadedAt,
-        processedAt: row.processedAt,
-        storageType: row.storageType,
-        processingStatus: row.processingStatus,
-        processingError: row.processingError,
-        userId: row.userId,
-        metadata: row.metadata || undefined,
-      };
-    });
+    return result.map(row => ({
+      id: row.id,
+      filename: row.filename,
+      originalName: row.originalName,
+      mimeType: row.mimeType,
+      size: row.size,
+      objectPath: row.objectPath,
+      folderId: row.folderId,
+      uploadedAt: row.uploadedAt,
+      processedAt: row.processedAt,
+      storageType: row.storageType,
+      processingStatus: row.processingStatus,
+      processingError: row.processingError,
+      userId: row.userId,
+      metadata: row.metadata || undefined,
+    }));
   }
 
   async updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void> {

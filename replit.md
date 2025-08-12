@@ -8,24 +8,20 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
-## Dual Storage Implementation (Aug 12, 2025)
-- **Issue**: Fixed critical database performance problem caused by storing large binary files in PostgreSQL bytea columns
-- **Impact**: 351MB of bytea data was causing query timeouts and memory issues
-- **Final Solution**: **Implemented optimal dual storage strategy**
-  - **PostgreSQL bytea storage**: Files ≤ 1GB (PostgreSQL max: 1,073,741,823 bytes)
-  - **Google Cloud Storage**: All files stored as backup/fallback
-  - **Smart access**: Try bytea first (faster), fallback to cloud storage
-  - **Optimized queries**: Exclude bytea column from regular queries for performance
-  - **Auto-backfill**: Files ≤ 1GB automatically stored in both locations
-- **Result**: Complete elimination of SQL errors, API response times stable at ~300-600ms
+## Storage Architecture Cleanup (Aug 12, 2025)
+- **Issue**: Removed complex dual storage architecture that was causing SQL query issues with bytea columns
+- **Impact**: Simplified database architecture by eliminating all bytea storage and related complexity
+- **Final Solution**: **Cloud-only storage strategy**
+  - **Google Cloud Storage**: All files stored in cloud only (unlimited capacity)
+  - **Simple database**: Single `files` table with metadata only (no binary data)
+  - **Clean queries**: All SQL queries fast and simple without bytea complications
+  - **Eliminated complexity**: Removed all bytea tables, triggers, sync functions, and dual storage logic
+- **Result**: Completely clean architecture, all SQL errors eliminated, simplified codebase
 - **Database Architecture**: 
-  - `bytea_internal._files_internal_bytea` table: Schema-isolated bytea table (up to 1GB) - completely hidden from external tools
-  - `files_internal` table: Safe copy without bytea columns (external database tool access)
-  - `files_external` table: Synchronized copy without bytea columns (alternative access)
-  - `files` view: Safe public interface pointing to files_external
-  - Auto-sync trigger: Keeps all tables synchronized when schema-isolated bytea table changes
-  - `files_bytea_backup` table: Backup metadata without problematic bytea columns
-- **Storage Strategy**: Dual storage maximizes both performance (bytea) and scalability (cloud)
+  - `files` table: Single clean table with file metadata only
+  - All file data stored in Google Cloud Storage exclusively
+  - Simple, fast, scalable architecture without bytea complications
+- **Storage Strategy**: Cloud-only maximizes simplicity, reliability, and unlimited scalability
 
 # System Architecture
 

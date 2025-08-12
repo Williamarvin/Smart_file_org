@@ -83,11 +83,11 @@ export const files = pgTable("files", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
-  // fileData: bytea("file_data"), // REMOVED - now in files_internal table only
+  // Note: File data is stored in Google Cloud Storage only (no database storage)
   folderId: varchar("folder_id").references(() => folders.id, { onDelete: "set null" }), // Files can exist without folders (root level)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
-  storageType: varchar("storage_type").default("dual"), // dual: both database and cloud storage
+  storageType: varchar("storage_type").default("cloud"), // cloud: Google Cloud Storage only
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
   processingError: text("processing_error"),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
