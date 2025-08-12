@@ -322,7 +322,19 @@ export class DatabaseStorage implements IStorage {
     
     const result = await db
       .select({
-        file: files,
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
         metadata: fileMetadata,
       })
       .from(files)
@@ -357,7 +369,20 @@ export class DatabaseStorage implements IStorage {
     console.log(`Storage: found ${result.length} raw results`);
     
     const mappedResults = result.map(row => ({
-      ...row.file,
+      id: row.id,
+      filename: row.filename,
+      originalName: row.originalName,
+      mimeType: row.mimeType,
+      size: row.size,
+      objectPath: row.objectPath,
+      fileData: null, // Exclude bytea data for performance
+      folderId: row.folderId,
+      uploadedAt: row.uploadedAt,
+      processedAt: row.processedAt,
+      storageType: row.storageType,
+      processingStatus: row.processingStatus,
+      processingError: row.processingError,
+      userId: row.userId,
       metadata: row.metadata || undefined,
     }));
     
@@ -531,7 +556,19 @@ export class DatabaseStorage implements IStorage {
     
     const result = await db
       .select({
-        file: files,
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
         metadata: fileMetadata,
       })
       .from(files)
@@ -539,7 +576,20 @@ export class DatabaseStorage implements IStorage {
       .where(and(inArray(files.id, ids), eq(files.userId, userId)));
 
     return result.map(row => ({
-      ...row.file,
+      id: row.id,
+      filename: row.filename,
+      originalName: row.originalName,
+      mimeType: row.mimeType,
+      size: row.size,
+      objectPath: row.objectPath,
+      fileData: null, // Exclude bytea data for performance
+      folderId: row.folderId,
+      uploadedAt: row.uploadedAt,
+      processedAt: row.processedAt,
+      storageType: row.storageType,
+      processingStatus: row.processingStatus,
+      processingError: row.processingError,
+      userId: row.userId,
       metadata: row.metadata || undefined,
     }));
   }
@@ -605,7 +655,21 @@ export class DatabaseStorage implements IStorage {
       
       // Get files in folder
       const folderFiles = await db
-        .select()
+        .select({
+          id: files.id,
+          filename: files.filename,
+          originalName: files.originalName,
+          mimeType: files.mimeType,
+          size: files.size,
+          objectPath: files.objectPath,
+          folderId: files.folderId,
+          uploadedAt: files.uploadedAt,
+          processedAt: files.processedAt,
+          storageType: files.storageType,
+          processingStatus: files.processingStatus,
+          processingError: files.processingError,
+          userId: files.userId,
+        })
         .from(files)
         .where(and(eq(files.folderId, folder.id), eq(files.userId, userId)))
         .orderBy(files.filename);
