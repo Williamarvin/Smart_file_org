@@ -20,6 +20,8 @@ import {
 import { db } from "./db";
 import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle-orm";
 
+// Internal table access for bytea operations
+
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
@@ -99,19 +101,28 @@ export class DatabaseStorage implements IStorage {
     const maxBytea = 1073741823; // Just under 1 GiB (1,073,741,823 bytes)
     const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
     
-    const insertData = {
-      ...insertFile,
-      userId,
-      fileData: shouldStoreBytea ? rawFileData : null, // Store in bytea if ≤ 1GB
-      storageType: 'dual' as const // Both database and cloud storage
-    };
-    
     console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, bytea: ${shouldStoreBytea ? 'yes' : 'no (>1GB)'}`);
     
+    // Insert into internal table with bytea data
+    const result = await db.execute(sql`
+      INSERT INTO files_internal (
+        filename, original_name, mime_type, size, object_path,
+        file_data, user_id, storage_type, processing_status
+      ) VALUES (
+        ${insertFile.filename}, ${insertFile.originalName}, ${insertFile.mimeType},
+        ${insertFile.size}, ${insertFile.objectPath}, ${shouldStoreBytea ? rawFileData : null},
+        ${userId}, 'dual', 'pending'
+      ) RETURNING *
+    `);
+    
+    const insertedId = result.rows[0].id;
+    
+    // Return file data through safe view  
     const [file] = await db
-      .insert(files)
-      .values(insertData)
-      .returning();
+      .select()
+      .from(files)
+      .where(sql`id = ${insertedId}`);
+    
     return file;
   }
 
@@ -139,24 +150,28 @@ export class DatabaseStorage implements IStorage {
     return file || undefined;
   }
 
-  // Get file data from PostgreSQL bytea (up to 1GB files)
+  // Get file data from PostgreSQL bytea (up to 1GB files) - use internal table
   async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
-    const [file] = await db
-      .select({ fileData: files.fileData })
-      .from(files)
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    const result = await db.execute(sql`
+      SELECT file_data 
+      FROM files_internal 
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
     
-    return file?.fileData as Buffer || undefined;
+    const fileData = result.rows[0]?.file_data;
+    return fileData ? Buffer.from(fileData as any) : undefined;
   }
 
-  // Check if file has bytea data in database
+  // Check if file has bytea data in database - use internal table
   async hasFileData(id: string, userId: string): Promise<boolean> {
-    const [file] = await db
-      .select({ fileData: files.fileData, storageType: files.storageType })
-      .from(files)
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    const result = await db.execute(sql`
+      SELECT file_data IS NOT NULL as has_data, storage_type
+      FROM files_internal 
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
     
-    return !!(file?.fileData || file?.storageType === 'dual');
+    const row = result.rows[0];
+    return !!(row?.has_data || row?.storage_type === 'dual');
   }
 
   // Get files that need bytea backfill (dual storage files ≤ 1GB without bytea data)
@@ -192,7 +207,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  // Update file data in PostgreSQL bytea (for dual storage)
+  // Update file data in PostgreSQL bytea (for dual storage) - use internal table
   async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
     const maxBytea = 1073741823; // Just under 1 GiB
     
@@ -201,10 +216,11 @@ export class DatabaseStorage implements IStorage {
       return; // Skip if file is too large for bytea
     }
     
-    await db
-      .update(files)
-      .set({ fileData })
-      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    await db.execute(sql`
+      UPDATE files_internal 
+      SET file_data = ${fileData}
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
     
     console.log(`Updated bytea data for file ${id}: ${fileData.length} bytes`);
   }

@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
   - **Optimized queries**: Exclude bytea column from regular queries for performance
   - **Auto-backfill**: Files ≤ 1GB automatically stored in both locations
 - **Result**: Complete elimination of SQL errors, API response times stable at ~300-600ms
+- **Database Architecture**: Created `files_internal` table with bytea + `files` view without bytea for safe access
 - **Storage Strategy**: Dual storage maximizes both performance (bytea) and scalability (cloud)
 
 # System Architecture
