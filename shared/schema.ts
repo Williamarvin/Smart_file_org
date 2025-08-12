@@ -83,7 +83,7 @@ export const files = pgTable("files", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
-  fileData: bytea("file_data"), // Store files up to 1GB in PostgreSQL bytea (TOASTed)
+  // fileData: bytea("file_data"), // REMOVED - now in files_internal table only
   folderId: varchar("folder_id").references(() => folders.id, { onDelete: "set null" }), // Files can exist without folders (root level)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),

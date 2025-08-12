@@ -136,7 +136,7 @@ export class DatabaseStorage implements IStorage {
         mimeType: files.mimeType,
         size: files.size,
         objectPath: files.objectPath,
-        fileData: sql<Buffer | null>`NULL`, // Exclude bytea for performance
+        // fileData excluded - not in files view
         folderId: files.folderId,
         uploadedAt: files.uploadedAt,
         processedAt: files.processedAt,
@@ -184,7 +184,7 @@ export class DatabaseStorage implements IStorage {
         mimeType: files.mimeType,
         size: files.size,
         objectPath: files.objectPath,
-        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
+        // fileData excluded - not in files view
         folderId: files.folderId,
         uploadedAt: files.uploadedAt,
         processedAt: files.processedAt,
@@ -197,7 +197,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(files.userId, userId),
-          isNull(files.fileData), // Files without bytea data
+          sql`id NOT IN (SELECT id FROM files_internal WHERE file_data IS NOT NULL)`, // Files without bytea data
           sql`${files.size} <= 1073741823`, // Only files ≤ 1GB should have bytea
           eq(files.storageType, 'dual') // Only dual storage files need backfill
         )
