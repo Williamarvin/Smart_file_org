@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileText, Video } from "lucide-react";
+import { Plus, Upload, FileText, Video, Brain, CheckCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface FileUploadZoneProps {
   onUploadSuccess?: () => void;
@@ -11,8 +12,15 @@ interface FileUploadZoneProps {
 export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ total: 0, processed: 0, current: "" });
+  const [showAiProcessing, setShowAiProcessing] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Query to track AI processing stats
+  const { data: stats } = useQuery({
+    queryKey: ["/api/stats"],
+    refetchInterval: showAiProcessing ? 2000 : false, // Poll every 2 seconds when showing AI progress
+  });
 
   const handleFileSelect = () => {
     fileInputRef.current?.click();
@@ -100,6 +108,9 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       await queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
 
+      // Show AI processing progress
+      setShowAiProcessing(true);
+
       toast({
         title: "Upload Successful",
         description: `${fileArray.length} file(s) uploaded and queued for AI processing.`,
@@ -122,6 +133,16 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       }
     }
   };
+
+  // Auto-hide AI processing when all files are processed
+  useEffect(() => {
+    if (stats && showAiProcessing && stats.processingFiles === 0) {
+      const timer = setTimeout(() => {
+        setShowAiProcessing(false);
+      }, 3000); // Hide after 3 seconds when processing is complete
+      return () => clearTimeout(timer);
+    }
+  }, [stats, showAiProcessing]);
 
   return (
     <div className="text-center space-y-4">
@@ -179,6 +200,46 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
               {uploadProgress.current && (
                 <p className="text-xs text-slate-500 truncate">
                   Currently uploading: {uploadProgress.current}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAiProcessing && stats && (
+        <div className="mt-6 p-4 bg-purple-50 rounded-lg border max-w-md mx-auto">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span className="font-medium flex items-center gap-2">
+                <Brain className="h-4 w-4 text-purple-600" />
+                AI Processing
+              </span>
+              <span>{stats.processedFiles}/{stats.totalFiles} files</span>
+            </div>
+            
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(stats.processedFiles / stats.totalFiles) * 100}%` }}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1 text-green-600">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Analyzed: {stats.processedFiles}</span>
+                </div>
+                <div className="flex items-center gap-1 text-purple-600">
+                  <Brain className="h-3 w-3" />
+                  <span>Processing: {stats.processingFiles}</span>
+                </div>
+              </div>
+              
+              {stats.processingFiles === 0 && stats.processedFiles > 0 && (
+                <p className="text-xs text-green-600 font-medium">
+                  🎉 All files processed! Ready for search.
                 </p>
               )}
             </div>
