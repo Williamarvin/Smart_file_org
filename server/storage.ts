@@ -115,7 +115,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFile(id: string, userId: string): Promise<File | undefined> {
-    const [file] = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+    const [file] = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+      })
+      .from(files)
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
   }
 
@@ -139,10 +157,25 @@ export class DatabaseStorage implements IStorage {
     return !!(file?.fileData || file?.storageType === 'dual' || file?.storageType === 'database');
   }
 
-  // Get files that don't have BYTEA data for backfill (only dual storage files under 1MB)
+  // Get files that don't have BYTEA data for backfill (only dual storage files under 100MB)
   async getFilesWithoutBytea(userId: string): Promise<File[]> {
     const result = await db
-      .select()
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        fileData: sql<Buffer | null>`NULL`, // Exclude bytea data for performance
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+      })
       .from(files)
       .where(
         and(

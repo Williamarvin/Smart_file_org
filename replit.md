@@ -12,11 +12,12 @@ Preferred communication style: Simple, everyday language.
 - **Issue**: Fixed critical database performance problem caused by storing large binary files (up to 65MB) in PostgreSQL bytea columns
 - **Impact**: 351MB of bytea data was causing query timeouts and memory issues
 - **Solution**: 
-  - Cleared existing bytea data from database
-  - Updated storage strategy to only store files < 1MB in database bytea
-  - Large files now use cloud-only storage for better performance
-  - Modified createFile method with size-based storage logic
-- **Result**: API response times improved from timeouts to ~685ms
+  - Increased bytea storage threshold to 100MB (per user request)
+  - Fixed database queries to exclude bytea columns from SELECT statements
+  - Modified getFile and getFilesWithoutBytea methods to avoid loading bytea data
+  - Successfully backfilled all files under 100MB with dual storage
+  - Updated storage strategy: files <100MB use dual storage, files ≥100MB use cloud-only
+- **Result**: API response times improved from timeouts to ~375-619ms with full bytea functionality
 
 # System Architecture
 
