@@ -112,8 +112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: userId,
       }, userId);
 
-      // Start processing in the background - don't pass raw file data to avoid DB storage
-      processFileAsync(file.id, userId);
+      // Start processing in the background with raw file data for dual storage
+      const rawFileData = req.file?.buffer;
+      processFileAsync(file.id, userId, rawFileData);
 
       res.json(file);
     } catch (error) {
@@ -466,12 +467,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (rawFileData) {
         fileData = rawFileData;
         console.log("Using raw file data from dual storage");
+        
+        // Store in database if this is a dual storage file and doesn't have bytea yet
+        if (file.storageType === 'dual' && !file.fileData) {
+          await storage.updateFileData(fileId, userId, rawFileData);
+          console.log(`Stored file data in database for dual storage: ${file.filename}`);
+        }
       } else {
         // Fallback to object storage
         const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
         const [downloadedData] = await objectFile.download();
         fileData = downloadedData;
         console.log("Downloaded file data from object storage");
+        
+        // Store in database if this is a dual storage file under 100MB
+        if (file.storageType === 'dual' && file.size < 100 * 1024 * 1024 && !file.fileData) {
+          await storage.updateFileData(fileId, userId, fileData);
+          console.log(`Backfilled file data in database for dual storage: ${file.filename}`);
+        }
       }
 
       // Extract text from file

@@ -18,7 +18,7 @@ import {
   type FolderWithChildren,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -95,8 +95,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // Store files under 10MB in database for faster processing
-    const shouldStoreInDb = rawFileData && rawFileData.length < 10 * 1024 * 1024; // 10MB limit
+    // Store files under 100MB in database for faster processing
+    const shouldStoreInDb = rawFileData && rawFileData.length < 100 * 1024 * 1024; // 100MB limit
     
     const insertData = {
       ...insertFile,
@@ -148,7 +148,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(files.userId, userId),
           isNull(files.fileData), // Files without BYTEA data
-          lt(files.size, 10485760), // Only files under 10MB should have bytea
+          lt(files.size, 104857600), // Only files under 100MB should have bytea
           eq(files.storageType, 'dual') // Only dual storage files need backfill
         )
       )
@@ -691,6 +691,7 @@ export class DatabaseStorage implements IStorage {
         folderId: files.folderId,
         uploadedAt: files.uploadedAt,
         processedAt: files.processedAt,
+        storageType: files.storageType,
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
