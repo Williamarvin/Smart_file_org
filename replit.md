@@ -19,8 +19,10 @@ Preferred communication style: Simple, everyday language.
   - **Auto-backfill**: Files ≤ 1GB automatically stored in both locations
 - **Result**: Complete elimination of SQL errors, API response times stable at ~300-600ms
 - **Database Architecture**: 
-  - `files_internal` table: Contains bytea data (up to 1GB) + all metadata
-  - `files` view: Safe public interface without any bytea columns
+  - `files_internal` table: Contains bytea data (up to 1GB) + all metadata (internal access only)
+  - `files_external` table: Synchronized copy without bytea columns (external database tool access)
+  - `files` view: Safe public interface pointing to files_external
+  - Auto-sync trigger: Keeps files_external in sync with files_internal changes
   - `files_bytea_backup` table: Backup metadata without problematic bytea columns
 - **Storage Strategy**: Dual storage maximizes both performance (bytea) and scalability (cloud)
 
