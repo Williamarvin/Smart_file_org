@@ -397,7 +397,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db.execute(
       sql`
         SELECT 
-          f.*,
+          f.id, f.filename, f.original_name, f.mime_type, f.size, f.object_path,
+          f.folder_id, f.uploaded_at, f.processed_at, f.storage_type, f.processing_status,
+          f.processing_error, f.user_id,
           fm.*,
           (fm.embedding_vector <=> ${JSON.stringify(embedding)}::vector) AS distance
         FROM files f
@@ -677,7 +679,10 @@ export class DatabaseStorage implements IStorage {
       foldersWithChildren.push({
         ...folder,
         children,
-        files: folderFiles,
+        files: folderFiles.map(file => ({
+          ...file,
+          fileData: null, // Exclude bytea data for performance
+        })),
       });
     }
     
