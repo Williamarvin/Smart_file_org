@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
   - Successfully backfilled all files under 100MB with dual storage
   - Updated storage strategy: files <100MB use dual storage, files ≥100MB use cloud-only
 - **Result**: API response times improved from timeouts to ~375-619ms with full bytea functionality
+- **Additional Protection**: Created files_safe database view to prevent accidental bytea column access
 
 # System Architecture
 
