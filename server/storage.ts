@@ -26,7 +26,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   
   // File operations
-  createFile(file: InsertFile, userId: string): Promise<File>;
+  createFile(file: InsertFile, userId: string, rawFileData?: Buffer): Promise<File>;
   getFile(id: string, userId: string): Promise<File | undefined>;
   getFiles(userId: string, limit?: number, offset?: number): Promise<FileWithMetadata[]>;
   updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void>;
@@ -94,10 +94,11 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createFile(insertFile: InsertFile & { userId: string }, rawFileData?: Buffer): Promise<File> {
+  async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
     // Prepare file data with dual storage capability
     const insertData = {
       ...insertFile,
+      userId,
       fileData: rawFileData, // Store in database if provided
       storageType: rawFileData ? 'dual' : 'cloud' // Set storage type based on whether we have raw data
     };
@@ -185,10 +186,10 @@ export class DatabaseStorage implements IStorage {
       .offset(offset);
 
     return result.map(row => {
-      // Exclude fileData from API responses to avoid JSON serialization issues with large BYTEA data
-      const { fileData, ...fileWithoutData } = row.file;
+      // Include fileData as null to match the FileWithMetadata type
       return {
-        ...fileWithoutData,
+        ...row.file,
+        fileData: null, // Set to null for API responses to avoid JSON serialization issues
         metadata: row.metadata || undefined,
       };
     });
@@ -218,11 +219,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
-  async createFileMetadata(metadata: InsertFileMetadata): Promise<FileMetadata> {
+  async createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata> {
     // If embedding is provided, also set the vector column
-    const insertData = { ...metadata };
+    const insertData: any = { ...metadata };
     if (metadata.embedding && Array.isArray(metadata.embedding)) {
-      (insertData as any).embeddingVector = metadata.embedding;
+      insertData.embeddingVector = metadata.embedding;
     }
     
     const [result] = await db
@@ -242,9 +243,9 @@ export class DatabaseStorage implements IStorage {
 
   async updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void> {
     // If embedding is provided, also update the vector column
-    const updateData = { ...metadata };
+    const updateData: any = { ...metadata };
     if (metadata.embedding && Array.isArray(metadata.embedding)) {
-      (updateData as any).embeddingVector = metadata.embedding;
+      updateData.embeddingVector = metadata.embedding;
     }
     
     await db
@@ -330,6 +331,9 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mime_type,
       size: row.size,
       objectPath: row.object_path,
+      fileData: null, // Not included in API responses
+      folderId: row.folder_id,
+      storageType: row.storage_type,
       processingStatus: row.processing_status,
       processedAt: row.processed_at,
       processingError: row.processing_error,
@@ -344,7 +348,10 @@ export class DatabaseStorage implements IStorage {
         keywords: row.keywords,
         topics: row.topics,
         categories: row.categories,
+        embedding: row.embedding,
+        embeddingVector: row.embedding_vector,
         confidence: row.confidence,
+        createdAt: row.created_at,
       },
     }));
 
@@ -392,6 +399,9 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mime_type,
       size: row.size,
       objectPath: row.object_path,
+      fileData: null, // Not included in API responses
+      folderId: row.folder_id,
+      storageType: row.storage_type,
       processingStatus: row.processing_status,
       processedAt: row.processed_at,
       processingError: row.processing_error,
@@ -406,7 +416,9 @@ export class DatabaseStorage implements IStorage {
         topics: row.topics,
         categories: row.categories,
         embedding: row.embedding,
+        embeddingVector: row.embedding_vector,
         confidence: row.confidence,
+        createdAt: row.created_at,
       } : undefined,
     }));
   }
@@ -662,7 +674,13 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(files.uploadedAt));
 
-    return await query;
+    const result = await query;
+    return result.map(row => ({
+      ...row,
+      fileData: null, // Not included in API responses
+      storageType: row.storageType || null, // Use actual value or default
+      metadata: row.metadata || undefined,
+    }));
   }
 }
 

@@ -109,8 +109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: fileData.size,
         objectPath,
         processingStatus: "pending",
-        userId: "demo-user",
-      });
+        userId: userId,
+      }, userId);
 
       // Start processing in the background with raw file data for dual storage
       const rawFileData = req.file?.buffer;
@@ -494,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedText: extractedText.slice(0, 10000), // Store first 10k chars
         embedding,
         confidence: metadata.confidence,
-      });
+      }, userId);
 
       await storage.updateFileProcessedAt(fileId, userId);
 
@@ -550,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         color: folderData.color || undefined,
         description: folderData.description || undefined,
         parentId: folderData.parentId || null,
-      });
+      }, userId);
       res.status(201).json(folder);
     } catch (error) {
       console.error("Error creating folder:", error);
