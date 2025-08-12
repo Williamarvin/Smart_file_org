@@ -94,10 +94,17 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createFile(insertFile: InsertFile & { userId: string }): Promise<File> {
+  async createFile(insertFile: InsertFile & { userId: string }, rawFileData?: Buffer): Promise<File> {
+    // Prepare file data with dual storage capability
+    const insertData = {
+      ...insertFile,
+      fileData: rawFileData, // Store in database if provided
+      storageType: rawFileData ? 'dual' : 'cloud' // Set storage type based on whether we have raw data
+    };
+    
     const [file] = await db
       .insert(files)
-      .values(insertFile)
+      .values(insertData)
       .returning();
     return file;
   }
@@ -105,6 +112,26 @@ export class DatabaseStorage implements IStorage {
   async getFile(id: string, userId: string): Promise<File | undefined> {
     const [file] = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
     return file || undefined;
+  }
+
+  // Get file data from database (BYTEA)
+  async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
+    const [file] = await db
+      .select({ fileData: files.fileData })
+      .from(files)
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    
+    return file?.fileData as Buffer || undefined;
+  }
+
+  // Check if file has database storage
+  async hasFileData(id: string, userId: string): Promise<boolean> {
+    const [file] = await db
+      .select({ fileData: files.fileData, storageType: files.storageType })
+      .from(files)
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    
+    return !!(file?.fileData || file?.storageType === 'dual' || file?.storageType === 'database');
   }
 
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {

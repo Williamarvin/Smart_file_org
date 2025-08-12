@@ -112,8 +112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: "demo-user",
       });
 
-      // Start processing in the background
-      processFileAsync(file.id, userId);
+      // Start processing in the background with raw file data for dual storage
+      const rawFileData = req.file?.buffer;
+      processFileAsync(file.id, userId, rawFileData);
 
       res.json(file);
     } catch (error) {
@@ -353,6 +354,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Serve files from database (BYTEA) - faster for dual storage
+  app.get("/api/files/:fileId/data", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const fileId = req.params.fileId;
+      
+      // Get file info
+      const file = await storage.getFile(fileId, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Try to get file data from database first (faster)
+      const fileData = await storage.getFileData(fileId, userId);
+      
+      if (fileData) {
+        // Serve from database
+        res.set({
+          'Content-Type': file.mimeType,
+          'Content-Length': fileData.length.toString(),
+          'Content-Disposition': `attachment; filename="${file.originalName}"`,
+          'Cache-Control': 'private, max-age=3600'
+        });
+        res.send(fileData);
+        console.log(`Served file ${file.originalName} from database (${fileData.length} bytes)`);
+      } else {
+        // Fallback to object storage
+        const objectStorageService = new ObjectStorageService();
+        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        objectStorageService.downloadObject(objectFile, res);
+        console.log(`Served file ${file.originalName} from object storage (fallback)`);
+      }
+    } catch (error) {
+      console.error("Error serving file data:", error);
+      res.status(500).json({ error: "Failed to serve file" });
+    }
+  });
+
   // Generate content using existing files
   app.post("/api/generate-content", async (req: any, res) => {
     try {
@@ -412,7 +451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Background processing function
-  async function processFileAsync(fileId: string, userId: string) {
+  async function processFileAsync(fileId: string, userId: string, rawFileData?: Buffer) {
     try {
       await storage.updateFileProcessingStatus(fileId, userId, "processing");
 
@@ -421,9 +460,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("File not found");
       }
 
-      // Get file from object storage
-      const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-      const [fileData] = await objectFile.download();
+      // Get file data - prefer database storage for faster access
+      let fileData: Buffer;
+      if (rawFileData) {
+        fileData = rawFileData;
+        console.log("Using raw file data from dual storage");
+      } else {
+        // Fallback to object storage
+        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        const [downloadedData] = await objectFile.download();
+        fileData = downloadedData;
+        console.log("Downloaded file data from object storage");
+      }
 
       // Extract text from file
       const extractedText = await extractTextFromFile(fileData, file.mimeType, file.originalName);
