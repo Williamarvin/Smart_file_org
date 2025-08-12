@@ -103,9 +103,9 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, bytea: ${shouldStoreBytea ? 'yes' : 'no (>1GB)'}`);
     
-    // Insert into hidden bytea table
+    // Insert into schema-isolated bytea table
     const result = await db.execute(sql`
-      INSERT INTO _files_internal_bytea (
+      INSERT INTO bytea_internal._files_internal_bytea (
         filename, original_name, mime_type, size, object_path,
         file_data, user_id, storage_type, processing_status
       ) VALUES (
@@ -154,7 +154,7 @@ export class DatabaseStorage implements IStorage {
   async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
     const result = await db.execute(sql`
       SELECT file_data 
-      FROM _files_internal_bytea 
+      FROM bytea_internal._files_internal_bytea 
       WHERE id = ${id} AND user_id = ${userId}
     `);
     
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
   async hasFileData(id: string, userId: string): Promise<boolean> {
     const result = await db.execute(sql`
       SELECT file_data IS NOT NULL as has_data, storage_type
-      FROM _files_internal_bytea 
+      FROM bytea_internal._files_internal_bytea 
       WHERE id = ${id} AND user_id = ${userId}
     `);
     
@@ -197,7 +197,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(files.userId, userId),
-          sql`id NOT IN (SELECT id FROM _files_internal_bytea WHERE file_data IS NOT NULL)`, // Files without bytea data
+          sql`id NOT IN (SELECT id FROM bytea_internal._files_internal_bytea WHERE file_data IS NOT NULL)`, // Files without bytea data
           sql`${files.size} <= 1073741823`, // Only files ≤ 1GB should have bytea
           eq(files.storageType, 'dual') // Only dual storage files need backfill
         )
@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     await db.execute(sql`
-      UPDATE _files_internal_bytea 
+      UPDATE bytea_internal._files_internal_bytea 
       SET file_data = ${fileData}
       WHERE id = ${id} AND user_id = ${userId}
     `);
