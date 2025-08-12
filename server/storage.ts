@@ -170,7 +170,19 @@ export class DatabaseStorage implements IStorage {
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
     const result = await db
       .select({
-        file: files,
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
         metadata: fileMetadata,
       })
       .from(files)
@@ -186,10 +198,22 @@ export class DatabaseStorage implements IStorage {
       .offset(offset);
 
     return result.map(row => {
-      // Include fileData as null to match the FileWithMetadata type
+      // Return file data without the fileData bytea column to avoid serialization issues
       return {
-        ...row.file,
-        fileData: null, // Set to null for API responses to avoid JSON serialization issues
+        id: row.id,
+        filename: row.filename,
+        originalName: row.originalName,
+        mimeType: row.mimeType,
+        size: row.size,
+        objectPath: row.objectPath,
+        fileData: null, // Set to null for API responses - bytea excluded from query
+        folderId: row.folderId,
+        uploadedAt: row.uploadedAt,
+        processedAt: row.processedAt,
+        storageType: row.storageType,
+        processingStatus: row.processingStatus,
+        processingError: row.processingError,
+        userId: row.userId,
         metadata: row.metadata || undefined,
       };
     });
