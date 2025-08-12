@@ -371,10 +371,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (fileData) {
         // Serve from database
+        // Sanitize filename for header
+        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
         res.set({
           'Content-Type': file.mimeType,
           'Content-Length': fileData.length.toString(),
-          'Content-Disposition': `attachment; filename="${file.originalName}"`,
+          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
           'Cache-Control': 'private, max-age=3600'
         });
         res.send(fileData);

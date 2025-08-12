@@ -184,10 +184,14 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
-    return result.map(row => ({
-      ...row.file,
-      metadata: row.metadata || undefined,
-    }));
+    return result.map(row => {
+      // Exclude fileData from API responses to avoid JSON serialization issues with large BYTEA data
+      const { fileData, ...fileWithoutData } = row.file;
+      return {
+        ...fileWithoutData,
+        metadata: row.metadata || undefined,
+      };
+    });
   }
 
   async updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void> {
