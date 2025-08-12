@@ -139,7 +139,7 @@ export class DatabaseStorage implements IStorage {
     return !!(file?.fileData || file?.storageType === 'dual' || file?.storageType === 'database');
   }
 
-  // Get files that don't have BYTEA data for backfill
+  // Get files that don't have BYTEA data for backfill (only dual storage files under 1MB)
   async getFilesWithoutBytea(userId: string): Promise<File[]> {
     const result = await db
       .select()
@@ -147,7 +147,9 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(files.userId, userId),
-          isNull(files.fileData) // Files without BYTEA data
+          isNull(files.fileData), // Files without BYTEA data
+          lt(files.size, 1048576), // Only small files should have bytea
+          eq(files.storageType, 'dual') // Only dual storage files need backfill
         )
       )
       .orderBy(asc(files.size)); // Start with smaller files first
