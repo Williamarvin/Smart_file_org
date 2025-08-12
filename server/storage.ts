@@ -18,7 +18,7 @@ import {
   type FolderWithChildren,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray, ne, isNull } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -132,6 +132,38 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(files.id, id), eq(files.userId, userId)));
     
     return !!(file?.fileData || file?.storageType === 'dual' || file?.storageType === 'database');
+  }
+
+  // Get files that don't have BYTEA data for backfill
+  async getFilesWithoutBytea(userId: string): Promise<File[]> {
+    const result = await db
+      .select()
+      .from(files)
+      .where(
+        and(
+          eq(files.userId, userId),
+          isNull(files.fileData) // Files without BYTEA data
+        )
+      )
+      .orderBy(asc(files.size)); // Start with smaller files first
+    
+    return result;
+  }
+
+  // Update file data for backfill
+  async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
+    await db
+      .update(files)
+      .set({ fileData })
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+  }
+
+  // Update storage type
+  async updateStorageType(id: string, userId: string, storageType: string): Promise<void> {
+    await db
+      .update(files)
+      .set({ storageType })
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
   }
 
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {

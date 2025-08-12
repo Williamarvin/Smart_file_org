@@ -618,6 +618,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Backfill existing files to dual storage
+  app.post("/api/files/backfill-dual-storage", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Get all files that don't have BYTEA data yet
+      const filesToBackfill = await storage.getFilesWithoutBytea(userId);
+      
+      if (filesToBackfill.length === 0) {
+        return res.json({ message: "All files already have dual storage", count: 0 });
+      }
+      
+      console.log(`Starting backfill for ${filesToBackfill.length} files...`);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+      
+      for (const file of filesToBackfill) {
+        try {
+          console.log(`Backfilling file: ${file.originalName} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          
+          // Download from cloud storage
+          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+          const [fileData] = await objectFile.download();
+          
+          // Store in database
+          await storage.updateFileData(file.id, userId, fileData);
+          await storage.updateStorageType(file.id, userId, "dual");
+          
+          successCount++;
+          console.log(`✓ Backfilled: ${file.originalName}`);
+          
+        } catch (error: any) {
+          errorCount++;
+          const errorMsg = `Failed to backfill ${file.originalName}: ${error?.message || 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error(errorMsg);
+        }
+      }
+      
+      const result = {
+        message: `Backfill completed: ${successCount} successful, ${errorCount} failed`,
+        successful: successCount,
+        failed: errorCount,
+        total: filesToBackfill.length,
+        errors: errors
+      };
+      
+      console.log("Backfill summary:", result);
+      res.json(result);
+      
+    } catch (error) {
+      console.error("Error in backfill operation:", error);
+      res.status(500).json({ error: "Failed to backfill dual storage" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
