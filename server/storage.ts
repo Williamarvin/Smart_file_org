@@ -95,8 +95,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    // Only store small files (< 1MB) in database to avoid performance issues
-    const shouldStoreInDb = rawFileData && rawFileData.length < 1024 * 1024; // 1MB limit
+    // Store files under 10MB in database for faster processing
+    const shouldStoreInDb = rawFileData && rawFileData.length < 10 * 1024 * 1024; // 10MB limit
     
     const insertData = {
       ...insertFile,
@@ -105,7 +105,7 @@ export class DatabaseStorage implements IStorage {
       storageType: shouldStoreInDb ? 'dual' : 'cloud' // Set storage type appropriately
     };
     
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size}, storing in DB: ${shouldStoreInDb}`);
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, storing in DB: ${shouldStoreInDb}`);
     
     const [file] = await db
       .insert(files)
@@ -148,7 +148,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(files.userId, userId),
           isNull(files.fileData), // Files without BYTEA data
-          lt(files.size, 1048576), // Only small files should have bytea
+          lt(files.size, 10485760), // Only files under 10MB should have bytea
           eq(files.storageType, 'dual') // Only dual storage files need backfill
         )
       )
