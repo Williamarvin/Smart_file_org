@@ -83,11 +83,11 @@ export const files = pgTable("files", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
-  // Note: File data is stored in Google Cloud Storage only (no database storage)
+  fileContent: bytea("file_content"), // Store files <50MB in database for faster access
   folderId: varchar("folder_id").references(() => folders.id, { onDelete: "set null" }), // Files can exist without folders (root level)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
-  storageType: varchar("storage_type").default("cloud"), // cloud: Google Cloud Storage only
+  storageType: varchar("storage_type").default("hybrid"), // hybrid: BYTEA (<50MB) + Google Cloud Storage (always)
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
   processingError: text("processing_error"),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -171,6 +171,11 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type File = typeof files.$inferSelect;
+
+export type FileWithMetadata = File & {
+  metadata?: FileMetadata;
+  similarity?: number; // For search results
+};
 export type InsertFileMetadata = z.infer<typeof insertFileMetadataSchema>;
 export type FileMetadata = typeof fileMetadata.$inferSelect;
 export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;

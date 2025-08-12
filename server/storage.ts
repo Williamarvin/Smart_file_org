@@ -52,6 +52,8 @@ export interface IStorage {
     processingFiles: number;
     errorFiles: number;
     totalSize: number;
+    byteaSize: number;
+    cloudSize: number;
   }>;
   
   // Batch operations
@@ -97,20 +99,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, storage: cloud-only`);
+    const maxBytea = 50 * 1024 * 1024; // 50MB limit for BYTEA storage
+    const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
     
-    // Insert into files table - cloud storage only
-    const [file] = await db
-      .insert(files)
-      .values({
-        ...insertFile,
-        userId,
-        storageType: 'cloud',
-        processingStatus: 'pending'
-      })
-      .returning();
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, BYTEA: ${shouldStoreBytea ? 'yes' : 'no (>50MB)'}`);
     
-    return file;
+    // Insert into files table with hybrid storage
+    const fileValues = {
+      ...insertFile,
+      userId,
+      storageType: 'hybrid' as const,
+      processingStatus: 'pending' as const,
+    };
+    
+    // Add BYTEA data if file is ≤50MB
+    if (shouldStoreBytea) {
+      const result = await db.execute(sql`
+        INSERT INTO files (id, filename, original_name, mime_type, size, object_path, file_content, user_id, storage_type, processing_status)
+        VALUES (gen_random_uuid(), ${insertFile.filename}, ${insertFile.originalName}, ${insertFile.mimeType}, 
+                ${insertFile.size}, ${insertFile.objectPath}, ${rawFileData}, ${userId}, 'hybrid', 'pending')
+        RETURNING *
+      `);
+      return result.rows[0] as File;
+    } else {
+      // Large files: cloud storage only (no BYTEA)
+      const [file] = await db
+        .insert(files)
+        .values(fileValues)
+        .returning();
+      return file;
+    }
   }
 
   async getFile(id: string, userId: string): Promise<File | undefined> {
@@ -121,9 +139,54 @@ export class DatabaseStorage implements IStorage {
     return file || undefined;
   }
 
-  // Note: File data is stored in Google Cloud Storage only
+  // Get file data from BYTEA (for files ≤50MB) with cloud fallback
+  async getFileData(id: string, userId: string): Promise<Buffer | undefined> {
+    const result = await db.execute(sql`
+      SELECT file_content, size 
+      FROM files 
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
+    
+    const row = result.rows[0] as any;
+    if (row?.file_content) {
+      const buffer = Buffer.from(row.file_content);
+      console.log(`Retrieved file data from BYTEA (${buffer.length} bytes)`);
+      return buffer;
+    }
+    return undefined;
+  }
+
+  // Check if file has BYTEA data in database
+  async hasFileData(id: string, userId: string): Promise<boolean> {
+    const result = await db.execute(sql`
+      SELECT file_content IS NOT NULL as has_bytea_data
+      FROM files 
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
+    
+    return !!(result.rows[0]?.has_bytea_data);
+  }
+
+  // Store file data in BYTEA (for files ≤50MB)
+  async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
+    const maxBytea = 50 * 1024 * 1024; // 50MB limit
+    
+    if (fileData.length > maxBytea) {
+      console.log(`File too large for BYTEA storage: ${fileData.length} bytes > ${maxBytea} bytes`);
+      return; // Skip if file is too large
+    }
+    
+    await db.execute(sql`
+      UPDATE files 
+      SET file_content = ${fileData}
+      WHERE id = ${id} AND user_id = ${userId}
+    `);
+    
+    console.log(`Updated BYTEA data for file ${id}: ${fileData.length} bytes`);
+  }
 
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
+    // Exclude file_content BYTEA column from regular queries for performance
     const result = await db
       .select({
         id: files.id,
@@ -160,6 +223,7 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mimeType,
       size: row.size,
       objectPath: row.objectPath,
+      fileContent: null, // Not included in list queries for performance
       folderId: row.folderId,
       uploadedAt: row.uploadedAt,
       processedAt: row.processedAt,
@@ -288,7 +352,7 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mimeType,
       size: row.size,
       objectPath: row.objectPath,
-      fileData: null, // Exclude bytea data for performance
+      fileContent: null, // Exclude bytea data for performance
       folderId: row.folderId,
       uploadedAt: row.uploadedAt,
       processedAt: row.processedAt,
@@ -334,7 +398,7 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mime_type,
       size: row.size,
       objectPath: row.object_path,
-      fileData: null, // Not included in API responses
+      fileContent: null, // Not included in API responses
       folderId: row.folder_id,
       storageType: row.storage_type,
       processingStatus: row.processing_status,
@@ -402,7 +466,7 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mime_type,
       size: row.size,
       objectPath: row.object_path,
-      fileData: null, // Not included in API responses
+      fileContent: null, // Not included in API responses
       folderId: row.folder_id,
       storageType: row.storage_type,
       processingStatus: row.processing_status,
@@ -451,6 +515,8 @@ export class DatabaseStorage implements IStorage {
     processingFiles: number;
     errorFiles: number;
     totalSize: number;
+    byteaSize: number;
+    cloudSize: number;
   }> {
     const [stats] = await db
       .select({
@@ -459,11 +525,21 @@ export class DatabaseStorage implements IStorage {
         processingFiles: sql<number>`COUNT(CASE WHEN processing_status IN ('pending', 'processing') THEN 1 END)::int`,
         errorFiles: sql<number>`COUNT(CASE WHEN processing_status = 'error' THEN 1 END)::int`,
         totalSize: sql<number>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::int`,
+        byteaSize: sql<number>`COALESCE(SUM(CASE WHEN file_content IS NOT NULL THEN length(file_content) ELSE 0 END), 0)::bigint`,
+        cloudSize: sql<number>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::int`,
       })
       .from(files)
       .where(eq(files.userId, userId));
 
-    return stats;
+    return {
+      totalFiles: stats.totalFiles,
+      processedFiles: stats.processedFiles,
+      processingFiles: stats.processingFiles,
+      errorFiles: stats.errorFiles,
+      totalSize: stats.totalSize,
+      byteaSize: Number(stats.byteaSize),
+      cloudSize: stats.cloudSize,
+    };
   }
 
   async getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]> {
@@ -497,7 +573,7 @@ export class DatabaseStorage implements IStorage {
       mimeType: row.mimeType,
       size: row.size,
       objectPath: row.objectPath,
-      fileData: null, // Exclude bytea data for performance
+      fileContent: null, // Exclude bytea data for performance
       folderId: row.folderId,
       uploadedAt: row.uploadedAt,
       processedAt: row.processedAt,
@@ -594,7 +670,7 @@ export class DatabaseStorage implements IStorage {
         children,
         files: folderFiles.map(file => ({
           ...file,
-          fileData: null, // Exclude bytea data for performance
+          fileContent: null, // Exclude bytea data for performance
         })),
       });
     }
@@ -723,7 +799,7 @@ export class DatabaseStorage implements IStorage {
     const result = await query;
     return result.map(row => ({
       ...row,
-      fileData: null, // Not included in API responses
+      fileContent: null, // Not included in API responses
       storageType: row.storageType || null, // Use actual value or default
       metadata: row.metadata || undefined,
     }));

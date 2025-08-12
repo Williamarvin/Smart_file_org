@@ -366,21 +366,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
-      // Get file data from Google Cloud Storage only
-      const objectStorageService = new ObjectStorageService();
-      const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-      const [data] = await objectFile.download();
+      // Try BYTEA first (faster for files ≤50MB), fallback to cloud storage
+      const fileData = await storage.getFileData(fileId, userId);
       
-      // Sanitize filename for header
-      const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
-      res.set({
-        'Content-Type': file.mimeType,
-        'Content-Length': data.length.toString(),
-        'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
-        'Cache-Control': 'private, max-age=3600'
-      });
-      res.send(data);
-      console.log(`Served file ${file.originalName} from cloud storage (${data.length} bytes)`);
+      if (fileData) {
+        // Serve from BYTEA (faster)
+        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
+        res.set({
+          'Content-Type': file.mimeType,
+          'Content-Length': fileData.length.toString(),
+          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
+          'Cache-Control': 'private, max-age=3600'
+        });
+        res.send(fileData);
+        console.log(`Served file ${file.originalName} from BYTEA (${fileData.length} bytes)`);
+      } else {
+        // Fallback to Google Cloud Storage
+        const objectStorageService = new ObjectStorageService();
+        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        const [data] = await objectFile.download();
+        
+        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
+        res.set({
+          'Content-Type': file.mimeType,
+          'Content-Length': data.length.toString(),
+          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
+          'Cache-Control': 'private, max-age=3600'
+        });
+        res.send(data);
+        console.log(`Served file ${file.originalName} from cloud storage (${data.length} bytes)`);
+        
+        // Backfill BYTEA for small files
+        if (data.length <= 50 * 1024 * 1024) { // ≤50MB
+          await storage.updateFileData(fileId, userId, data);
+          console.log(`Backfilled BYTEA storage for ${file.originalName}`);
+        }
+      }
     } catch (error) {
       console.error("Error serving file data:", error);
       res.status(500).json({ error: "Failed to serve file" });
@@ -455,17 +476,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("File not found");
       }
 
-      // Get file data from Google Cloud Storage only
+      // Get file data using hybrid storage (BYTEA + Cloud)
       let fileData: Buffer;
       if (rawFileData) {
         fileData = rawFileData;
         console.log("Using raw file data from upload");
+        
+        // Store in BYTEA if ≤50MB
+        if (fileData.length <= 50 * 1024 * 1024 && !await storage.hasFileData(fileId, userId)) {
+          await storage.updateFileData(fileId, userId, fileData);
+          console.log(`Stored file data in BYTEA: ${file.filename}`);
+        }
       } else {
-        // Get from Google Cloud Storage
-        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-        const [downloadedData] = await objectFile.download();
-        fileData = downloadedData;
-        console.log("Retrieved file data from cloud storage");
+        // Try BYTEA first (faster for ≤50MB files)
+        const bytea = await storage.getFileData(fileId, userId);
+        if (bytea) {
+          fileData = bytea;
+          console.log("Retrieved file data from BYTEA");
+        } else {
+          // Fallback to Google Cloud Storage
+          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+          const [downloadedData] = await objectFile.download();
+          fileData = downloadedData;
+          console.log("Retrieved file data from cloud storage");
+          
+          // Backfill BYTEA if ≤50MB
+          if (fileData.length <= 50 * 1024 * 1024) {
+            await storage.updateFileData(fileId, userId, fileData);
+            console.log(`Backfilled BYTEA storage: ${file.filename}`);
+          }
+        }
       }
 
       // Extract text from file
