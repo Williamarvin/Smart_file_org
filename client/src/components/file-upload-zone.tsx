@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileText, Video, Brain, CheckCircle } from "lucide-react";
+import { Plus, Upload, FileText, Video, Brain, CheckCircle, FolderPlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface FileUploadZoneProps {
@@ -24,6 +24,173 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
   const handleFileSelect = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleFolderSelect = () => {
+    // Create a temporary input for folder selection
+    const folderInput = document.createElement('input');
+    folderInput.type = 'file';
+    folderInput.webkitdirectory = true;
+    folderInput.multiple = true;
+    folderInput.onchange = (e: any) => handleFolderUpload(e.target.files);
+    folderInput.click();
+  };
+
+  const handleFolderUpload = async (fileList: FileList) => {
+    if (!fileList || fileList.length === 0) return;
+
+    setIsUploading(true);
+    const files = Array.from(fileList);
+    setUploadProgress({ total: files.length, processed: 0, current: "" });
+
+    try {
+      // Extract folder structure from file paths
+      const folderStructure = new Map<string, string[]>(); // path -> files in that folder
+      const folderPaths = new Set<string>();
+
+      files.forEach(file => {
+        const fullPath = file.webkitRelativePath || file.name;
+        const pathParts = fullPath.split('/');
+        
+        // Build all folder paths
+        let currentPath = '';
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          currentPath += (currentPath ? '/' : '') + pathParts[i];
+          folderPaths.add(currentPath);
+        }
+        
+        // Add file to its parent folder
+        const parentPath = pathParts.slice(0, -1).join('/');
+        if (!folderStructure.has(parentPath)) {
+          folderStructure.set(parentPath, []);
+        }
+        folderStructure.get(parentPath)!.push(fullPath);
+      });
+
+      // Create folders first (sorted by depth to create parents first)
+      const sortedFolderPaths = Array.from(folderPaths).sort((a, b) => 
+        a.split('/').length - b.split('/').length
+      );
+
+      const folderIdMap = new Map<string, string>();
+      
+      for (const folderPath of sortedFolderPaths) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? folderIdMap.get(parentPath) : null;
+
+        try {
+          const folder = await apiRequest("/api/folders", {
+            method: "POST",
+            body: {
+              name: folderName,
+              path: '/' + folderPath,
+              parentId: parentId,
+            },
+          });
+          folderIdMap.set(folderPath, folder.id);
+        } catch (error) {
+          console.error(`Error creating folder ${folderPath}:`, error);
+        }
+      }
+
+      // Upload files to their respective folders
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fullPath = file.webkitRelativePath || file.name;
+        const pathParts = fullPath.split('/');
+        const parentFolderPath = pathParts.slice(0, -1).join('/');
+        const folderId = folderIdMap.get(parentFolderPath);
+
+        setUploadProgress({ total: files.length, processed: i, current: fullPath });
+
+        // Validate file type
+        const allowedTypes = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm', 'video/mkv'
+        ];
+        
+        if (!allowedTypes.includes(file.type)) {
+          toast({
+            title: "Invalid File Type",
+            description: `File "${file.name}" is not supported. Skipping.`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        // Validate file size
+        const maxSize = file.type.startsWith('video/') ? 524288000 : 104857600;
+        if (file.size > maxSize) {
+          toast({
+            title: "File Too Large",
+            description: `File "${file.name}" is too large. Max size is ${file.type.startsWith('video/') ? '500MB' : '100MB'}.`,
+            variant: "destructive",
+          });
+          continue;
+        }
+
+        try {
+          // Get upload URL
+          const { uploadURL } = await apiRequest("/api/files/upload-url");
+          
+          // Upload to cloud storage
+          const uploadResponse = await fetch(uploadURL, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Upload failed: ${uploadResponse.status}`);
+          }
+
+          // Create file record with folder association
+          await apiRequest("/api/files", {
+            method: "POST",
+            body: {
+              filename: file.name,
+              originalName: file.name,
+              mimeType: file.type,
+              size: file.size,
+              uploadURL,
+              folderId: folderId || null,
+            },
+          });
+
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          toast({
+            title: "Upload Failed",
+            description: `Failed to upload "${file.name}". Please try again.`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      setUploadProgress({ total: files.length, processed: files.length, current: "" });
+      
+      toast({
+        title: "Folder Upload Complete",
+        description: `Successfully uploaded ${files.length} files with folder structure preserved.`,
+      });
+
+      setShowAiProcessing(true);
+      onUploadSuccess?.();
+
+    } catch (error) {
+      console.error("Error uploading folder:", error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload folder. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,7 +266,10 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           uploadURL: uploadData.uploadURL,
         };
 
-        await apiRequest("POST", "/api/files", fileData);
+        await apiRequest("/api/files", {
+          method: "POST",
+          body: fileData,
+        });
         setUploadProgress({ total: fileArray.length, processed: i + 1, current: "" });
       }
 
@@ -155,19 +325,33 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         className="hidden"
       />
       
-      <Button
-        onClick={handleFileSelect}
-        disabled={isUploading}
-        className="px-8 py-6 text-lg font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400"
-      >
-        <Plus className="mr-2 h-5 w-5" />
-        {isUploading ? "Uploading..." : "Add Files"}
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Button
+          onClick={handleFileSelect}
+          disabled={isUploading}
+          className="px-8 py-6 text-lg font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400"
+        >
+          <Plus className="mr-2 h-5 w-5" />
+          {isUploading ? "Uploading..." : "Add Files"}
+        </Button>
+        <Button
+          onClick={handleFolderSelect}
+          disabled={isUploading}
+          variant="outline"
+          className="px-8 py-6 text-lg font-medium border-2 border-blue-300 text-blue-700 hover:bg-blue-50 disabled:bg-slate-400"
+        >
+          <FolderPlus className="mr-2 h-5 w-5" />
+          Upload Folder
+        </Button>
+      </div>
 
-      <div className="text-sm text-slate-500">
+      <div className="text-sm text-slate-500 space-y-1">
         <p>Supports PDF, DOCX, TXT files (up to 100MB) and video files (up to 500MB)</p>
         <p>Video files will be processed using AI transcription for searchable content</p>
-        <p>Click to select multiple files from your computer</p>
+        <p>Click to select multiple files or upload an entire folder</p>
+        <p className="text-xs text-blue-600 font-medium">
+          💡 Folder uploads preserve the complete directory structure
+        </p>
       </div>
 
       {isUploading && (

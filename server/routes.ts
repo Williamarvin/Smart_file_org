@@ -89,6 +89,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create folder
+  app.post("/api/folders", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const folderData = z.object({
+        name: z.string(),
+        path: z.string(),
+        parentId: z.string().nullable().optional(),
+        color: z.string().optional(),
+        description: z.string().optional(),
+      }).parse(req.body);
+
+      const folder = await storage.createFolder({
+        name: folderData.name,
+        path: folderData.path,
+        parentId: folderData.parentId || null,
+        color: folderData.color,
+        description: folderData.description,
+        userId: userId,
+      }, userId);
+
+      res.json(folder);
+    } catch (error) {
+      console.error("Error creating folder:", error);
+      res.status(500).json({ error: "Failed to create folder" });
+    }
+  });
+
   // Create file record after upload
   app.post("/api/files", async (req: any, res) => {
     try {
@@ -99,6 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: z.string(),
         size: z.number(),
         uploadURL: z.string(),
+        folderId: z.string().nullable().optional(),
       }).parse(req.body);
 
       // Normalize the object path
@@ -110,6 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: fileData.mimeType,
         size: fileData.size,
         objectPath,
+        folderId: fileData.folderId || null,
         processingStatus: "pending",
         userId: userId,
       }, userId);
@@ -275,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!query || query.trim() === '') {
         console.log("No search query provided, returning all files (browse mode)");
         const files = await getFastFiles(userId, 50, 0);
-        console.log(`Browse mode: returning ${files.length} files`);
+        console.log(`Browse mode: returning ${Array.isArray(files) ? files.length : 0} files`);
         res.json(files);
         return;
       }

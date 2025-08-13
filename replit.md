@@ -83,6 +83,26 @@ Preferred communication style: Simple, everyday language.
   - Implemented smart field selection to exclude problematic columns
 - **Result**: **Completely eliminated app freezing** - system now stays responsive under all conditions
 
+## Folder Upload Functionality (Aug 13, 2025)
+- **Feature**: **Complete folder upload with hierarchical structure support**
+- **Implementation**:
+  - **Frontend Folder Selection**: Added "Upload Folder" button with webkitdirectory API support
+  - **Hierarchical Processing**: Automatically extracts folder structure from file paths
+  - **Smart Folder Creation**: Creates parent folders first, then associates files correctly
+  - **Path Preservation**: Maintains complete directory structure: `/Documents/Work/Projects/file.pdf`
+  - **Bulk Operations**: Handles entire folder trees in single upload operation
+- **User Experience**:
+  - **Two Upload Options**: Individual files OR complete folders
+  - **Progress Tracking**: Shows current file being processed during folder upload
+  - **Error Handling**: Graceful handling of unsupported files within folders
+  - **Visual Feedback**: Clear indication of folder upload capability
+- **Technical Architecture**:
+  - **Backend API**: `/api/folders` endpoint for folder creation
+  - **Database Schema**: Hierarchical folder structure with parent-child relationships
+  - **File Association**: Files linked to folders via `folderId` foreign key
+  - **Path Management**: Full path stored for efficient navigation
+- **Result**: **Complete folder upload system** - users can upload entire directory structures while preserving organization
+
 # System Architecture
 
 ## Frontend Architecture
