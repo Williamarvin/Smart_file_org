@@ -19,6 +19,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle-orm";
+import { cache } from "./cache";
 
 // Storage interface for cloud-only file management
 
@@ -99,6 +100,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
+    // Invalidate cache when new files are created
+    cache.invalidatePattern(`files:${userId}:`);
+    
     const maxBytea = 50 * 1024 * 1024; // 50MB limit for BYTEA storage
     const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
     
@@ -186,6 +190,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
+    // Use cache for first page requests (most common)
+    const cacheKey = `files:${userId}:${limit}:${offset}`;
+    if (offset === 0 && limit <= 50) {
+      const cached = cache.get<FileWithMetadata[]>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
     // Exclude file_content BYTEA column from regular queries for performance
     const result = await db
       .select({
@@ -216,7 +229,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
-    return result.map(row => ({
+    const mappedResult = result.map(row => ({
       id: row.id,
       filename: row.filename,
       originalName: row.originalName,
@@ -233,6 +246,13 @@ export class DatabaseStorage implements IStorage {
       userId: row.userId,
       metadata: row.metadata || undefined,
     }));
+
+    // Cache first page results
+    if (offset === 0 && limit <= 50) {
+      cache.set(cacheKey, mappedResult, 15000); // 15 second cache
+    }
+
+    return mappedResult;
   }
 
   async updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void> {

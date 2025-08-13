@@ -659,7 +659,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = "demo-user";
       
       // Get all files that don't have BYTEA data yet
-      const filesToBackfill = await storage.getFilesWithoutBytea(userId);
+      // Get files that could benefit from BYTEA caching (≤50MB without file_content)
+      const filesToBackfill = await storage.getFiles(userId, 100).then(files => 
+        files.filter(f => f.size <= 50 * 1024 * 1024 && !f.fileContent)
+      );
       
       if (filesToBackfill.length === 0) {
         return res.json({ message: "All files already have dual storage", count: 0 });
@@ -681,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Store in database
           await storage.updateFileData(file.id, userId, fileData);
-          await storage.updateStorageType(file.id, userId, "dual");
+          // Storage type is now automatically hybrid for all files
           
           successCount++;
           console.log(`✓ Backfilled: ${file.originalName}`);
