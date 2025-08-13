@@ -141,7 +141,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
         try {
           // Get upload URL
-          const uploadUrlResponse = await apiRequest("GET", "/api/files/upload-url");
+          const uploadUrlResponse = await apiRequest("POST", "/api/files/upload-url", {});
           const { uploadURL } = await uploadUrlResponse.json();
           
           // Upload to cloud storage
