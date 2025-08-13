@@ -103,6 +103,25 @@ Preferred communication style: Simple, everyday language.
   - **Path Management**: Full path stored for efficient navigation
 - **Result**: **Complete folder upload system** - users can upload entire directory structures while preserving organization
 
+## Enhanced Select All Functionality (Aug 13, 2025)
+- **Issue**: Select All button only worked for current folder view, not across all files globally
+- **Solution**: **Enhanced dropdown-based Select All with scope options**
+- **Implementation**:
+  - **Dropdown Menu**: Converted single Select All button to dropdown with multiple options
+  - **Current View Selection**: "Select in Current View" - selects files in current folder/search
+  - **Global Selection**: "Select All Files" - selects all files across entire system
+  - **Count Display**: Shows number of files for each option to clarify scope
+  - **Smart Loading**: Added global files query for system-wide operations
+- **User Experience**:
+  - **Clear Options**: Users choose between local (folder) or global (system-wide) selection
+  - **Visual Feedback**: File counts displayed for each selection scope
+  - **Consistent UI**: Maintains existing bulk operations (move, delete) with enhanced selection
+- **Technical Details**:
+  - **New Query**: Added `/api/files` query for global file access
+  - **Enhanced Handlers**: `handleSelectAll()` for current view, `handleSelectAllGlobal()` for system-wide
+  - **UI Components**: DropdownMenu with clear option descriptions and counts
+- **Result**: **Flexible file selection** - users can select files within current context or across entire system for bulk operations
+
 # System Architecture
 
 ## Frontend Architecture

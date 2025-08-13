@@ -87,6 +87,15 @@ export function Browse() {
     enabled: !searchQuery, // Only load folder files when not searching
   });
 
+  // Get all files for global select all functionality
+  const { data: allFiles = [] } = useQuery({
+    queryKey: ["/api/files"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/files");
+      return res.json();
+    },
+  });
+
   // Search files across all folders
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
     queryKey: ["/api/search", searchQuery],
@@ -238,6 +247,11 @@ export function Browse() {
     setSelectedFileIds(new Set(allFileIds));
   };
 
+  const handleSelectAllGlobal = () => {
+    const allGlobalFileIds = Array.isArray(allFiles) ? allFiles.map(f => f.id) : [];
+    setSelectedFileIds(new Set(allGlobalFileIds));
+  };
+
   const handleClearSelection = () => {
     setSelectedFileIds(new Set());
     setIsSelectionMode(false);
@@ -316,14 +330,25 @@ export function Browse() {
             {/* Selection Mode Controls */}
             {isSelectionMode ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  disabled={!displayFiles || displayFiles.length === 0}
-                >
-                  Select All
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!displayFiles || displayFiles.length === 0}
+                    >
+                      Select All ▼
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={handleSelectAll}>
+                      Select in Current View ({displayFiles?.length || 0})
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSelectAllGlobal}>
+                      Select All Files ({allFiles?.length || 0})
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="outline" 
                   size="sm"
