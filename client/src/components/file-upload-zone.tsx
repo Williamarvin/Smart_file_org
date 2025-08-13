@@ -17,7 +17,15 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Query to track AI processing stats
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<{
+    totalFiles: number;
+    processedFiles: number;
+    processingFiles: number;
+    errorFiles: number;
+    totalSize: number;
+    byteaSize: number;
+    cloudSize: number;
+  }>({
     queryKey: ["/api/stats"],
     refetchInterval: showAiProcessing ? 2000 : false, // Poll every 2 seconds when showing AI progress
   });
@@ -81,14 +89,12 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         const parentId = parentPath ? folderIdMap.get(parentPath) : null;
 
         try {
-          const folder = await apiRequest("/api/folders", {
-            method: "POST",
-            body: {
-              name: folderName,
-              path: '/' + folderPath,
-              parentId: parentId,
-            },
+          const response = await apiRequest("POST", "/api/folders", {
+            name: folderName,
+            path: '/' + folderPath,
+            parentId: parentId,
           });
+          const folder = await response.json();
           folderIdMap.set(folderPath, folder.id);
         } catch (error) {
           console.error(`Error creating folder ${folderPath}:`, error);
@@ -135,7 +141,8 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
         try {
           // Get upload URL
-          const { uploadURL } = await apiRequest("/api/files/upload-url");
+          const uploadUrlResponse = await apiRequest("GET", "/api/files/upload-url");
+          const { uploadURL } = await uploadUrlResponse.json();
           
           // Upload to cloud storage
           const uploadResponse = await fetch(uploadURL, {
@@ -149,16 +156,13 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           }
 
           // Create file record with folder association
-          await apiRequest("/api/files", {
-            method: "POST",
-            body: {
-              filename: file.name,
-              originalName: file.name,
-              mimeType: file.type,
-              size: file.size,
-              uploadURL,
-              folderId: folderId || null,
-            },
+          await apiRequest("POST", "/api/files", {
+            filename: file.name,
+            originalName: file.name,
+            mimeType: file.type,
+            size: file.size,
+            uploadURL,
+            folderId: folderId || null,
           });
 
         } catch (error) {
@@ -266,10 +270,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           uploadURL: uploadData.uploadURL,
         };
 
-        await apiRequest("/api/files", {
-          method: "POST",
-          body: fileData,
-        });
+        await apiRequest("POST", "/api/files", fileData);
         setUploadProgress({ total: fileArray.length, processed: i + 1, current: "" });
       }
 
