@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getFastFiles, invalidateFastFilesCache } from "./fastStorage";
+import { getNonBlockingFiles, searchFilesNonBlocking, searchSimilarFilesNonBlocking, invalidateNonBlockingCache } from "./nonBlockingStorage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 // Removed authentication
@@ -113,8 +114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: userId,
       }, userId);
 
-      // Invalidate fast files cache when new files are created
+      // Invalidate caches when new files are created
       invalidateFastFilesCache(userId);
+      invalidateNonBlockingCache(userId);
 
       // Start processing in the background with raw file data for dual storage
       const rawFileData = req.file?.buffer;
@@ -272,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no query provided, return all files (browse mode)
       if (!query || query.trim() === '') {
         console.log("No search query provided, returning all files (browse mode)");
-        const files = await storage.getFiles(userId, 50, 0);
+        const files = await getFastFiles(userId, 50, 0);
         console.log(`Browse mode: returning ${files.length} files`);
         res.json(files);
         return;
@@ -286,19 +288,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         console.log("Attempting pgvector semantic similarity search...");
         const queryEmbedding = await generateSearchEmbedding(query);
-        files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
+        files = await searchSimilarFilesNonBlocking(queryEmbedding, userId);
         console.log(`Pgvector semantic search found ${files.length} files`);
         
         // If semantic search found no relevant results, fallback to text search
         if (files.length === 0) {
           console.log("Semantic search returned no relevant results (similarity threshold not met), trying text search fallback...");
-          files = await storage.searchFiles(query, userId, 20);
+          files = await searchFilesNonBlocking(query, userId, 20);
           console.log(`Text search fallback found ${files.length} files`);
         }
       } catch (embeddingError) {
         console.error("Semantic search failed, falling back to text search:", embeddingError);
         // Fallback to text-based search
-        files = await storage.searchFiles(query, userId, 20);
+        files = await searchFilesNonBlocking(query, userId, 20);
         console.log(`Text search found ${files.length} files`);
       }
 
