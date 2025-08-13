@@ -84,6 +84,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         const parentId = parentPath ? folderIdMap.get(parentPath) : null;
 
         try {
+          console.log(`Creating folder: ${folderName}, path: /${folderPath}, parentId: ${parentId}`);
           const response = await apiRequest("POST", "/api/folders", {
             name: folderName,
             path: '/' + folderPath,
@@ -91,8 +92,14 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           });
           const folder = await response.json();
           folderIdMap.set(folderPath, folder.id);
+          console.log(`Created folder ${folderName} with ID: ${folder.id}`);
         } catch (error) {
           console.error(`Error creating folder ${folderPath}:`, error);
+          toast({
+            title: "Folder Creation Failed",
+            description: `Failed to create folder "${folderName}". ${error}`,
+            variant: "destructive",
+          });
         }
       }
 
@@ -135,9 +142,12 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
 
         try {
+          console.log(`Uploading file: ${file.name}, folderId: ${folderId}`);
+          
           // Get upload URL
           const uploadUrlResponse = await apiRequest("POST", "/api/files/upload-url", {});
           const { uploadURL } = await uploadUrlResponse.json();
+          console.log(`Got upload URL for ${file.name}`);
           
           // Upload to cloud storage
           const uploadResponse = await fetch(uploadURL, {
@@ -149,9 +159,10 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           if (!uploadResponse.ok) {
             throw new Error(`Upload failed: ${uploadResponse.status}`);
           }
+          console.log(`Successfully uploaded ${file.name} to cloud storage`);
 
           // Create file record with folder association
-          await apiRequest("POST", "/api/files", {
+          const fileCreateResponse = await apiRequest("POST", "/api/files", {
             filename: file.name,
             originalName: file.name,
             mimeType: file.type,
@@ -159,12 +170,13 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
             uploadURL,
             folderId: folderId || null,
           });
+          console.log(`Created file record for ${file.name} with folderId: ${folderId}`);
 
         } catch (error) {
           console.error(`Error uploading file ${file.name}:`, error);
           toast({
             title: "Upload Failed",
-            description: `Failed to upload "${file.name}". Please try again.`,
+            description: `Failed to upload "${file.name}". ${error}`,
             variant: "destructive",
           });
         }
