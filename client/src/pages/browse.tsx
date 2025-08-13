@@ -479,10 +479,10 @@ export function Browse() {
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Folders</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {(Array.isArray(folders) ? folders : []).map((folder: FolderType) => (
-              <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow cursor-pointer group">
+              <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow group relative">
                 <div className="flex items-start justify-between">
                   <div 
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                     onClick={() => navigateToFolder(folder.id)}
                   >
                     <div className="flex items-center space-x-3 mb-2">
@@ -500,23 +500,25 @@ export function Browse() {
                     </div>
                   </div>
                   
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigateToFolder(folder.id)}>
-                        <Folder className="h-4 w-4 mr-2" />
-                        Open
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeleteFolder(folder.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex-shrink-0 ml-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigateToFolder(folder.id)}>
+                          <Folder className="h-4 w-4 mr-2" />
+                          Open
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteFolder(folder.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </Card>
             ))}
