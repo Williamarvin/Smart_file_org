@@ -96,6 +96,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           });
           const folder = await response.json();
           folderIdMap.set(folderPath, folder.id);
+          console.log(`Created folder: ${folderPath} -> ID: ${folder.id}`);
         } catch (error) {
           console.error(`Error creating folder ${folderPath}:`, error);
         }
@@ -109,6 +110,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         const parentFolderPath = pathParts.slice(0, -1).join('/');
         const folderId = folderIdMap.get(parentFolderPath);
 
+        console.log(`Processing file: ${fullPath}, parentPath: ${parentFolderPath}, folderId: ${folderId}`);
         setUploadProgress({ total: files.length, processed: i, current: fullPath });
 
         // Validate file type
@@ -156,6 +158,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           }
 
           // Create file record with folder association
+          console.log(`Creating file record for ${file.name} with folderId: ${folderId}`);
           await apiRequest("POST", "/api/files", {
             filename: file.name,
             originalName: file.name,
