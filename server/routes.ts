@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { getFastFiles, invalidateFastFilesCache } from "./fastStorage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 // Removed authentication
@@ -112,6 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: userId,
       }, userId);
 
+      // Invalidate fast files cache when new files are created
+      invalidateFastFilesCache(userId);
+
       // Start processing in the background with raw file data for dual storage
       const rawFileData = req.file?.buffer;
       processFileAsync(file.id, userId, rawFileData);
@@ -130,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const files = await storage.getFiles("demo-user", limit, offset);
+      const files = await getFastFiles(userId, limit, offset);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files:", error);

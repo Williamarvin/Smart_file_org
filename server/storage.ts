@@ -199,7 +199,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Exclude file_content BYTEA column from regular queries for performance
+    // Exclude file_content BYTEA column AND large text fields from regular queries for performance
     const result = await db
       .select({
         id: files.id,
@@ -215,7 +215,14 @@ export class DatabaseStorage implements IStorage {
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
-        metadata: fileMetadata,
+        // Only fetch essential metadata fields (not extracted_text which can be huge)
+        metadataId: fileMetadata.id,
+        metadataSummary: fileMetadata.summary,
+        metadataCategories: fileMetadata.categories,
+        metadataKeywords: fileMetadata.keywords,
+        metadataTopics: fileMetadata.topics,
+        metadataConfidence: fileMetadata.confidence,
+        metadataCreatedAt: fileMetadata.createdAt,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -244,7 +251,20 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
-      metadata: row.metadata || undefined,
+      // Build lightweight metadata object (without heavy extracted_text field)
+      metadata: row.metadataId ? {
+        id: row.metadataId,
+        fileId: row.id,
+        extractedText: null, // Excluded for performance - load separately when needed
+        summary: row.metadataSummary,
+        categories: row.metadataCategories,
+        keywords: row.metadataKeywords,
+        topics: row.metadataTopics,
+        confidence: row.metadataConfidence,
+        createdAt: row.metadataCreatedAt || new Date(),
+        embedding: null, // Excluded for performance
+        embeddingVector: null, // Excluded for performance
+      } : undefined,
     }));
 
     // Cache first page results
