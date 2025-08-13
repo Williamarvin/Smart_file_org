@@ -15,6 +15,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
   const [showAiProcessing, setShowAiProcessing] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Query to track AI processing stats
   const { data: stats } = useQuery<{
@@ -35,13 +36,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
   };
 
   const handleFolderSelect = () => {
-    // Create a temporary input for folder selection
-    const folderInput = document.createElement('input');
-    folderInput.type = 'file';
-    folderInput.webkitdirectory = true;
-    folderInput.multiple = true;
-    folderInput.onchange = (e: any) => handleFolderUpload(e.target.files);
-    folderInput.click();
+    folderInputRef.current?.click();
   };
 
   const handleFolderUpload = async (fileList: FileList) => {
@@ -301,9 +296,12 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     } finally {
       setIsUploading(false);
       setUploadProgress({ total: 0, processed: 0, current: "" });
-      // Reset file input
+      // Reset file inputs
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
+      if (folderInputRef.current) {
+        folderInputRef.current.value = '';
       }
     }
   };
@@ -326,6 +324,16 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         multiple
         accept=".pdf,.docx,.txt,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
         onChange={handleFileChange}
+        className="hidden"
+      />
+      
+      <input
+        ref={folderInputRef}
+        type="file"
+        {...({ webkitdirectory: "" } as any)}
+        multiple
+        accept=".pdf,.docx,.txt,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
+        onChange={(e) => handleFolderUpload(e.target.files!)}
         className="hidden"
       />
       
