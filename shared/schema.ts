@@ -172,10 +172,6 @@ export type User = typeof users.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type File = typeof files.$inferSelect;
 
-export type FileWithMetadata = File & {
-  metadata?: FileMetadata;
-  similarity?: number; // For search results
-};
 export type InsertFileMetadata = z.infer<typeof insertFileMetadataSchema>;
 export type FileMetadata = typeof fileMetadata.$inferSelect;
 export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
@@ -186,6 +182,7 @@ export type Folder = typeof folders.$inferSelect;
 export type FileWithMetadata = File & {
   metadata?: FileMetadata;
   folder?: Folder;
+  similarity?: number; // For search results
 };
 
 export type FolderWithChildren = Folder & {
