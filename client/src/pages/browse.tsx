@@ -479,18 +479,18 @@ export function Browse() {
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Folders</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {(Array.isArray(folders) ? folders : []).map((folder: FolderType) => (
-              <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow group relative">
+              <Card key={folder.id} className="p-4 hover:shadow-md transition-shadow group relative overflow-visible">
                 <div className="flex items-start justify-between">
                   <div 
-                    className="flex-1 cursor-pointer"
+                    className="flex-1 cursor-pointer min-w-0 pr-2"
                     onClick={() => navigateToFolder(folder.id)}
                   >
                     <div className="flex items-center space-x-3 mb-2">
-                      <Folder className="h-8 w-8 text-blue-500" />
-                      <div>
-                        <h4 className="font-medium text-slate-900">{folder.name}</h4>
+                      <Folder className="h-8 w-8 text-blue-500 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-slate-900 truncate" title={folder.name}>{folder.name}</h4>
                         {folder.description && (
-                          <p className="text-sm text-slate-600 mt-1">{folder.description}</p>
+                          <p className="text-sm text-slate-600 mt-1 line-clamp-2">{folder.description}</p>
                         )}
                       </div>
                     </div>
@@ -500,14 +500,14 @@ export function Browse() {
                     </div>
                   </div>
                   
-                  <div className="flex-shrink-0 ml-2">
+                  <div className="flex-shrink-0 ml-2 relative z-10">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" side="bottom" className="z-50">
                         <DropdownMenuItem onClick={() => navigateToFolder(folder.id)}>
                           <Folder className="h-4 w-4 mr-2" />
                           Open
