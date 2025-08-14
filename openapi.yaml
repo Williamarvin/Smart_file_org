@@ -1,0 +1,935 @@
+openapi: 3.0.3
+info:
+  title: Smart Document Management API
+  description: |
+    AI-powered document management system with semantic search, chat functionality, and content generation.
+    
+    ## Features
+    - **File Management**: Upload, organize, and manage documents and videos
+    - **AI-Powered Search**: Semantic similarity search using OpenAI embeddings
+    - **Document Chat**: Conversational AI interface for documents
+    - **Content Generation**: AI-powered content creation from existing files
+    - **Hybrid Storage**: Optimized performance with database caching + cloud storage
+    - **Automatic Processing**: Text extraction, video transcription, and metadata generation
+    
+    ## Authentication
+    Currently uses a demo user system. For production use, implement proper authentication.
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://replit.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://your-replit-app.replit.app/api
+    description: Production server
+  - url: http://localhost:5000/api
+    description: Development server
+
+# Security scheme for future implementation
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+paths:
+  # Authentication & User Management
+  /auth/user:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user information
+      description: Returns the current authenticated user's profile information
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "demo-user"
+                email: "demo@example.com"
+                firstName: "Demo"
+                lastName: "User"
+                profileImageUrl: null
+
+  # File Management
+  /files/upload-url:
+    post:
+      tags:
+        - File Management
+      summary: Get secure upload URL
+      description: Generates a secure, signed URL for direct file upload to cloud storage
+      responses:
+        '200':
+          description: Upload URL generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadURL:
+                    type: string
+                    format: uri
+                    description: Signed URL for file upload
+                example:
+                  uploadURL: "https://storage.googleapis.com/bucket/signed-url"
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files:
+    get:
+      tags:
+        - File Management
+      summary: List all files
+      description: Retrieves all files for the current user with metadata and processing status
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of files to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of files to skip for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    post:
+      tags:
+        - File Management
+      summary: Create file record
+      description: Creates a file record in the database after successful upload to cloud storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+                - originalName
+                - mimeType
+                - size
+                - objectPath
+              properties:
+                filename:
+                  type: string
+                  description: System filename
+                originalName:
+                  type: string
+                  description: Original filename as uploaded by user
+                mimeType:
+                  type: string
+                  description: MIME type of the file
+                size:
+                  type: integer
+                  description: File size in bytes
+                objectPath:
+                  type: string
+                  description: Path to file in object storage
+                folderId:
+                  type: string
+                  nullable: true
+                  description: ID of parent folder
+            example:
+              filename: "document_20250814.pdf"
+              originalName: "Important Document.pdf"
+              mimeType: "application/pdf"
+              size: 1048576
+              objectPath: "/objects/uploads/abc123"
+              folderId: null
+      responses:
+        '200':
+          description: File record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files/{id}:
+    get:
+      tags:
+        - File Management
+      summary: Get specific file
+      description: Retrieves detailed information about a specific file including metadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: File ID
+      responses:
+        '200':
+          description: File information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileWithMetadata'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    delete:
+      tags:
+        - File Management
+      summary: Delete file
+      description: Permanently deletes a file from both database and cloud storage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: File ID
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files/{fileId}/data:
+    get:
+      tags:
+        - File Management
+      summary: Download file data
+      description: Downloads the actual file content with optimized hybrid storage (BYTEA cache + cloud fallback)
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: File ID
+      responses:
+        '200':
+          description: File data retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Type:
+              description: MIME type of the file
+              schema:
+                type: string
+            Content-Length:
+              description: Size of the file in bytes
+              schema:
+                type: integer
+            Content-Disposition:
+              description: Attachment filename
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /files/category/{category}:
+    get:
+      tags:
+        - File Management
+      summary: Get files by category
+      description: Retrieves files filtered by a specific category
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Category name
+          example: "Education"
+        - name: limit
+          in: query
+          description: Maximum number of files to return
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Folder Management
+  /folders:
+    get:
+      tags:
+        - Folder Management
+      summary: Get folder structure
+      description: Retrieves the hierarchical folder structure with nested files
+      parameters:
+        - name: parentId
+          in: query
+          description: Parent folder ID to get children, null for root level
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Folder structure retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    post:
+      tags:
+        - Folder Management
+      summary: Create folder
+      description: Creates a new folder in the specified location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - path
+              properties:
+                name:
+                  type: string
+                  description: Folder name
+                path:
+                  type: string
+                  description: Full folder path
+                parentId:
+                  type: string
+                  nullable: true
+                  description: Parent folder ID
+                color:
+                  type: string
+                  nullable: true
+                  description: Folder color theme
+                description:
+                  type: string
+                  nullable: true
+                  description: Folder description
+            example:
+              name: "Project Documents"
+              path: "/Project Documents"
+              parentId: null
+              color: "blue"
+              description: "Documents related to the main project"
+      responses:
+        '200':
+          description: Folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Search & Discovery
+  /search/{query}:
+    get:
+      tags:
+        - Search & Discovery
+      summary: Search files
+      description: |
+        Performs intelligent search across files using:
+        1. **Semantic Search**: AI-powered similarity search using OpenAI embeddings
+        2. **Text Search**: Fallback traditional text search if semantic search yields no results
+        3. **Browse Mode**: Returns all files when no query is provided
+      parameters:
+        - name: query
+          in: path
+          required: false
+          schema:
+            type: string
+          description: Search query (omit or use empty string for browse mode)
+          example: "machine learning algorithms"
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /search:
+    get:
+      tags:
+        - Search & Discovery
+      summary: Browse all files
+      description: Returns all files (browse mode) - same as /search with empty query
+      responses:
+        '200':
+          description: All files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /categories:
+    get:
+      tags:
+        - Search & Discovery
+      summary: Get file categories
+      description: Returns all file categories with their respective file counts, normalized and aggregated
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              example:
+                - category: "Education"
+                  count: 35
+                - category: "Business"
+                  count: 12
+                - category: "Technology"
+                  count: 8
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /stats:
+    get:
+      tags:
+        - Search & Discovery
+      summary: Get system statistics
+      description: Returns comprehensive statistics about the document management system
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStats'
+              example:
+                totalFiles: 42
+                processedFiles: 40
+                processingFiles: 2
+                errorFiles: 0
+                totalSize: 1794933085
+                byteaSize: 17040641
+                cloudSize: 1794933085
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # AI Features
+  /chat:
+    post:
+      tags:
+        - AI Features
+      summary: Chat with documents
+      description: |
+        Conversational AI interface that can answer questions about your documents.
+        Uses OpenAI GPT-4 with document context for intelligent responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: User's chat message or question
+                fileIds:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional list of specific file IDs to use as context
+                  default: []
+            example:
+              message: "What are the main points discussed in the uploaded documents about machine learning?"
+              fileIds: ["file-id-1", "file-id-2"]
+      responses:
+        '200':
+          description: Chat response generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    description: AI-generated response
+                  relatedFiles:
+                    type: array
+                    items:
+                      type: string
+                    description: File IDs used for context
+              example:
+                response: "Based on the uploaded documents, the main points about machine learning include..."
+                relatedFiles: ["file-id-1", "file-id-2"]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /generate-content:
+    post:
+      tags:
+        - AI Features
+      summary: Generate content from files
+      description: |
+        Uses AI to generate new content based on existing files.
+        Supports various content types like summaries, reports, presentations, etc.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+                - fileIds
+                - type
+              properties:
+                prompt:
+                  type: string
+                  description: Specific instructions for content generation
+                fileIds:
+                  type: array
+                  items:
+                    type: string
+                  description: List of file IDs to use as source material
+                type:
+                  type: string
+                  description: Type of content to generate
+                  enum: [summary, report, presentation, article, analysis]
+            example:
+              prompt: "Create a comprehensive summary of the key findings"
+              fileIds: ["file-id-1", "file-id-2", "file-id-3"]
+              type: "summary"
+      responses:
+        '200':
+          description: Content generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    description: AI-generated content
+              example:
+                content: "# Executive Summary\n\nBased on the analyzed documents, the key findings are..."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Static Assets (Object Storage)
+  /objects/{objectPath}:
+    get:
+      tags:
+        - Static Assets
+      summary: Serve files from object storage
+      description: Direct access to files stored in Google Cloud Storage
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path in storage
+          example: "uploads/abc123/document.pdf"
+      responses:
+        '200':
+          description: File served successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for external access
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token authentication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User's email address
+        firstName:
+          type: string
+          description: User's first name
+        lastName:
+          type: string
+          description: User's last name
+        profileImageUrl:
+          type: string
+          nullable: true
+          format: uri
+          description: URL to user's profile image
+      example:
+        id: "demo-user"
+        email: "demo@example.com"
+        firstName: "Demo"
+        lastName: "User"
+        profileImageUrl: null
+
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique file identifier
+        filename:
+          type: string
+          description: System filename
+        originalName:
+          type: string
+          description: Original filename as uploaded
+        mimeType:
+          type: string
+          description: MIME type of the file
+        size:
+          type: integer
+          description: File size in bytes
+        objectPath:
+          type: string
+          description: Path to file in object storage
+        fileContent:
+          type: string
+          nullable: true
+          description: Base64 encoded file content (for small files)
+        folderId:
+          type: string
+          nullable: true
+          description: Parent folder ID
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Upload timestamp
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Processing completion timestamp
+        storageType:
+          type: string
+          enum: [hybrid, cloud]
+          description: Storage method used
+        processingStatus:
+          type: string
+          enum: [pending, processing, completed, error]
+          description: Current processing status
+        processingError:
+          type: string
+          nullable: true
+          description: Error message if processing failed
+        userId:
+          type: string
+          description: Owner user ID
+      example:
+        id: "abc123-def456"
+        filename: "document_20250814.pdf"
+        originalName: "Important Document.pdf"
+        mimeType: "application/pdf"
+        size: 1048576
+        objectPath: "/objects/uploads/abc123"
+        fileContent: null
+        folderId: null
+        uploadedAt: "2025-08-14T10:30:00Z"
+        processedAt: "2025-08-14T10:31:00Z"
+        storageType: "hybrid"
+        processingStatus: "completed"
+        processingError: null
+        userId: "demo-user"
+
+    FileWithMetadata:
+      allOf:
+        - $ref: '#/components/schemas/File'
+        - type: object
+          properties:
+            metadata:
+              type: object
+              properties:
+                id:
+                  type: string
+                extractedText:
+                  type: string
+                  description: Extracted text content
+                summary:
+                  type: string
+                  description: AI-generated summary
+                categories:
+                  type: array
+                  items:
+                    type: string
+                  description: AI-generated categories
+                keyTopics:
+                  type: array
+                  items:
+                    type: string
+                  description: Key topics identified
+                sentiment:
+                  type: string
+                  enum: [positive, negative, neutral]
+                  description: Sentiment analysis result
+                language:
+                  type: string
+                  description: Detected language
+                wordCount:
+                  type: integer
+                  description: Total word count
+                readingTime:
+                  type: integer
+                  description: Estimated reading time in minutes
+                embedding:
+                  type: array
+                  items:
+                    type: number
+                  description: Vector embedding for semantic search
+                createdAt:
+                  type: string
+                  format: date-time
+                updatedAt:
+                  type: string
+                  format: date-time
+
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique folder identifier
+        name:
+          type: string
+          description: Folder name
+        parentId:
+          type: string
+          nullable: true
+          description: Parent folder ID
+        path:
+          type: string
+          description: Full folder path
+        color:
+          type: string
+          nullable: true
+          description: Folder color theme
+        description:
+          type: string
+          nullable: true
+          description: Folder description
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        userId:
+          type: string
+          description: Owner user ID
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Folder'
+          description: Nested child folders
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+          description: Files in this folder
+      example:
+        id: "folder-123"
+        name: "Project Documents"
+        parentId: null
+        path: "/Project Documents"
+        color: "blue"
+        description: "Documents related to the main project"
+        createdAt: "2025-08-14T09:00:00Z"
+        updatedAt: "2025-08-14T10:00:00Z"
+        userId: "demo-user"
+        children: []
+        files: []
+
+    Category:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Category name
+        count:
+          type: integer
+          description: Number of files in this category
+      example:
+        category: "Education"
+        count: 35
+
+    SystemStats:
+      type: object
+      properties:
+        totalFiles:
+          type: integer
+          description: Total number of files
+        processedFiles:
+          type: integer
+          description: Number of successfully processed files
+        processingFiles:
+          type: integer
+          description: Number of files currently being processed
+        errorFiles:
+          type: integer
+          description: Number of files with processing errors
+        totalSize:
+          type: integer
+          description: Total size of all files in bytes
+        byteaSize:
+          type: integer
+          description: Size of files cached in database in bytes
+        cloudSize:
+          type: integer
+          description: Total size of files in cloud storage in bytes
+      example:
+        totalFiles: 42
+        processedFiles: 40
+        processingFiles: 2
+        errorFiles: 0
+        totalSize: 1794933085
+        byteaSize: 17040641
+        cloudSize: 1794933085
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          description: Additional error details
+      example:
+        error: "File not found"
+        code: "FILE_NOT_FOUND"
+        details: {}
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid input parameters"
+            code: "BAD_REQUEST"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "File not found"
+            code: "NOT_FOUND"
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal server error"
+            code: "INTERNAL_ERROR"
+
+tags:
+  - name: Authentication
+    description: User authentication and profile management
+  - name: File Management
+    description: File upload, retrieval, and management operations
+  - name: Folder Management
+    description: Folder creation and organization
+  - name: Search & Discovery
+    description: Search, browse, and categorization features
+  - name: AI Features
+    description: AI-powered chat and content generation
+  - name: Static Assets
+    description: Direct file serving from object storage
