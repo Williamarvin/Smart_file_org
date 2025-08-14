@@ -61,6 +61,65 @@ export function Upload() {
               </CardContent>
             </Card>
 
+            {/* Recent Uploads Section */}
+            {Array.isArray(files) && files.length > 0 && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Clock className="text-blue-600" />
+                    <span>Recent Uploads</span>
+                    <Badge variant="secondary" className="ml-auto">
+                      {Math.min(files.length, 8)} files
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {files.slice(0, 8).map((file: any) => (
+                      <div key={file.id} className="flex items-center space-x-3 p-3 border border-slate-200 rounded-lg hover:border-blue-300 transition-colors">
+                        <div className="flex-shrink-0">
+                          {file.processingStatus === "completed" && (
+                            <CheckCircle className="text-green-500 h-5 w-5" />
+                          )}
+                          {(file.processingStatus === "pending" || file.processingStatus === "processing") && (
+                            <Clock className="text-orange-500 h-5 w-5 animate-pulse" />
+                          )}
+                          {file.processingStatus === "error" && (
+                            <AlertCircle className="text-red-500 h-5 w-5" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">
+                            {file.originalName}
+                          </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <p className="text-xs text-slate-500">
+                              {new Date(file.uploadedAt).toLocaleDateString()}
+                            </p>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                file.processingStatus === "completed" 
+                                  ? "text-green-600 border-green-200" 
+                                  : file.processingStatus === "error"
+                                  ? "text-red-600 border-red-200"
+                                  : "text-orange-600 border-orange-200"
+                              }`}
+                            >
+                              {file.processingStatus}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {(file.size / 1024 / 1024).toFixed(1)} MB
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Categories Display after Upload */}
             {Array.isArray(categories) && categories.length > 0 && (
               <Card className="mb-8">
@@ -149,10 +208,13 @@ export function Upload() {
                 </CardContent>
               </Card>
 
-              {/* Recent Files */}
+              {/* Quick Stats */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Recent Uploads</CardTitle>
+                  <CardTitle className="text-lg flex items-center space-x-2">
+                    <FileCheck className="text-blue-600" />
+                    <span>Quick Overview</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {!Array.isArray(files) || files.length === 0 ? (
@@ -162,30 +224,46 @@ export function Upload() {
                       <p className="text-sm text-slate-400">Upload your first document to get started</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {files.slice(0, 5).map((file: any) => (
-                        <div key={file.id} className="flex items-center space-x-3 p-2 bg-slate-50 rounded-lg">
-                          <div className="flex-shrink-0">
-                            {file.processingStatus === "completed" && (
-                              <CheckCircle className="text-green-500 h-4 w-4" />
-                            )}
-                            {(file.processingStatus === "pending" || file.processingStatus === "processing") && (
-                              <Clock className="text-orange-500 h-4 w-4 animate-spin" />
-                            )}
-                            {file.processingStatus === "error" && (
-                              <AlertCircle className="text-red-500 h-4 w-4" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">
-                              {file.originalName}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {new Date(file.uploadedAt).toLocaleString()}
-                            </p>
-                          </div>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{completedFiles.length}</div>
+                          <div className="text-xs text-slate-600">Processed</div>
                         </div>
-                      ))}
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-orange-600">{processingFiles.length}</div>
+                          <div className="text-xs text-slate-600">Processing</div>
+                        </div>
+                      </div>
+                      
+                      {/* Latest 3 files in sidebar */}
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium text-slate-700 mb-3">Latest Files</h4>
+                        <div className="space-y-2">
+                          {files.slice(0, 3).map((file: any) => (
+                            <div key={file.id} className="flex items-center space-x-2 text-sm">
+                              <div className="flex-shrink-0">
+                                {file.processingStatus === "completed" && (
+                                  <CheckCircle className="text-green-500 h-3 w-3" />
+                                )}
+                                {(file.processingStatus === "pending" || file.processingStatus === "processing") && (
+                                  <Clock className="text-orange-500 h-3 w-3 animate-pulse" />
+                                )}
+                                {file.processingStatus === "error" && (
+                                  <AlertCircle className="text-red-500 h-3 w-3" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-slate-700 truncate text-xs">
+                                  {file.originalName.length > 20 
+                                    ? `${file.originalName.substring(0, 20)}...` 
+                                    : file.originalName}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </CardContent>
