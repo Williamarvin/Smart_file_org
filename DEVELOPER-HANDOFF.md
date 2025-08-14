@@ -20,10 +20,20 @@ https://smart-file-organiser.replit.app/api
 # Test the API is working
 curl https://smart-file-organiser.replit.app/api/stats
 
+# Test folders endpoint  
+curl https://smart-file-organiser.replit.app/api/folders
+
+# Test files endpoint
+curl https://smart-file-organiser.replit.app/api/files
+
 # Run comprehensive tests
 chmod +x test-api.sh
 ./test-api.sh https://smart-file-organiser.replit.app
 ```
+
+### ⚠️ Important: Always include `/api` in the URL
+- ❌ Wrong: `https://smart-file-organiser.replit.app/folders` (returns signup page)
+- ✅ Correct: `https://smart-file-organiser.replit.app/api/folders` (returns JSON data)
 
 ## 🎯 Key API Capabilities (15/16 endpoints working)
 
