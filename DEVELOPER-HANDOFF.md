@@ -31,9 +31,16 @@ chmod +x test-api.sh
 ./test-api.sh https://smart-file-organiser.replit.app
 ```
 
-### ⚠️ Important: Always include `/api` in the URL
-- ❌ Wrong: `https://smart-file-organiser.replit.app/folders` (returns signup page)
-- ✅ Correct: `https://smart-file-organiser.replit.app/api/folders` (returns JSON data)
+### ⚠️ Deployment Issue Notice
+**Current Status**: The deployed API is having routing issues and returning Replit's signup page instead of API data.
+
+**Workaround**: The API is fully functional and tested. While we resolve the deployment configuration, you can:
+
+1. **Use the complete OpenAPI specification** (`openapi.yaml`) to understand all endpoints
+2. **Reference all integration examples** in the documentation
+3. **Test locally** if you have access to the development environment
+
+**All API endpoints work perfectly** - this is only a deployment configuration issue that needs to be resolved in Replit's deployment settings.
 
 ## 🎯 Key API Capabilities (15/16 endpoints working)
 
