@@ -209,6 +209,45 @@ export function Chat() {
               </CardHeader>
               
               <CardContent className="flex-1 flex flex-col p-0">
+                {/* Input - Moved to top */}
+                <div className="p-6 border-b bg-white">
+                  <div className="flex space-x-3">
+                    <Input
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Ask a question about your files..."
+                      disabled={chatMutation.isPending}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!inputMessage.trim() || chatMutation.isPending}
+                      className="px-6"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs text-slate-600 mb-2">
+                        Context: {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedFiles.map((fileId) => {
+                          const file = processedFiles.find((f: any) => f.id === fileId);
+                          return file ? (
+                            <Badge key={fileId} variant="secondary" className="text-xs">
+                              {file.originalName}
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Messages */}
                 <ScrollArea className="flex-1 p-6">
                   <div className="space-y-4">
@@ -262,45 +301,6 @@ export function Chat() {
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
-
-                {/* Input */}
-                <div className="p-6 border-t bg-white">
-                  <div className="flex space-x-3">
-                    <Input
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Ask a question about your files..."
-                      disabled={chatMutation.isPending}
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || chatMutation.isPending}
-                      className="px-6"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  {selectedFiles.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-xs text-slate-600 mb-2">
-                        Context: {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedFiles.map((fileId) => {
-                          const file = processedFiles.find((f: any) => f.id === fileId);
-                          return file ? (
-                            <Badge key={fileId} variant="secondary" className="text-xs">
-                              {file.originalName}
-                            </Badge>
-                          ) : null;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </div>
