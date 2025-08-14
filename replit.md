@@ -24,7 +24,9 @@ Preferred communication style: Simple, everyday language.
   - Added `deleteObject()` method to `ObjectStorageService` class
   - Enhanced `deleteFolder()` to recursively process subfolders
   - Proper cleanup sequence: cloud storage → metadata → database records
-- **Result**: **Complete folder removal** - users can now permanently delete folders with all contents
+  - **Cache Invalidation**: Clears file list caches so deleted files disappear from "My Files" immediately
+  - Enhanced single file deletion with same cloud storage cleanup and cache clearing
+- **Result**: **Complete folder removal** - users can now permanently delete folders with all contents, with immediate UI updates
 
 ## Hybrid Storage Implementation (Aug 12, 2025)
 - **Architecture**: **Hybrid storage system** combining best of both worlds

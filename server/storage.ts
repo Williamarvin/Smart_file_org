@@ -296,7 +296,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFile(id: string, userId: string): Promise<void> {
-    await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+    // Get file info before deletion for cloud storage cleanup
+    const [file] = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, id), eq(files.userId, userId)));
+    
+    if (file) {
+      // Delete from cloud storage if objectPath exists
+      try {
+        if (file.objectPath) {
+          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          await objectStorageService.deleteObject(file.objectPath);
+        }
+      } catch (error) {
+        console.error(`Failed to delete file ${id} from cloud storage:`, error);
+        // Continue with database deletion even if cloud storage fails
+      }
+      
+      // Delete file metadata first
+      await db
+        .delete(fileMetadata)
+        .where(eq(fileMetadata.fileId, id));
+      
+      // Delete file record
+      await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+      
+      // Invalidate file caches
+      const { invalidateFastFilesCache } = await import('./fastStorage');
+      const { invalidateNonBlockingCache } = await import('./nonBlockingStorage');
+      invalidateFastFilesCache(userId);
+      invalidateNonBlockingCache(userId);
+    }
   }
 
   async createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata> {
@@ -805,6 +836,15 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(folders)
       .where(and(eq(folders.id, id), eq(folders.userId, userId)));
+    
+    // Invalidate all relevant caches after deletion
+    if (folderFiles.length > 0) {
+      const { invalidateFastFilesCache } = await import('./fastStorage');
+      const { invalidateNonBlockingCache } = await import('./nonBlockingStorage');
+      invalidateFastFilesCache(userId);
+      invalidateNonBlockingCache(userId);
+      console.log(`Invalidated file caches for user ${userId} after folder deletion`);
+    }
   }
 
   async moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void> {
