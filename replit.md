@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Real-time Updates**: Live processing status updates.
 - **File Management**: Upload, preview, and delete operations with progress tracking.
 - **Enhanced Selection**: Global and current view file selection options.
-- **Optimized Performance**: Non-blocking storage implementation with optimized queries and caching for fast response times.
+- **Optimized Performance**: Non-blocking storage implementation with optimized queries, caching, and fixed N+1 query problems for fast response times.
 - **Improved UX**: Chat input positioned at the top for immediate access, with manual scroll control to prevent unwanted auto-scrolling during conversations.
 
 # External Dependencies

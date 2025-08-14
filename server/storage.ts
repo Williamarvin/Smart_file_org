@@ -691,60 +691,68 @@ export class DatabaseStorage implements IStorage {
   async getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]> {
     console.log(`Storage: getting folders for user ${userId}, parent: ${parentId}`);
     
-    const folderQuery = db
+    // Get all folders for this user in one query
+    const allFolders = await db
       .select()
       .from(folders)
-      .where(and(
-        eq(folders.userId, userId),
-        parentId === null || parentId === undefined 
-          ? isNull(folders.parentId)
-          : eq(folders.parentId, parentId)
-      ))
+      .where(eq(folders.userId, userId))
       .orderBy(folders.name);
-
-    const folderResults = await folderQuery;
     
-    // Get file counts for each folder
-    const foldersWithChildren: FolderWithChildren[] = [];
-    
-    for (const folder of folderResults) {
-      // Get children folders
-      const children = await db
-        .select()
-        .from(folders)
-        .where(and(eq(folders.parentId, folder.id), eq(folders.userId, userId)))
-        .orderBy(folders.name);
-      
-      // Get files in folder
-      const folderFiles = await db
-        .select({
-          id: files.id,
-          filename: files.filename,
-          originalName: files.originalName,
-          mimeType: files.mimeType,
-          size: files.size,
-          objectPath: files.objectPath,
-          folderId: files.folderId,
-          uploadedAt: files.uploadedAt,
-          processedAt: files.processedAt,
-          storageType: files.storageType,
-          processingStatus: files.processingStatus,
-          processingError: files.processingError,
-          userId: files.userId,
-        })
-        .from(files)
-        .where(and(eq(files.folderId, folder.id), eq(files.userId, userId)))
-        .orderBy(files.filename);
+    // Get all files for this user in one query (excluding BYTEA content)
+    const allFiles = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+      })
+      .from(files)
+      .where(eq(files.userId, userId))
+      .orderBy(files.filename);
 
-      foldersWithChildren.push({
-        ...folder,
-        children,
-        files: folderFiles.map(file => ({
-          ...file,
-          fileContent: null, // Exclude bytea data for performance
-        })),
-      });
-    }
+    // Create maps for efficient lookup
+    const foldersByParent = new Map<string | null, typeof allFolders>();
+    const filesByFolder = new Map<string, typeof allFiles>();
+    
+    allFolders.forEach(folder => {
+      const key = folder.parentId;
+      if (!foldersByParent.has(key)) {
+        foldersByParent.set(key, []);
+      }
+      foldersByParent.get(key)!.push(folder);
+    });
+    
+    allFiles.forEach(file => {
+      const key = file.folderId;
+      if (key) {
+        if (!filesByFolder.has(key)) {
+          filesByFolder.set(key, []);
+        }
+        filesByFolder.get(key)!.push(file);
+      }
+    });
+
+    // Get folders for the requested parent
+    const requestedFolders = foldersByParent.get(parentId ?? null) || [];
+    
+    // Build results with children and files
+    const foldersWithChildren: FolderWithChildren[] = requestedFolders.map(folder => ({
+      ...folder,
+      children: foldersByParent.get(folder.id) || [],
+      files: (filesByFolder.get(folder.id) || []).map(file => ({
+        ...file,
+        fileContent: null, // Exclude bytea data for performance
+      })),
+    }));
     
     return foldersWithChildren;
   }
