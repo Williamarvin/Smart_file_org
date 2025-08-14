@@ -269,7 +269,7 @@ export function FilePreview() {
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Topics</h4>
                     <div className="flex flex-wrap gap-1">
-                      {(file as any)?.metadata?.topics.map((topic, index) => (
+                      {(file as any)?.metadata?.topics.map((topic: string, index: number) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {topic}
                         </Badge>
@@ -283,7 +283,7 @@ export function FilePreview() {
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Categories</h4>
                     <div className="flex flex-wrap gap-1">
-                      {(file as any)?.metadata?.categories.map((category, index) => (
+                      {(file as any)?.metadata?.categories.map((category: string, index: number) => (
                         <Badge key={index} variant="default" className="text-xs">
                           {category}
                         </Badge>
@@ -321,7 +321,7 @@ export function FilePreview() {
             <CardContent className="space-y-3">
               <div>
                 <h4 className="font-semibold text-sm mb-1">File Name</h4>
-                <p className="text-sm text-slate-600 break-words">{file.filename}</p>
+                <p className="text-sm text-slate-600 break-words">{(file as any)?.originalName}</p>
               </div>
               
               <div>

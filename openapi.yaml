@@ -24,8 +24,8 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://your-replit-app.replit.app/api
-    description: Production server
+  - url: https://smart-file-organizer.replit.app/api
+    description: Production server (update with your actual deployment URL)
   - url: http://localhost:5000/api
     description: Development server
 

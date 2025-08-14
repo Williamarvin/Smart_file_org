@@ -8,7 +8,7 @@ Your document management system includes a **comprehensive REST API** that's rea
 
 ### 1. **API Base URL**
 ```
-Production: https://your-replit-app.replit.app/api
+Production: https://smart-file-organizer.replit.app/api
 Development: http://localhost:5000/api
 ```
 
@@ -16,7 +16,7 @@ Development: http://localhost:5000/api
 Run the included test script:
 ```bash
 chmod +x test-api.sh
-./test-api.sh https://your-replit-app.replit.app
+./test-api.sh https://smart-file-organizer.replit.app
 ```
 
 ### 3. **View Documentation**
@@ -42,7 +42,7 @@ chmod +x test-api.sh
 
 ### JavaScript/Node.js
 ```javascript
-const API_BASE = 'https://your-replit-app.replit.app/api';
+const API_BASE = 'https://smart-file-organizer.replit.app/api';
 
 // Search documents
 async function searchDocuments(query) {
@@ -95,7 +95,7 @@ async function uploadFile(file) {
 ```python
 import requests
 
-API_BASE = 'https://your-replit-app.replit.app/api'
+API_BASE = 'https://smart-file-organizer.replit.app/api'
 
 def search_documents(query):
     response = requests.get(f'{API_BASE}/search/{query}')
@@ -138,7 +138,7 @@ curl "https://your-app.replit.app/api/files/{file-id}/data" \
 Your app is ready to deploy! Use Replit's deployment feature to get a production URL.
 
 ### 2. **Update API Base URL**
-Replace `your-replit-app.replit.app` with your actual deployment URL in:
+Replace `smart-file-organizer.replit.app` with your actual deployment URL in:
 - Client applications
 - Integration scripts
 - API documentation
