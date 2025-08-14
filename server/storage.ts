@@ -323,10 +323,8 @@ export class DatabaseStorage implements IStorage {
       await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
       
       // Invalidate file caches
-      const { invalidateFastFilesCache } = await import('./fastStorage');
-      const { invalidateNonBlockingCache } = await import('./nonBlockingStorage');
-      invalidateFastFilesCache(userId);
-      invalidateNonBlockingCache(userId);
+      cache.invalidatePattern(`files:${userId}:`);
+      cache.invalidatePattern(`folders:${userId}:`);
     }
   }
 
@@ -847,10 +845,8 @@ export class DatabaseStorage implements IStorage {
     
     // Invalidate all relevant caches after deletion
     if (folderFiles.length > 0) {
-      const { invalidateFastFilesCache } = await import('./fastStorage');
-      const { invalidateNonBlockingCache } = await import('./nonBlockingStorage');
-      invalidateFastFilesCache(userId);
-      invalidateNonBlockingCache(userId);
+      cache.invalidatePattern(`files:${userId}:`);
+      cache.invalidatePattern(`folders:${userId}:`);
       console.log(`Invalidated file caches for user ${userId} after folder deletion`);
     }
   }

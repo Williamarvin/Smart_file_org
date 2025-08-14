@@ -1,96 +1,130 @@
-import { db } from "./db";
-import { files, fileMetadata } from "@shared/schema";
-import { eq, desc, ne, and } from "drizzle-orm";
-import { cache } from "./cache";
+// Fast Storage Optimization Module
+// Based on working Smart File Organizer performance strategies
 
-// Ultra-fast file listing without complex JOINs
-export async function getFastFiles(userId: string = "demo-user", limit = 50, offset = 0) {
-  const cacheKey = `fast-files:${userId}:${limit}:${offset}`;
-  
-  // Check cache first
-  if (offset === 0 && limit <= 50) {
-    const cached = cache.get(cacheKey);
-    if (cached) return cached;
-  }
+import { performance } from 'perf_hooks';
 
-  // Simple query without JOIN - just get files
-  const fileResults = await db
-    .select({
-      id: files.id,
-      filename: files.filename,
-      originalName: files.originalName,
-      mimeType: files.mimeType,
-      size: files.size,
-      objectPath: files.objectPath,
-      folderId: files.folderId,
-      uploadedAt: files.uploadedAt,
-      processedAt: files.processedAt,
-      storageType: files.storageType,
-      processingStatus: files.processingStatus,
-      processingError: files.processingError,
-      userId: files.userId,
-    })
-    .from(files)
-    .where(
-      and(
-        eq(files.userId, userId),
-        ne(files.processingStatus, "error")
-      )
-    )
-    .orderBy(desc(files.uploadedAt))
-    .limit(limit)
-    .offset(offset);
+// Simple in-memory cache for frequently accessed data
+const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
 
-  // Get metadata for these files in a separate query (if any files exist)
-  let metadataMap = new Map();
-  if (fileResults.length > 0) {
-    const fileIds = fileResults.map(f => f.id);
-    const metadataResults = await db
-      .select({
-        fileId: fileMetadata.fileId,
-        id: fileMetadata.id,
-        summary: fileMetadata.summary,
-        categories: fileMetadata.categories,
-        keywords: fileMetadata.keywords,
-        topics: fileMetadata.topics,
-        confidence: fileMetadata.confidence,
-        createdAt: fileMetadata.createdAt,
-      })
-      .from(fileMetadata);
-    
-    // Convert to map for O(1) lookup
-    metadataResults.forEach(meta => {
-      metadataMap.set(meta.fileId, {
-        id: meta.id,
-        fileId: meta.fileId,
-        extractedText: null, // Never load in list view
-        summary: meta.summary,
-        categories: meta.categories,
-        keywords: meta.keywords,
-        topics: meta.topics,
-        confidence: meta.confidence,
-        createdAt: meta.createdAt,
-        embedding: null,
-        embeddingVector: null,
-      });
+// Performance-optimized file operations
+export class FastStorage {
+  private static CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  // Cache management
+  static setCache(key: string, data: any, ttl: number = FastStorage.CACHE_TTL) {
+    cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
     });
   }
 
-  // Combine results
-  const result = fileResults.map(file => ({
-    ...file,
-    fileContent: null,
-    metadata: metadataMap.get(file.id) || undefined,
-  }));
-
-  // Cache the result
-  if (offset === 0 && limit <= 50) {
-    cache.set(cacheKey, result, 15000); // 15 second cache
+  static getCache(key: string): any | null {
+    const item = cache.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > item.ttl) {
+      cache.delete(key);
+      return null;
+    }
+    
+    return item.data;
   }
 
-  return result;
+  static clearCache(pattern?: string) {
+    if (!pattern) {
+      cache.clear();
+      return;
+    }
+    
+    const keysToDelete: string[] = [];
+    cache.forEach((_, key) => {
+      if (key.includes(pattern)) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    keysToDelete.forEach(key => cache.delete(key));
+  }
+
+  // Compatibility with existing cache system
+  static invalidatePattern(pattern: string) {
+    FastStorage.clearCache(pattern);
+  }
+
+  // Performance monitoring
+  static measurePerformance<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    return new Promise(async (resolve, reject) => {
+      const start = performance.now();
+      try {
+        const result = await fn();
+        const end = performance.now();
+        const duration = end - start;
+        
+        // Only log slow operations
+        if (duration > 100) {
+          console.log(`⚡ ${operation}: ${duration.toFixed(2)}ms`);
+        }
+        
+        resolve(result);
+      } catch (error) {
+        const end = performance.now();
+        console.error(`❌ ${operation} failed after ${(end - start).toFixed(2)}ms:`, error);
+        reject(error);
+      }
+    });
+  }
+
+  // Optimized file size formatter
+  static formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  }
+
+  // Efficient batch operations
+  static async batchProcess<T, R>(
+    items: T[],
+    processor: (item: T) => Promise<R>,
+    batchSize: number = 10
+  ): Promise<R[]> {
+    const results: R[] = [];
+    
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(item => processor(item))
+      );
+      results.push(...batchResults);
+      
+      // Small delay between batches to prevent overwhelming the system
+      if (i + batchSize < items.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+    
+    return results;
+  }
+
+  // Memory usage monitoring
+  static getMemoryUsage() {
+    const usage = process.memoryUsage();
+    return {
+      rss: FastStorage.formatFileSize(usage.rss),
+      heapTotal: FastStorage.formatFileSize(usage.heapTotal),
+      heapUsed: FastStorage.formatFileSize(usage.heapUsed),
+      external: FastStorage.formatFileSize(usage.external),
+      cacheSize: cache.size
+    };
+  }
 }
 
-export function invalidateFastFilesCache(userId: string) {
-  cache.invalidatePattern(`fast-files:${userId}:`);
-}
+// Cache invalidation patterns
+export const cachePatterns = {
+  files: (userId: string) => `files:${userId}`,
+  folders: (userId: string) => `folders:${userId}`,
+  stats: (userId: string) => `stats:${userId}`,
+  categories: (userId: string) => `categories:${userId}`,
+};

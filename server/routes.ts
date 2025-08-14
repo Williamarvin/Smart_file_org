@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getFastFiles, invalidateFastFilesCache } from "./fastStorage";
-import { getNonBlockingFiles, searchFilesNonBlocking, searchSimilarFilesNonBlocking, invalidateNonBlockingCache } from "./nonBlockingStorage";
+// Removed fastStorage imports - using existing cache system
+// Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 // Removed authentication
@@ -145,8 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, userId);
 
       // Invalidate caches when new files are created
-      invalidateFastFilesCache(userId);
-      invalidateNonBlockingCache(userId);
+      // Cache invalidation handled in storage layer
 
       // Start processing in the background with raw file data for dual storage
       const rawFileData = req.file?.buffer;
@@ -166,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       
-      const files = await getFastFiles(userId, limit, offset);
+      const files = await storage.getFiles(userId, limit, offset);
       res.json(files);
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -304,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no query provided, return all files (browse mode)
       if (!query || query.trim() === '') {
         console.log("No search query provided, returning all files (browse mode)");
-        const files = await getFastFiles(userId, 50, 0);
+        const files = await storage.getFiles(userId, 50, 0);
         console.log(`Browse mode: returning ${Array.isArray(files) ? files.length : 0} files`);
         res.json(files);
         return;
@@ -318,19 +317,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         console.log("Attempting pgvector semantic similarity search...");
         const queryEmbedding = await generateSearchEmbedding(query);
-        files = await searchSimilarFilesNonBlocking(queryEmbedding, userId);
+        files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
         console.log(`Pgvector semantic search found ${files.length} files`);
         
         // If semantic search found no relevant results, fallback to text search
         if (files.length === 0) {
           console.log("Semantic search returned no relevant results (similarity threshold not met), trying text search fallback...");
-          files = await searchFilesNonBlocking(query, userId, 20);
+          files = await storage.searchFiles(query, userId, 20);
           console.log(`Text search fallback found ${files.length} files`);
         }
       } catch (embeddingError) {
         console.error("Semantic search failed, falling back to text search:", embeddingError);
         // Fallback to text-based search
-        files = await searchFilesNonBlocking(query, userId, 20);
+        files = await storage.searchFiles(query, userId, 20);
         console.log(`Text search found ${files.length} files`);
       }
 
