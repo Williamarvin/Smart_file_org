@@ -139,7 +139,7 @@ export function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {categories.length === 0 ? (
+              {!categories || (categories as any[]).length === 0 ? (
                 <div className="text-center py-8">
                   <PieChart className="mx-auto text-4xl text-slate-400 mb-2" />
                   <p className="text-slate-500">No data to display</p>
@@ -150,10 +150,10 @@ export function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
                       <Pie
-                        data={categories.map((cat: any, index: number) => ({
+                        data={(categories as any[]).map((cat: any, index: number) => ({
                           name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
                           value: cat.count,
-                          percentage: categories.length > 0 ? ((cat.count / categories.reduce((sum: number, c: any) => sum + c.count, 0)) * 100).toFixed(1) : 0
+                          percentage: (categories as any[]).length > 0 ? ((cat.count / (categories as any[]).reduce((sum: number, c: any) => sum + c.count, 0)) * 100).toFixed(1) : 0
                         }))}
                         cx="50%"
                         cy="50%"
@@ -163,7 +163,7 @@ export function Dashboard() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {categories.map((entry: any, index: number) => (
+                        {(categories as any[]).map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'][index % 7]} />
                         ))}
                       </Pie>
@@ -187,7 +187,7 @@ export function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {categories.length === 0 ? (
+              {!categories || (categories as any[]).length === 0 ? (
                 <div className="text-center py-6">
                   <FolderOpen className="text-slate-400 text-3xl mx-auto mb-3" />
                   <p className="text-slate-500">No categories yet</p>
@@ -195,7 +195,7 @@ export function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {categories.slice(0, 6).map((cat: any) => {
+                  {(categories as any[]).slice(0, 6).map((cat: any) => {
                     const Icon = getCategoryIcon(cat.category);
                     const colorClass = getCategoryColor(cat.category);
                     return (
@@ -239,13 +239,13 @@ export function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {filesByCategory.length === 0 ? (
+                {!filesByCategory || (filesByCategory as any[]).length === 0 ? (
                   <div className="text-center py-4">
                     <p className="text-slate-500">No files found in this category</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filesByCategory.slice(0, 5).map((file: any) => (
+                    {(filesByCategory as any[]).slice(0, 5).map((file: any) => (
                       <div key={file.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
                         <FileText className="text-blue-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -264,13 +264,13 @@ export function Dashboard() {
                         </Link>
                       </div>
                     ))}
-                    {filesByCategory.length > 5 && (
+                    {(filesByCategory as any[]).length > 5 && (
                       <div className="text-center pt-2">
                         <Link 
                           href={`/browse?category=${selectedCategory}`}
                           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
-                          View all {filesByCategory.length} files
+                          View all {(filesByCategory as any[]).length} files
                         </Link>
                       </div>
                     )}

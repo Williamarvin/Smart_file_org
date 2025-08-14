@@ -74,8 +74,10 @@ export function FilePreview() {
   };
 
   const handleDownload = () => {
-    const downloadLink = file.objectPath;
-    window.open(downloadLink, '_blank');
+    const downloadLink = (file as any)?.objectPath;
+    if (downloadLink) {
+      window.open(downloadLink, '_blank');
+    }
   };
 
   return (
@@ -94,15 +96,15 @@ export function FilePreview() {
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-800 mb-2 break-words">
-              {file.originalName}
+              {(file as any)?.originalName}
             </h1>
             <div className="flex items-center gap-4 text-slate-600">
               <span className="flex items-center">
                 <FileText className="mr-1 h-4 w-4" />
-                {file.mimeType.split('/')[1].toUpperCase()}
+                {(file as any)?.mimeType?.split('/')[1]?.toUpperCase()}
               </span>
-              <span>{formatFileSize(file.size)}</span>
-              <span>Uploaded {formatDate(file.uploadedAt)}</span>
+              <span>{formatFileSize((file as any)?.size || 0)}</span>
+              <span>Uploaded {formatDate((file as any)?.uploadedAt)}</span>
             </div>
           </div>
           
@@ -117,7 +119,7 @@ export function FilePreview() {
         {/* File Content Preview */}
         <div className="lg:col-span-2 space-y-6">
           {/* Processing Status */}
-          {file.processingStatus === 'pending' && (
+          {(file as any)?.processingStatus === 'pending' && (
             <Alert>
               <Loader2 className="h-4 w-4 animate-spin" />
               <AlertDescription>
@@ -126,17 +128,17 @@ export function FilePreview() {
             </Alert>
           )}
           
-          {file.processingStatus === 'error' && (
+          {(file as any)?.processingStatus === 'error' && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Failed to process file: {file.processingError || 'Unknown error'}
+                Failed to process file: {(file as any)?.processingError || 'Unknown error'}
               </AlertDescription>
             </Alert>
           )}
 
           {/* PDF Viewer */}
-          {file.mimeType === 'application/pdf' && (
+          {(file as any)?.mimeType === 'application/pdf' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
@@ -144,7 +146,7 @@ export function FilePreview() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(file.objectPath, '_blank')}
+                    onClick={() => window.open((file as any)?.objectPath, '_blank')}
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     Open in New Tab
@@ -153,11 +155,11 @@ export function FilePreview() {
               </CardHeader>
               <CardContent>
                 <div className="w-full h-[600px] border rounded-lg overflow-hidden bg-slate-100">
-                  {file.objectPath && !pdfLoadError ? (
+                  {(file as any)?.objectPath && !pdfLoadError ? (
                     <iframe
-                      src={`${file.objectPath}#view=FitH`}
+                      src={`${(file as any)?.objectPath}#view=FitH`}
                       className="w-full h-full"
-                      title={file.originalName}
+                      title={(file as any)?.originalName}
                       allow="fullscreen"
                       onLoad={() => {
                         console.log('PDF loaded successfully');
@@ -185,7 +187,7 @@ export function FilePreview() {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => window.open(file.objectPath, '_blank')}
+                            onClick={() => window.open((file as any)?.objectPath, '_blank')}
                             className="w-full"
                           >
                             <ExternalLink className="mr-2 h-4 w-4" />
@@ -210,7 +212,7 @@ export function FilePreview() {
           )}
 
           {/* Text Content */}
-          {file.metadata?.extractedText && (
+          {(file as any)?.metadata?.extractedText && (
             <Card>
               <CardHeader>
                 <CardTitle>Extracted Text</CardTitle>
@@ -218,7 +220,7 @@ export function FilePreview() {
               <CardContent>
                 <div className="max-h-96 overflow-y-auto bg-slate-50 p-4 rounded-lg">
                   <pre className="whitespace-pre-wrap text-sm font-mono">
-                    {file.metadata.extractedText.trim() || 'No text content extracted'}
+                    {(file as any)?.metadata?.extractedText?.trim() || 'No text content extracted'}
                   </pre>
                 </div>
               </CardContent>
@@ -229,7 +231,7 @@ export function FilePreview() {
         {/* Metadata Sidebar */}
         <div className="space-y-6">
           {/* AI Analysis */}
-          {file.metadata && (
+          {(file as any)?.metadata && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -239,21 +241,21 @@ export function FilePreview() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Summary */}
-                {file.metadata.summary && (
+                {(file as any)?.metadata?.summary && (
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Summary</h4>
-                    <p className="text-sm text-slate-600">{file.metadata.summary}</p>
+                    <p className="text-sm text-slate-600">{(file as any)?.metadata?.summary}</p>
                   </div>
                 )}
 
                 <Separator />
 
                 {/* Keywords */}
-                {file.metadata.keywords && file.metadata.keywords.length > 0 && (
+                {(file as any)?.metadata?.keywords && (file as any)?.metadata?.keywords.length > 0 && (
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Keywords</h4>
                     <div className="flex flex-wrap gap-1">
-                      {file.metadata.keywords.map((keyword, index) => (
+                      {(file as any)?.metadata?.keywords.map((keyword: string, index: number) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {keyword}
                         </Badge>
@@ -263,11 +265,11 @@ export function FilePreview() {
                 )}
 
                 {/* Topics */}
-                {file.metadata.topics && file.metadata.topics.length > 0 && (
+                {(file as any)?.metadata?.topics && (file as any)?.metadata?.topics.length > 0 && (
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Topics</h4>
                     <div className="flex flex-wrap gap-1">
-                      {file.metadata.topics.map((topic, index) => (
+                      {(file as any)?.metadata?.topics.map((topic, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {topic}
                         </Badge>
@@ -277,11 +279,11 @@ export function FilePreview() {
                 )}
 
                 {/* Categories */}
-                {file.metadata.categories && file.metadata.categories.length > 0 && (
+                {(file as any)?.metadata?.categories && (file as any)?.metadata?.categories.length > 0 && (
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Categories</h4>
                     <div className="flex flex-wrap gap-1">
-                      {file.metadata.categories.map((category, index) => (
+                      {(file as any)?.metadata?.categories.map((category, index) => (
                         <Badge key={index} variant="default" className="text-xs">
                           {category}
                         </Badge>
@@ -291,18 +293,18 @@ export function FilePreview() {
                 )}
 
                 {/* Confidence */}
-                {file.metadata.confidence && (
+                {(file as any)?.metadata?.confidence && (
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Analysis Confidence</h4>
                     <div className="flex items-center">
                       <div className="flex-1 bg-slate-200 rounded-full h-2 mr-2">
                         <div 
                           className="bg-green-600 h-2 rounded-full" 
-                          style={{ width: `${file.metadata.confidence * 100}%` }}
+                          style={{ width: `${(file as any)?.metadata?.confidence * 100}%` }}
                         />
                       </div>
                       <span className="text-xs text-slate-600">
-                        {Math.round(file.metadata.confidence * 100)}%
+                        {Math.round((file as any)?.metadata?.confidence * 100)}%
                       </span>
                     </div>
                   </div>
@@ -324,34 +326,34 @@ export function FilePreview() {
               
               <div>
                 <h4 className="font-semibold text-sm mb-1">Size</h4>
-                <p className="text-sm text-slate-600">{formatFileSize(file.size)}</p>
+                <p className="text-sm text-slate-600">{formatFileSize((file as any)?.size)}</p>
               </div>
               
               <div>
                 <h4 className="font-semibold text-sm mb-1">Type</h4>
-                <p className="text-sm text-slate-600">{file.mimeType}</p>
+                <p className="text-sm text-slate-600">{(file as any)?.mimeType}</p>
               </div>
               
               <div>
                 <h4 className="font-semibold text-sm mb-1">Uploaded</h4>
-                <p className="text-sm text-slate-600">{formatDate(file.uploadedAt)}</p>
+                <p className="text-sm text-slate-600">{formatDate((file as any)?.uploadedAt)}</p>
               </div>
               
-              {file.processedAt && (
+              {(file as any)?.processedAt && (
                 <div>
                   <h4 className="font-semibold text-sm mb-1">Processed</h4>
-                  <p className="text-sm text-slate-600">{formatDate(file.processedAt)}</p>
+                  <p className="text-sm text-slate-600">{formatDate((file as any)?.processedAt)}</p>
                 </div>
               )}
               
               <div>
                 <h4 className="font-semibold text-sm mb-1">Status</h4>
                 <Badge 
-                  variant={file.processingStatus === 'completed' ? 'default' : 
-                          file.processingStatus === 'error' ? 'destructive' : 'secondary'}
+                  variant={(file as any)?.processingStatus === 'completed' ? 'default' : 
+                          (file as any)?.processingStatus === 'error' ? 'destructive' : 'secondary'}
                   className="text-xs"
                 >
-                  {file.processingStatus}
+                  {(file as any)?.processingStatus}
                 </Badge>
               </div>
             </CardContent>

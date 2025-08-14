@@ -58,7 +58,7 @@ export function Navigation() {
         <div className="p-6 border-t border-slate-200">
           <div className="flex items-center space-x-3 mb-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
+              <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
               <AvatarFallback>
                 <User className="w-5 h-5" />
               </AvatarFallback>

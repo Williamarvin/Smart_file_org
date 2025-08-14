@@ -71,7 +71,7 @@ export function MobileNavigation() {
                 <div className="pt-4 border-t border-slate-200 mt-4">
                   <div className="flex items-center space-x-3 px-4 py-3 mb-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={user.profileImageUrl} alt={user.firstName || "User"} />
+                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
                       <AvatarFallback>
                         <User className="w-4 h-4" />
                       </AvatarFallback>

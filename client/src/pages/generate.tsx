@@ -149,7 +149,7 @@ export function Generate() {
         'comparison': 'Comparative Analysis',
         'creative': 'Creative Content'
       };
-      documentTitle = typeMap[generationType] || 'Generated Content';
+      documentTitle = (typeMap as any)[generationType] || 'Generated Content';
     }
 
     // Process content to convert markdown-style formatting to HTML
