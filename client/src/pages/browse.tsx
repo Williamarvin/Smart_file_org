@@ -155,9 +155,11 @@ export function Browse() {
     mutationFn: (folderId: string) => apiRequest("DELETE", `/api/folders/${folderId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({
         title: "Folder deleted",
-        description: "The folder and its contents have been moved to the root level.",
+        description: "The folder and all its contents have been permanently removed.",
       });
     },
     onError: (error: any) => {

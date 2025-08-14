@@ -756,21 +756,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFolder(id: string, userId: string): Promise<void> {
-    console.log(`Storage: deleting folder ${id} for user ${userId}`);
+    console.log(`Storage: deleting folder ${id} and all its contents for user ${userId}`);
     
-    // Move all files in this folder to root (null folderId)
-    await db
-      .update(files)
-      .set({ folderId: null })
-      .where(and(eq(files.folderId, id), eq(files.userId, userId)));
-    
-    // Move all child folders to root
-    await db
-      .update(folders)
-      .set({ parentId: null })
+    // Recursively delete all subfolders first
+    const subfolders = await db
+      .select()
+      .from(folders)
       .where(and(eq(folders.parentId, id), eq(folders.userId, userId)));
     
-    // Delete the folder
+    for (const subfolder of subfolders) {
+      await this.deleteFolder(subfolder.id, userId);
+    }
+    
+    // Get all files in this folder and delete them from cloud storage and database
+    const folderFiles = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.folderId, id), eq(files.userId, userId)));
+    
+    // Delete files from cloud storage and database
+    for (const file of folderFiles) {
+      try {
+        // Delete from cloud storage if objectPath exists
+        if (file.objectPath) {
+          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          await objectStorageService.deleteObject(file.objectPath);
+        }
+      } catch (error) {
+        console.error(`Failed to delete file ${file.id} from cloud storage:`, error);
+        // Continue with database deletion even if cloud storage fails
+      }
+    }
+    
+    // Delete all file metadata for files in this folder first
+    const fileIds = folderFiles.map(file => file.id);
+    if (fileIds.length > 0) {
+      await db
+        .delete(fileMetadata)
+        .where(sql`${fileMetadata.fileId} IN (${sql.join(fileIds.map(id => sql.raw(`'${id}'`)), sql`, `)})`);
+    }
+    
+    // Delete all files in this folder from database
+    await db
+      .delete(files)
+      .where(and(eq(files.folderId, id), eq(files.userId, userId)));
+    
+    // Delete the folder itself
     await db
       .delete(folders)
       .where(and(eq(folders.id, id), eq(folders.userId, userId)));

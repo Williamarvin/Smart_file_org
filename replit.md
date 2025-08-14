@@ -8,6 +8,24 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## Enhanced Folder Deletion (Aug 14, 2025)
+- **Issue**: Folder deletion only moved files to root instead of completely removing them
+- **Solution**: **Complete folder deletion with all contents**
+- **Implementation**:
+  - **Recursive Deletion**: Deletes all subfolders and their contents recursively
+  - **Cloud Storage Cleanup**: Removes files from Google Cloud Storage before database deletion
+  - **Complete Removal**: Deletes file metadata, database records, and cloud objects
+  - **Error Handling**: Continues with database cleanup even if cloud storage deletion fails
+- **User Experience**:
+  - **One-Click Deletion**: 3 dots menu "Delete" option removes folder and everything inside
+  - **No Orphaned Files**: All files and subfolders are permanently removed
+  - **Clean Database**: No leftover metadata or references
+- **Technical Details**:
+  - Added `deleteObject()` method to `ObjectStorageService` class
+  - Enhanced `deleteFolder()` to recursively process subfolders
+  - Proper cleanup sequence: cloud storage → metadata → database records
+- **Result**: **Complete folder removal** - users can now permanently delete folders with all contents
+
 ## Hybrid Storage Implementation (Aug 12, 2025)
 - **Architecture**: **Hybrid storage system** combining best of both worlds
 - **Implementation**: 

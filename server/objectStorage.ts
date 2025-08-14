@@ -239,6 +239,19 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  // Deletes an object from cloud storage
+  async deleteObject(objectPath: string): Promise<void> {
+    const { bucketName, objectName } = parseObjectPath(objectPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    // Check if file exists before attempting to delete
+    const [exists] = await file.exists();
+    if (exists) {
+      await file.delete();
+    }
+  }
 }
 
 function parseObjectPath(path: string): {
