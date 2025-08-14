@@ -71,14 +71,14 @@
   - Google Cloud Storage serving working
   - Proper file serving with headers
 
-## ⚠️ **Endpoints with Known Issues**
+## ✅ **All Issues Resolved**
 
-### Search & Discovery
-- **GET /api/stats** ❌
-  - Status: 500 Internal Server Error
-  - Error: "integer out of range" - PostgreSQL integer overflow
-  - Issue: Large file sizes causing SQL integer overflow
-  - All other stats functionality works via frontend
+### Search & Discovery  
+- **GET /api/stats** ✅ **FIXED**
+  - Status: 200 OK
+  - Issue: PostgreSQL integer overflow for large file sizes (2.48GB total)
+  - Solution: Changed SQL casts from `::int` to `::bigint` for size calculations
+  - Returns: Complete statistics with totalSize, byteaSize, cloudSize
 
 ## 📋 **Endpoints Not Tested (Require Specific Setup)**
 
@@ -95,8 +95,8 @@
 ## 📊 **Performance Summary**
 
 - **Total Endpoints**: 16
-- **Fully Working**: 14 (87.5%)
-- **With Issues**: 1 (6.25%)
+- **Fully Working**: 15 (93.75%) ⬆️
+- **With Issues**: 0 (0%) ✅
 - **Not Tested**: 1 (6.25%)
 
 ### Response Times

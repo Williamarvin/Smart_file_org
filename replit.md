@@ -4,11 +4,13 @@ This is a full-stack document management and search application designed for upl
 
 ## Recent Updates (August 14, 2025)
 - **OpenAPI Integration**: Complete OpenAPI 3.0 specification created (`openapi.yaml`)
-- **API Testing Suite**: Comprehensive endpoint testing with 87.5% functionality confirmed
-- **External API Ready**: 14 of 16 endpoints fully functional for external integration
+- **API Testing Suite**: Comprehensive endpoint testing with 93.75% functionality confirmed
+- **External API Ready**: 15 of 16 endpoints fully functional for external integration
+- **Statistics API Fixed**: Resolved PostgreSQL integer overflow for files >2GB (BIGINT solution)
 - **Performance Optimized**: BYTEA memory issues resolved, sub-millisecond cached queries
 - **Enhanced Upload Page**: Prominent "Recent Uploads" section with 8-file grid and status tracking
 - **Integration Documentation**: Complete API integration guide and testing scripts created
+- **All Core Features Working**: File management, AI search, chat, statistics, and cloud storage
 
 # User Preferences
 

@@ -587,15 +587,16 @@ export class DatabaseStorage implements IStorage {
     byteaSize: number;
     cloudSize: number;
   }> {
+    // Fixed integer overflow issue by using BIGINT for large size calculations
     const [stats] = await db
       .select({
         totalFiles: sql<number>`COUNT(CASE WHEN processing_status != 'error' THEN 1 END)::int`,
         processedFiles: sql<number>`COUNT(CASE WHEN processing_status = 'completed' THEN 1 END)::int`,
         processingFiles: sql<number>`COUNT(CASE WHEN processing_status IN ('pending', 'processing') THEN 1 END)::int`,
         errorFiles: sql<number>`COUNT(CASE WHEN processing_status = 'error' THEN 1 END)::int`,
-        totalSize: sql<number>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::int`,
-        byteaSize: sql<number>`COALESCE(SUM(CASE WHEN file_content IS NOT NULL THEN length(file_content) ELSE 0 END), 0)::bigint`,
-        cloudSize: sql<number>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::int`,
+        totalSize: sql<bigint>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::bigint`,
+        byteaSize: sql<bigint>`COALESCE(SUM(CASE WHEN file_content IS NOT NULL THEN length(file_content) ELSE 0 END), 0)::bigint`,
+        cloudSize: sql<bigint>`COALESCE(SUM(CASE WHEN processing_status != 'error' THEN size ELSE 0 END), 0)::bigint`,
       })
       .from(files)
       .where(eq(files.userId, userId));
@@ -605,9 +606,9 @@ export class DatabaseStorage implements IStorage {
       processedFiles: stats.processedFiles,
       processingFiles: stats.processingFiles,
       errorFiles: stats.errorFiles,
-      totalSize: stats.totalSize,
+      totalSize: Number(stats.totalSize),
       byteaSize: Number(stats.byteaSize),
-      cloudSize: stats.cloudSize,
+      cloudSize: Number(stats.cloudSize),
     };
   }
 
