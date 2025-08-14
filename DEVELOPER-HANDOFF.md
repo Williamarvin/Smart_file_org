@@ -6,9 +6,8 @@ Your Smart File Organizer API is now deployed and ready for integration! Here's 
 
 ### 🔗 API Base URL
 ```
-https://smart-file-organizer.replit.app/api
+https://smart-file-organiser.replit.app/api
 ```
-*(Update this with your actual deployment URL)*
 
 ### 📖 Essential Files to Review
 
@@ -19,11 +18,11 @@ https://smart-file-organizer.replit.app/api
 ### ⚡ Quick Test
 ```bash
 # Test the API is working
-curl https://smart-file-organizer.replit.app/api/stats
+curl https://smart-file-organiser.replit.app/api/stats
 
 # Run comprehensive tests
 chmod +x test-api.sh
-./test-api.sh https://smart-file-organizer.replit.app
+./test-api.sh https://smart-file-organiser.replit.app
 ```
 
 ## 🎯 Key API Capabilities (15/16 endpoints working)
@@ -39,7 +38,7 @@ chmod +x test-api.sh
 ### Example API Calls:
 
 ```javascript
-const API_BASE = 'https://smart-file-organizer.replit.app/api';
+const API_BASE = 'https://smart-file-organiser.replit.app/api';
 
 // Search documents
 const results = await fetch(`${API_BASE}/search/education`);

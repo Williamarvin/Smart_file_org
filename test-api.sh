@@ -2,7 +2,7 @@
 
 # Smart Document Management API Testing Script
 # Usage: ./test-api.sh [BASE_URL]
-# Example: ./test-api.sh https://smart-file-organizer.replit.app
+# Example: ./test-api.sh https://smart-file-organiser.replit.app
 
 BASE_URL=${1:-"http://localhost:5000"}
 API_URL="$BASE_URL/api"
