@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 - **Primary Database**: PostgreSQL via Neon serverless.
 - **Vector Store**: PostgreSQL pgvector for vector similarity search.
 - **Schema Design**: Tables for `files`, `file_metadata`, `search_history`, and `users`.
-- **File Storage**: Hybrid system utilizing Google Cloud Storage for all files and PostgreSQL BYTEA caching for files ≤50MB for performance.
+- **File Storage**: Hybrid system utilizing Google Cloud Storage for all files and PostgreSQL BYTEA caching for files ≤10MB for performance.
 - **Vector Search**: pgvector with HNSW indexing.
 
 ## Key Features

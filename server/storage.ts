@@ -103,10 +103,10 @@ export class DatabaseStorage implements IStorage {
     // Invalidate cache when new files are created
     cache.invalidatePattern(`files:${userId}:`);
     
-    const maxBytea = 50 * 1024 * 1024; // 50MB limit for BYTEA storage
+    const maxBytea = 10 * 1024 * 1024; // 10MB limit for BYTEA storage
     const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
     
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, BYTEA: ${shouldStoreBytea ? 'yes' : 'no (>50MB)'}`);
+    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, BYTEA: ${shouldStoreBytea ? 'yes' : 'no (>10MB)'}`);
     
     // Insert into files table with hybrid storage
     const fileValues = {
@@ -171,9 +171,9 @@ export class DatabaseStorage implements IStorage {
     return !!(result.rows[0]?.has_bytea_data);
   }
 
-  // Store file data in BYTEA (for files ≤50MB)
+  // Store file data in BYTEA (for files ≤10MB)
   async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
-    const maxBytea = 50 * 1024 * 1024; // 50MB limit
+    const maxBytea = 10 * 1024 * 1024; // 10MB limit
     
     if (fileData.length > maxBytea) {
       console.log(`File too large for BYTEA storage: ${fileData.length} bytes > ${maxBytea} bytes`);
