@@ -870,6 +870,108 @@ Please analyze this content and create detailed prompts for each of the 5 lesson
     }
   });
 
+  // Execute individual lesson prompt against database
+  app.post("/api/execute-lesson-prompt", async (req: any, res) => {
+    try {
+      const { prompt, promptType, fileIds = [], folderIds = [] } = req.body;
+      const userId = "demo-user";
+
+      // Collect all content from database as context
+      let allContent: string[] = [];
+      
+      // Get content from selected files and folders (same as before)
+      if (fileIds.length > 0) {
+        const files = await storage.getFiles(userId, 100);
+        const selectedFiles = files.filter(file => fileIds.includes(file.id));
+        
+        for (const file of selectedFiles) {
+          try {
+            const metadata = await storage.getFileMetadata(file.id, userId);
+            if (metadata?.extractedText) {
+              allContent.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            }
+          } catch (error) {
+            console.error(`Error getting metadata for file ${file.id}:`, error);
+          }
+        }
+      }
+
+      if (folderIds.length > 0) {
+        const files = await storage.getFiles(userId, 100);
+        const folderFiles = files.filter(file => file.folderId && folderIds.includes(file.folderId));
+        
+        for (const file of folderFiles) {
+          try {
+            const metadata = await storage.getFileMetadata(file.id, userId);
+            if (metadata?.extractedText) {
+              allContent.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            }
+          } catch (error) {
+            console.error(`Error getting metadata for file ${file.id}:`, error);
+          }
+        }
+      }
+
+      // Also get broader context from all processed files for richer content generation
+      const allFiles = await storage.getFiles(userId, 50);
+      const processedFiles = allFiles.filter(f => f.processingStatus === 'completed');
+      
+      for (const file of processedFiles.slice(0, 10)) { // Limit to avoid token overflow
+        try {
+          const metadata = await storage.getFileMetadata(file.id, userId);
+          if (metadata?.extractedText && !allContent.some(content => content.includes(file.originalName))) {
+            allContent.push(`Reference File: ${file.originalName}\n${metadata.extractedText.substring(0, 2000)}`);
+          }
+        } catch (error) {
+          // Silent fail for reference content
+        }
+      }
+
+      const combinedContent = allContent.join("\n\n---\n\n");
+      
+      // Execute the prompt with OpenAI
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `You are executing a specialized lesson creation prompt. Use the provided content from the user's database to create high-quality educational material. Be specific, practical, and engaging. Reference the actual content when relevant.
+
+Your response should be well-formatted, detailed, and ready to use in an educational setting. Include specific examples, activities, or materials based on the content provided.`
+          },
+          {
+            role: "user",
+            content: `${prompt}
+
+Based on the following content from the database:
+
+${combinedContent}
+
+Please generate detailed, specific lesson content following the prompt above.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const result = completion.choices[0].message.content;
+      if (!result) {
+        throw new Error("No response from OpenAI");
+      }
+      
+      res.json({ content: result });
+    } catch (error) {
+      console.error("Error executing lesson prompt:", error);
+      res.status(500).json({ 
+        error: "Failed to execute lesson prompt",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

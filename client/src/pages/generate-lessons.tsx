@@ -33,12 +33,14 @@ interface LessonPrompt {
   prompt: string;
   icon: JSX.Element;
   description: string;
+  generatedContent?: string;
 }
 
 export default function GenerateLessons() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [generatedPrompts, setGeneratedPrompts] = useState<LessonPrompt[]>([]);
+  const [executingPrompts, setExecutingPrompts] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   // Fetch files and folders
@@ -111,6 +113,45 @@ export default function GenerateLessons() {
       setGeneratedPrompts(prompts);
     },
   });
+
+  // Execute individual prompt against database
+  const executePrompt = async (promptType: string, prompt: string) => {
+    try {
+      setExecutingPrompts(prev => [...prev, promptType]);
+      
+      const response = await fetch("/api/execute-lesson-prompt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          promptType,
+          fileIds: selectedFiles,
+          folderIds: selectedFolders,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to execute prompt');
+      }
+      
+      const data = await response.json();
+      
+      // Update the specific prompt with generated content
+      setGeneratedPrompts(prev => 
+        prev.map(p => 
+          p.type === promptType 
+            ? { ...p, generatedContent: data.content }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('Error executing prompt:', error);
+    } finally {
+      setExecutingPrompts(prev => prev.filter(type => type !== promptType));
+    }
+  };
 
   const handleFileToggle = (fileId: string) => {
     setSelectedFiles(prev => 
@@ -248,23 +289,49 @@ export default function GenerateLessons() {
                   </ScrollArea>
                 </div>
 
-                <Button
-                  onClick={handleGeneratePrompts}
-                  disabled={
-                    (selectedFiles.length === 0 && selectedFolders.length === 0) ||
-                    generatePromptsMutation.isPending
-                  }
-                  className="w-full"
-                >
-                  {generatePromptsMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Prompts...
-                    </>
-                  ) : (
-                    "Generate Lesson Prompts"
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleGeneratePrompts}
+                    disabled={
+                      (selectedFiles.length === 0 && selectedFolders.length === 0) ||
+                      generatePromptsMutation.isPending
+                    }
+                    className="w-full"
+                  >
+                    {generatePromptsMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Prompts...
+                      </>
+                    ) : (
+                      "Generate Lesson Prompts"
+                    )}
+                  </Button>
+                  
+                  {generatedPrompts.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        generatedPrompts.forEach(prompt => {
+                          if (!executingPrompts.includes(prompt.type) && !prompt.generatedContent) {
+                            executePrompt(prompt.type, prompt.prompt);
+                          }
+                        });
+                      }}
+                      disabled={executingPrompts.length > 0}
+                      className="w-full"
+                    >
+                      {executingPrompts.length > 0 ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Executing All Prompts...
+                        </>
+                      ) : (
+                        "Execute All Prompts"
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -276,7 +343,7 @@ export default function GenerateLessons() {
             <CardHeader>
               <CardTitle>Generated Lesson Prompts</CardTitle>
               <CardDescription>
-                AI-generated prompts for different lesson agents
+                AI-generated prompts for different lesson agents. Click "Execute Prompt" to generate actual lesson content.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -304,10 +371,44 @@ export default function GenerateLessons() {
                           </div>
                         </CardHeader>
                         <CardContent className="pt-0">
-                          <div className="bg-muted/50 rounded-lg p-4">
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {prompt.prompt}
-                            </p>
+                          <div className="space-y-4">
+                            <div className="bg-muted/50 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-medium text-sm">Agent Prompt:</h5>
+                                <Button
+                                  size="sm"
+                                  onClick={() => executePrompt(prompt.type, prompt.prompt)}
+                                  disabled={executingPrompts.includes(prompt.type)}
+                                  className="h-8"
+                                >
+                                  {executingPrompts.includes(prompt.type) ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                      Generating...
+                                    </>
+                                  ) : (
+                                    "Execute Prompt"
+                                  )}
+                                </Button>
+                              </div>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                                {prompt.prompt}
+                              </p>
+                            </div>
+                            
+                            {prompt.generatedContent && (
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <h5 className="font-medium text-sm text-green-800">Generated Content:</h5>
+                                </div>
+                                <div className="prose prose-sm max-w-none">
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-green-700">
+                                    {prompt.generatedContent}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
