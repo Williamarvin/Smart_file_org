@@ -69,26 +69,34 @@ router.post("/", async (req, res) => {
           content: `You are an expert educational content designer. Based on the provided content, generate 5 different prompts for 5 specialized lesson creation agents. Each prompt should be detailed and specific to help that agent create high-quality educational content.
 
 The 5 agents are:
-1. Introduction Agent - Creates engaging lesson introductions
-2. Warm-Up Agent - Designs warm-up activities and icebreakers  
-3. Content Agent - Develops main lesson content and materials
-4. Practice Agent - Creates practice exercises and activities
-5. Homework Agent - Designs homework assignments and assessments
+1. Introduction Agent - Creates engaging lesson introductions AS POWERPOINT SLIDES
+2. Warm-Up Agent - Designs warm-up activities AS FLASHCARDS
+3. Content Agent - Develops main lesson content AS POWERPOINT SLIDES
+4. Practice Agent - Creates practice exercises AS QUIZ QUESTIONS
+5. Homework Agent - Designs homework assignments AS QUIZ QUESTIONS
+
+IMPORTANT OUTPUT FORMAT REQUIREMENTS:
+- Introduction Agent: Must generate PowerPoint slide format with clear slide titles, bullet points, and speaker notes
+- Warm-Up Agent: Must generate flashcard format with front/back content for each card
+- Content Agent: Must generate PowerPoint slide format with detailed slide content and speaker notes
+- Practice Agent: Must generate quiz format with multiple choice, true/false, or short answer questions
+- Homework Agent: Must generate quiz format with questions and answer keys
 
 For each agent, create a detailed prompt that:
 - References the specific content provided
-- Gives clear instructions for that agent's role
+- Gives clear instructions for that agent's role and REQUIRED OUTPUT FORMAT
 - Includes specific guidelines for the type of content to create
 - Considers the target audience and learning objectives
+- EXPLICITLY states the required output format (PowerPoint slides, flashcards, or quiz)
 
 Return the response as JSON with this structure:
 {
   "prompts": {
-    "introduction": "detailed prompt for introduction agent...",
-    "warmup": "detailed prompt for warm-up agent...", 
-    "content": "detailed prompt for content agent...",
-    "practice": "detailed prompt for practice agent...",
-    "homework": "detailed prompt for homework agent..."
+    "introduction": "detailed prompt for introduction agent that MUST specify PowerPoint slide output...",
+    "warmup": "detailed prompt for warm-up agent that MUST specify flashcard output...", 
+    "content": "detailed prompt for content agent that MUST specify PowerPoint slide output...",
+    "practice": "detailed prompt for practice agent that MUST specify quiz output...",
+    "homework": "detailed prompt for homework agent that MUST specify quiz output..."
   }
 }`
         },
