@@ -816,28 +816,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
             content: `You are an expert educational content designer. Based on the provided content, generate 5 different prompts for 5 specialized lesson creation agents. Each prompt should be detailed and specific to help that agent create high-quality educational content.
 
 The 5 agents are:
-1. Introduction Agent - Creates engaging lesson introductions
-2. Warm-Up Agent - Designs warm-up activities and icebreakers  
-3. Content Agent - Develops main lesson content and materials
-4. Practice Agent - Creates practice exercises and activities
-5. Homework Agent - Designs homework assignments and assessments
+1. Introduction Agent - Creates engaging lesson introductions AS POWERPOINT SLIDES
+2. Warm-Up Agent - Designs warm-up activities AS FLASHCARDS
+3. Content Agent - Develops main lesson content AS POWERPOINT SLIDES
+4. Practice Agent - Creates practice exercises AS QUIZ QUESTIONS
+5. Homework Agent - Designs homework assignments AS QUIZ QUESTIONS
+
+IMPORTANT OUTPUT FORMAT REQUIREMENTS:
+- Introduction Agent: Must generate PowerPoint slide format with clear slide titles, bullet points, and speaker notes
+- Warm-Up Agent: Must generate flashcard format with front/back content for each card
+- Content Agent: Must generate PowerPoint slide format with detailed slide content and speaker notes
+- Practice Agent: Must generate quiz format with multiple choice, true/false, or short answer questions
+- Homework Agent: Must generate quiz format with questions and answer keys
 
 For each agent, create a detailed prompt that:
 - References the specific content provided
-- Gives clear instructions for that agent's role
+- Gives clear instructions for that agent's role and REQUIRED OUTPUT FORMAT
 - Includes specific guidelines for the type of content to create
 - Considers the target audience and learning objectives
+- EXPLICITLY states the required output format (PowerPoint slides, flashcards, or quiz)
 
 Return the response as JSON with this structure:
 {
   "prompts": {
-    "introduction": "detailed prompt for introduction agent...",
-    "warmup": "detailed prompt for warm-up agent...", 
-    "content": "detailed prompt for content agent...",
-    "practice": "detailed prompt for practice agent...",
-    "homework": "detailed prompt for homework agent..."
+    "introduction": "detailed prompt for introduction agent that MUST specify PowerPoint slide output...",
+    "warmup": "detailed prompt for warm-up agent that MUST specify flashcard output...", 
+    "content": "detailed prompt for content agent that MUST specify PowerPoint slide output...",
+    "practice": "detailed prompt for practice agent that MUST specify quiz output...",
+    "homework": "detailed prompt for homework agent that MUST specify quiz output..."
   }
-}`
+}
+
+CRITICAL: Each generated prompt MUST explicitly include the required output format. For example:
+- Introduction prompt must include: "Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes."
+- Warm-up prompt must include: "Generate your response as flashcards with front and back content for each card."
+- Content prompt must include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
+- Practice prompt must include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
+- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`
           },
           {
             role: "user",
@@ -845,7 +860,16 @@ Return the response as JSON with this structure:
 
 ${combinedContent}
 
-Please analyze this content and create detailed prompts for each of the 5 lesson creation agents.`
+Please analyze this content and create detailed prompts for each of the 5 lesson creation agents.
+
+MANDATORY: Each prompt you generate MUST include explicit output format instructions:
+- Introduction prompt MUST include: "Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes."
+- Warm-up prompt MUST include: "Generate your response as flashcards with front and back content for each card."
+- Content prompt MUST include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
+- Practice prompt MUST include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
+- Homework prompt MUST include: "Generate your response as quiz questions with answer keys included."
+
+Do not forget to include these format specifications in each individual prompt you create.`
           }
         ],
         response_format: { type: "json_object" },
@@ -929,6 +953,22 @@ Please analyze this content and create detailed prompts for each of the 5 lesson
 
       const combinedContent = allContent.join("\n\n---\n\n");
       
+      // Add format requirements to prompt if not already present
+      const formatRequirements = {
+        'introduction': 'Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes.',
+        'content': 'Generate your response as PowerPoint slides with detailed slide content and speaker notes.',
+        'practice': 'Generate your response as quiz questions with multiple choice, true/false, or short answer format.',
+        'homework': 'Generate your response as quiz questions with answer keys included.',
+        'warmup': 'Generate your response as flashcards with front and back content for each card.'
+      };
+      
+      let enhancedPrompt = prompt;
+      const requirement = formatRequirements[promptType as keyof typeof formatRequirements];
+      
+      if (requirement && !prompt.toLowerCase().includes('generate your response as') && !prompt.toLowerCase().includes('powerpoint') && !prompt.toLowerCase().includes('flashcard') && !prompt.toLowerCase().includes('quiz')) {
+        enhancedPrompt = `${prompt}\n\n${requirement}`;
+      }
+      
       // Execute the prompt with OpenAI
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -944,7 +984,7 @@ Your response should be well-formatted, detailed, and ready to use in an educati
           },
           {
             role: "user",
-            content: `${prompt}
+            content: `${enhancedPrompt}
 
 Based on the following content from the database:
 
