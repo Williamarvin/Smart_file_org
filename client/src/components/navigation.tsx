@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, User } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, User, BookOpen } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Navigation() {
@@ -19,6 +19,7 @@ export function Navigation() {
     { path: "/upload", icon: Upload, label: "Upload Files" },
     { path: "/analysis", icon: BarChart3, label: "Analysis" },
     { path: "/generate", icon: Sparkles, label: "Generate Content" },
+    { path: "/generate-lessons", icon: BookOpen, label: "Generate Lessons" },
     { path: "/chat", icon: MessageCircle, label: "Chat with Files" },
   ];
 
