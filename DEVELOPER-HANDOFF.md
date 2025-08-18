@@ -1,8 +1,8 @@
-# 🚀 Smart File Organizer API - Developer Integration Package
+# 🚀 Smart File System API - Developer Integration Package
 
 ## 📋 Quick Start for External Developers
 
-Your Smart File Organizer API is now deployed and ready for integration! Here's everything you need:
+Your Smart File System API is now deployed and ready for integration! Here's everything you need:
 
 ### 🔗 API Base URL
 ```

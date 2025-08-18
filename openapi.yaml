@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Smart Document Management API
+  title: Smart File System API
   description: |
-    AI-powered document management system with semantic search, chat functionality, and content generation.
+    AI-powered file management system with semantic search, chat functionality, and content generation.
     
     ## Features
     - **File Management**: Upload, organize, and manage documents and videos

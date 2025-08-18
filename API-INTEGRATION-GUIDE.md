@@ -1,4 +1,4 @@
-# 🚀 Smart Document Management API - Integration Guide
+# 🚀 Smart File System API - Integration Guide
 
 ## 📋 Overview
 

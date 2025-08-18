@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Smart Document Management API",
-    "description": "AI-powered document management system with semantic search, chat functionality, and content generation.\n\n## Features\n- **File Management**: Upload, organize, and manage documents and videos\n- **AI-Powered Search**: Semantic similarity search using OpenAI embeddings\n- **Document Chat**: Conversational AI interface for documents\n- **Content Generation**: AI-powered content creation from existing files\n- **Hybrid Storage**: Optimized performance with database caching + cloud storage\n- **Automatic Processing**: Text extraction, video transcription, and metadata generation\n\n## Authentication\nCurrently uses a demo user system. For production use, implement proper authentication.\n",
+    "title": "Smart File System API",
+    "description": "AI-powered file management system with semantic search, chat functionality, and content generation.\n\n## Features\n- **File Management**: Upload, organize, and manage documents and videos\n- **AI-Powered Search**: Semantic similarity search using OpenAI embeddings\n- **Document Chat**: Conversational AI interface for documents\n- **Content Generation**: AI-powered content creation from existing files\n- **Hybrid Storage**: Optimized performance with database caching + cloud storage\n- **Automatic Processing**: Text extraction, video transcription, and metadata generation\n\n## Authentication\nCurrently uses a demo user system. For production use, implement proper authentication.\n",
     "version": "1.0.0",
     "contact": {
       "name": "API Support",
