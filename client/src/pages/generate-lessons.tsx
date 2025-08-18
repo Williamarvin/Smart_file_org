@@ -555,7 +555,7 @@ export default function GenerateLessons() {
                   <p>Select files and folders, then click "Generate Lesson Prompts" to create structured prompts for lesson agents.</p>
                 </div>
               ) : (
-                <ScrollArea className="h-96">
+                <ScrollArea className="h-[600px]">
                   <div className="space-y-4">
                     {generatedPrompts.map((prompt, index) => (
                       <Card key={prompt.type} className="border-l-4 border-l-primary">
