@@ -98,7 +98,14 @@ Return the response as JSON with this structure:
     "practice": "detailed prompt for practice agent that MUST specify quiz output...",
     "homework": "detailed prompt for homework agent that MUST specify quiz output..."
   }
-}`
+}
+
+CRITICAL: Each generated prompt MUST explicitly include the required output format. For example:
+- Introduction prompt must include: "Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes."
+- Warm-up prompt must include: "Generate your response as flashcards with front and back content for each card."
+- Content prompt must include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
+- Practice prompt must include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
+- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`
         },
         {
           role: "user",
@@ -106,7 +113,16 @@ Return the response as JSON with this structure:
 
 ${combinedContent}
 
-Please analyze this content and create detailed prompts for each of the 5 lesson creation agents.`
+Please analyze this content and create detailed prompts for each of the 5 lesson creation agents.
+
+MANDATORY: Each prompt you generate MUST include explicit output format instructions:
+- Introduction prompt MUST include: "Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes."
+- Warm-up prompt MUST include: "Generate your response as flashcards with front and back content for each card."
+- Content prompt MUST include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
+- Practice prompt MUST include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
+- Homework prompt MUST include: "Generate your response as quiz questions with answer keys included."
+
+Do not forget to include these format specifications in each individual prompt you create.`
         }
       ],
       response_format: { type: "json_object" },
