@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause } from "lucide-react";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface File {
@@ -163,27 +163,23 @@ export default function GenerateLessons() {
 
   // Execute all prompts with manual control
   const executeAllPromptsManual = () => {
-    const firstPrompt = generatedPrompts.find(p => !p.generatedContent);
-    if (firstPrompt) {
-      setCurrentExecutingIndex(0);
+    const firstUnexecuted = generatedPrompts.findIndex(p => !p.generatedContent);
+    if (firstUnexecuted !== -1) {
+      setCurrentExecutingIndex(firstUnexecuted);
       setAutoExecutionActive(true);
-      executePrompt(firstPrompt.type, firstPrompt.prompt);
+      executePrompt(generatedPrompts[firstUnexecuted].type, generatedPrompts[firstUnexecuted].prompt);
     }
   };
 
   // Continue to next prompt (manual mode)
   const continueToNextPrompt = () => {
-    const nextIndex = currentExecutingIndex + 1;
-    if (nextIndex < generatedPrompts.length) {
-      const nextPrompt = generatedPrompts[nextIndex];
-      if (!nextPrompt.generatedContent) {
-        setCurrentExecutingIndex(nextIndex);
-        executePrompt(nextPrompt.type, nextPrompt.prompt);
-      } else {
-        // Skip already generated prompts
-        setCurrentExecutingIndex(nextIndex);
-        continueToNextPrompt();
-      }
+    const nextUnexecuted = generatedPrompts.findIndex((p, index) => 
+      index > currentExecutingIndex && !p.generatedContent
+    );
+    
+    if (nextUnexecuted !== -1) {
+      setCurrentExecutingIndex(nextUnexecuted);
+      executePrompt(generatedPrompts[nextUnexecuted].type, generatedPrompts[nextUnexecuted].prompt);
     } else {
       setAutoExecutionActive(false);
       setCurrentExecutingIndex(-1);
@@ -193,32 +189,32 @@ export default function GenerateLessons() {
   // Execute all prompts with timed delays
   const executeAllPromptsTimed = async () => {
     setAutoExecutionActive(true);
-    setCurrentExecutingIndex(0);
+    
+    const unexecutedPrompts = generatedPrompts
+      .map((prompt, index) => ({ prompt, index }))
+      .filter(({ prompt }) => !prompt.generatedContent);
 
-    for (let i = 0; i < generatedPrompts.length; i++) {
-      const prompt = generatedPrompts[i];
-      if (!prompt.generatedContent) {
-        setCurrentExecutingIndex(i);
-        await executePrompt(prompt.type, prompt.prompt);
+    for (let i = 0; i < unexecutedPrompts.length; i++) {
+      const { prompt, index } = unexecutedPrompts[i];
+      setCurrentExecutingIndex(index);
+      await executePrompt(prompt.type, prompt.prompt);
+      
+      // If not the last prompt, start countdown
+      if (i < unexecutedPrompts.length - 1) {
+        setCountdown(autoExecutionDelay * 60); // Set countdown in seconds
         
-        // If not the last prompt, start countdown
-        if (i < generatedPrompts.length - 1) {
-          const delayMs = autoExecutionDelay * 60 * 1000; // Convert minutes to milliseconds
-          setCountdown(autoExecutionDelay * 60); // Set countdown in seconds
-          
-          await new Promise((resolve) => {
-            const interval = setInterval(() => {
-              setCountdown(prev => {
-                if (prev <= 1) {
-                  clearInterval(interval);
-                  resolve(undefined);
-                  return 0;
-                }
-                return prev - 1;
-              });
-            }, 1000);
-          });
-        }
+        await new Promise((resolve) => {
+          const interval = setInterval(() => {
+            setCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(interval);
+                resolve(undefined);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        });
       }
     }
     
@@ -391,6 +387,75 @@ export default function GenerateLessons() {
                     <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
                       <h4 className="font-medium text-sm">Execute All Prompts</h4>
                       
+                      {/* Progress Indicator */}
+                      {autoExecutionActive && (
+                        <div className="space-y-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-blue-800">
+                              Execution Progress
+                            </span>
+                            <span className="text-xs text-blue-600">
+                              {generatedPrompts.filter(p => p.generatedContent).length}/{generatedPrompts.length} completed
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {generatedPrompts.map((prompt, index) => {
+                              const isCompleted = prompt.generatedContent;
+                              const isCurrent = index === currentExecutingIndex;
+                              const isExecuting = isCurrent && executingPrompts.includes(prompt.type);
+                              
+                              return (
+                                <div key={prompt.type} className={`flex items-center gap-3 p-2 rounded ${
+                                  isCurrent ? 'bg-blue-100 border border-blue-300' : 
+                                  isCompleted ? 'bg-green-50' : 'bg-white'
+                                }`}>
+                                  <div className="flex-shrink-0">
+                                    {isExecuting ? (
+                                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                    ) : isCompleted ? (
+                                      <CheckCircle className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Circle className="h-4 w-4 text-gray-400" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-1">
+                                    {prompt.icon}
+                                    <span className={`text-sm font-medium ${
+                                      isCurrent ? 'text-blue-800' : 
+                                      isCompleted ? 'text-green-800' : 'text-gray-600'
+                                    }`}>
+                                      {prompt.title}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs">
+                                    {isExecuting ? (
+                                      <span className="text-blue-600 font-medium">Executing...</span>
+                                    ) : isCompleted ? (
+                                      <span className="text-green-600">✓ Done</span>
+                                    ) : isCurrent ? (
+                                      <span className="text-blue-600">← Current</span>
+                                    ) : (
+                                      <span className="text-gray-400">Pending</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {countdown > 0 && autoExecutionMode === 'timed' && (
+                            <div className="text-center p-2 bg-white rounded border">
+                              <span className="text-sm text-gray-600">
+                                Next prompt starts in: <span className="font-mono font-bold text-blue-600">
+                                  {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       <RadioGroup 
                         value={autoExecutionMode} 
                         onValueChange={(value: 'manual' | 'timed') => setAutoExecutionMode(value)}
@@ -457,13 +522,13 @@ export default function GenerateLessons() {
                         </Button>
                       )}
 
-                      {autoExecutionActive && autoExecutionMode === 'manual' && currentExecutingIndex >= 0 && currentExecutingIndex < generatedPrompts.length - 1 && !executingPrompts.includes(generatedPrompts[currentExecutingIndex]?.type) && (
+                      {autoExecutionActive && autoExecutionMode === 'manual' && currentExecutingIndex >= 0 && !executingPrompts.includes(generatedPrompts[currentExecutingIndex]?.type) && generatedPrompts.some((p, i) => i > currentExecutingIndex && !p.generatedContent) && (
                         <Button
                           onClick={continueToNextPrompt}
                           className="w-full"
                           variant="default"
                         >
-                          Continue to Next Prompt ({generatedPrompts[currentExecutingIndex + 1]?.title})
+                          Continue to Next Prompt ({generatedPrompts.find((p, i) => i > currentExecutingIndex && !p.generatedContent)?.title})
                         </Button>
                       )}
                     </div>
