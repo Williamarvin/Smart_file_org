@@ -6,7 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface File {
@@ -41,6 +44,11 @@ export default function GenerateLessons() {
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [generatedPrompts, setGeneratedPrompts] = useState<LessonPrompt[]>([]);
   const [executingPrompts, setExecutingPrompts] = useState<string[]>([]);
+  const [autoExecutionMode, setAutoExecutionMode] = useState<'manual' | 'timed'>('manual');
+  const [autoExecutionDelay, setAutoExecutionDelay] = useState<number>(2);
+  const [currentExecutingIndex, setCurrentExecutingIndex] = useState<number>(-1);
+  const [autoExecutionActive, setAutoExecutionActive] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(0);
   const queryClient = useQueryClient();
 
   // Fetch files and folders
@@ -151,6 +159,77 @@ export default function GenerateLessons() {
     } finally {
       setExecutingPrompts(prev => prev.filter(type => type !== promptType));
     }
+  };
+
+  // Execute all prompts with manual control
+  const executeAllPromptsManual = () => {
+    const firstPrompt = generatedPrompts.find(p => !p.generatedContent);
+    if (firstPrompt) {
+      setCurrentExecutingIndex(0);
+      setAutoExecutionActive(true);
+      executePrompt(firstPrompt.type, firstPrompt.prompt);
+    }
+  };
+
+  // Continue to next prompt (manual mode)
+  const continueToNextPrompt = () => {
+    const nextIndex = currentExecutingIndex + 1;
+    if (nextIndex < generatedPrompts.length) {
+      const nextPrompt = generatedPrompts[nextIndex];
+      if (!nextPrompt.generatedContent) {
+        setCurrentExecutingIndex(nextIndex);
+        executePrompt(nextPrompt.type, nextPrompt.prompt);
+      } else {
+        // Skip already generated prompts
+        setCurrentExecutingIndex(nextIndex);
+        continueToNextPrompt();
+      }
+    } else {
+      setAutoExecutionActive(false);
+      setCurrentExecutingIndex(-1);
+    }
+  };
+
+  // Execute all prompts with timed delays
+  const executeAllPromptsTimed = async () => {
+    setAutoExecutionActive(true);
+    setCurrentExecutingIndex(0);
+
+    for (let i = 0; i < generatedPrompts.length; i++) {
+      const prompt = generatedPrompts[i];
+      if (!prompt.generatedContent) {
+        setCurrentExecutingIndex(i);
+        await executePrompt(prompt.type, prompt.prompt);
+        
+        // If not the last prompt, start countdown
+        if (i < generatedPrompts.length - 1) {
+          const delayMs = autoExecutionDelay * 60 * 1000; // Convert minutes to milliseconds
+          setCountdown(autoExecutionDelay * 60); // Set countdown in seconds
+          
+          await new Promise((resolve) => {
+            const interval = setInterval(() => {
+              setCountdown(prev => {
+                if (prev <= 1) {
+                  clearInterval(interval);
+                  resolve(undefined);
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+          });
+        }
+      }
+    }
+    
+    setAutoExecutionActive(false);
+    setCurrentExecutingIndex(-1);
+    setCountdown(0);
+  };
+
+  // Skip to next prompt in timed mode
+  const skipToNext = () => {
+    setCountdown(0);
   };
 
   const handleFileToggle = (fileId: string) => {
@@ -289,7 +368,7 @@ export default function GenerateLessons() {
                   </ScrollArea>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <Button
                     onClick={handleGeneratePrompts}
                     disabled={
@@ -309,27 +388,85 @@ export default function GenerateLessons() {
                   </Button>
                   
                   {generatedPrompts.length > 0 && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        generatedPrompts.forEach(prompt => {
-                          if (!executingPrompts.includes(prompt.type) && !prompt.generatedContent) {
-                            executePrompt(prompt.type, prompt.prompt);
-                          }
-                        });
-                      }}
-                      disabled={executingPrompts.length > 0}
-                      className="w-full"
-                    >
-                      {executingPrompts.length > 0 ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Executing All Prompts...
-                        </>
-                      ) : (
-                        "Execute All Prompts"
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                      <h4 className="font-medium text-sm">Execute All Prompts</h4>
+                      
+                      <RadioGroup 
+                        value={autoExecutionMode} 
+                        onValueChange={(value: 'manual' | 'timed') => setAutoExecutionMode(value)}
+                        className="space-y-3"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="manual" id="manual" />
+                          <Label htmlFor="manual" className="text-sm">
+                            Manual Control - Continue after reviewing each result
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="timed" id="timed" />
+                          <Label htmlFor="timed" className="text-sm">
+                            Timed Auto-execution - Continue automatically after delay
+                          </Label>
+                        </div>
+                      </RadioGroup>
+
+                      {autoExecutionMode === 'timed' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="delay" className="text-sm">
+                            Delay between prompts (minutes):
+                          </Label>
+                          <Input
+                            id="delay"
+                            type="number"
+                            min="0.5"
+                            max="10"
+                            step="0.5"
+                            value={autoExecutionDelay}
+                            onChange={(e) => setAutoExecutionDelay(parseFloat(e.target.value) || 2)}
+                            className="w-full"
+                            placeholder="2"
+                          />
+                        </div>
                       )}
-                    </Button>
+
+                      <Button
+                        onClick={autoExecutionMode === 'manual' ? executeAllPromptsManual : executeAllPromptsTimed}
+                        disabled={autoExecutionActive || executingPrompts.length > 0}
+                        className="w-full"
+                      >
+                        {autoExecutionActive ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {autoExecutionMode === 'manual' ? 'Executing...' : `Auto-Executing... ${countdown > 0 ? `(${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, '0')})` : ''}`}
+                          </>
+                        ) : (
+                          <>
+                            <Play className="mr-2 h-4 w-4" />
+                            {autoExecutionMode === 'manual' ? 'Start Manual Execution' : 'Start Timed Execution'}
+                          </>
+                        )}
+                      </Button>
+
+                      {countdown > 0 && autoExecutionMode === 'timed' && (
+                        <Button
+                          variant="outline"
+                          onClick={skipToNext}
+                          className="w-full"
+                        >
+                          Skip to Next Prompt ({Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')})
+                        </Button>
+                      )}
+
+                      {autoExecutionActive && autoExecutionMode === 'manual' && currentExecutingIndex >= 0 && currentExecutingIndex < generatedPrompts.length - 1 && !executingPrompts.includes(generatedPrompts[currentExecutingIndex]?.type) && (
+                        <Button
+                          onClick={continueToNextPrompt}
+                          className="w-full"
+                          variant="default"
+                        >
+                          Continue to Next Prompt ({generatedPrompts[currentExecutingIndex + 1]?.title})
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
