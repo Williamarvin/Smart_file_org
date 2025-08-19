@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle } from "lucide-react";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 
 interface File {
@@ -42,6 +43,7 @@ interface LessonPrompt {
 export default function GenerateLessons() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [additionalContext, setAdditionalContext] = useState<string>("");
   const [generatedPrompts, setGeneratedPrompts] = useState<LessonPrompt[]>([]);
   const [executingPrompts, setExecutingPrompts] = useState<string[]>([]);
   const [autoExecutionMode, setAutoExecutionMode] = useState<'manual' | 'timed'>('manual');
@@ -71,6 +73,7 @@ export default function GenerateLessons() {
         body: JSON.stringify({
           fileIds: selectedFiles,
           folderIds: selectedFolders,
+          additionalContext: additionalContext.trim() || undefined,
         }),
       });
       
@@ -364,11 +367,36 @@ export default function GenerateLessons() {
                   </ScrollArea>
                 </div>
 
+                {/* Additional Context Section */}
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Additional Context (Optional)
+                  </h4>
+                  <div className="space-y-2">
+                    <Label htmlFor="additional-context" className="text-sm text-muted-foreground">
+                      Provide any additional information, requirements, or context for the lesson generation
+                    </Label>
+                    <Textarea
+                      id="additional-context"
+                      placeholder="Example: Focus on beginner level, include practical examples, emphasize hands-on activities, target audience is high school students, etc."
+                      value={additionalContext}
+                      onChange={(e) => setAdditionalContext(e.target.value)}
+                      rows={4}
+                      className="resize-none"
+                    />
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>This context will be included in all generated lesson prompts</span>
+                      <span>{additionalContext.length} characters</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   <Button
                     onClick={handleGeneratePrompts}
                     disabled={
-                      (selectedFiles.length === 0 && selectedFolders.length === 0) ||
+                      (selectedFiles.length === 0 && selectedFolders.length === 0 && !additionalContext.trim()) ||
                       generatePromptsMutation.isPending
                     }
                     className="w-full"

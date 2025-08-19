@@ -766,13 +766,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate lesson prompts endpoint
   app.post("/api/generate-lesson-prompts", async (req: any, res) => {
     try {
-      const { fileIds = [], folderIds = [] } = req.body;
+      const { fileIds = [], folderIds = [], additionalContext } = req.body;
 
       // Get user (demo user for now)
       const userId = "demo-user";
 
       // Collect content from selected files and folders
       let contentSources: string[] = [];
+      
+      // Add additional context if provided
+      if (additionalContext && additionalContext.trim()) {
+        contentSources.push(`Additional Context: ${additionalContext.trim()}`);
+      }
       
       // Get content from selected files
       if (fileIds.length > 0) {
@@ -811,7 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no content found, return error
       if (contentSources.length === 0) {
         return res.status(400).json({ 
-          error: "No content found in selected files and folders" 
+          error: "No content found in selected files, folders, or additional context" 
         });
       }
 
