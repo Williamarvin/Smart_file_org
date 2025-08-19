@@ -40,7 +40,7 @@ localPort = 5000
 externalPort = 80
 
 [agent]
-integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_openai==1.0.0", "firebase_barebones_javascript==1.0.0"]
+integrations = ["firebase_barebones_javascript==1.0.0", "javascript_openai==1.0.0", "javascript_log_in_with_replit==1.0.0", "javascript_websocket==1.0.0"]
 
 [objectStorage]
 defaultBucketID = "replit-objstore-66462a0e-61f7-48ee-844e-b50098909575"
