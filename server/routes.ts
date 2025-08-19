@@ -1012,6 +1012,68 @@ Please generate detailed, specific lesson content following the prompt above.`
     }
   });
 
+  // Avatar chat endpoint
+  app.post("/api/avatar-chat", async (req: any, res) => {
+    try {
+      const { message, avatarId, personality, chatHistory = [] } = req.body;
+
+      if (!message || !avatarId || !personality) {
+        return res.status(400).json({ error: "Message, avatarId, and personality are required" });
+      }
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      // Build conversation context from chat history
+      const conversationMessages = [
+        {
+          role: "system",
+          content: `You are an AI avatar with the following personality: ${personality}
+
+Stay in character throughout the conversation. Be helpful, engaging, and authentic to your personality. 
+Respond naturally as if you're having a real conversation with the user.
+
+Keep your responses conversational and appropriately sized - usually 1-3 paragraphs unless the user asks for something longer.`
+        }
+      ];
+
+      // Add recent chat history for context (limit to last 5 exchanges)
+      const recentHistory = chatHistory.slice(-10);
+      for (const msg of recentHistory) {
+        conversationMessages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        });
+      }
+
+      // Add the current user message
+      conversationMessages.push({
+        role: "user",
+        content: message
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: conversationMessages as any,
+        temperature: 0.8,
+        max_tokens: 1000
+      });
+
+      const result = completion.choices[0].message.content;
+      if (!result) {
+        throw new Error("No response from OpenAI");
+      }
+
+      res.json({ response: result });
+    } catch (error) {
+      console.error("Error in avatar chat:", error);
+      res.status(500).json({ 
+        error: "Failed to get avatar response",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

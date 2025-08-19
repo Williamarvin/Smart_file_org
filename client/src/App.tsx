@@ -13,6 +13,7 @@ import { Generate } from "@/pages/generate";
 import { Chat } from "@/pages/chat";
 import { FilePreview } from "@/pages/file-preview";
 import GenerateLessons from "@/pages/generate-lessons";
+import AvatarPage from "@/pages/avatar";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
             <Route path="/analysis" component={Analysis} />
             <Route path="/generate" component={Generate} />
             <Route path="/generate-lessons" component={GenerateLessons} />
+            <Route path="/avatar" component={AvatarPage} />
             <Route path="/chat" component={Chat} />
             <Route path="/file/:id" component={FilePreview} />
             <Route component={NotFound} />
