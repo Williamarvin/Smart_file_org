@@ -1012,10 +1012,11 @@ Please generate detailed, specific lesson content following the prompt above.`
     }
   });
 
-  // Avatar chat endpoint
+  // Avatar chat endpoint with database access
   app.post("/api/avatar-chat", async (req: any, res) => {
     try {
       const { message, avatarId, personality, chatHistory = [] } = req.body;
+      const userId = "demo-user";
 
       if (!message || !avatarId || !personality) {
         return res.status(400).json({ error: "Message, avatarId, and personality are required" });
@@ -1024,14 +1025,81 @@ Please generate detailed, specific lesson content following the prompt above.`
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+      // Get user's file context for enhanced responses
+      let fileContext = "";
+      let userStats = null;
+      let recentFiles = [];
+      let categories = [];
+
+      try {
+        // Get user statistics
+        userStats = await storage.getFileStats(userId);
+        
+        // Get recent files (last 10)
+        recentFiles = await storage.getFiles(userId, 10, 0);
+        
+        // Get file categories
+        const rawCategories = await storage.getCategories(userId);
+        categories = rawCategories.slice(0, 5); // Top 5 categories
+
+        // Check if user is asking about specific files or wants to search
+        const isFileRelated = /(?:files?|documents?|search|find|uploaded|analyze|summary|content)/i.test(message);
+        
+        if (isFileRelated || userStats.totalFiles > 0) {
+          fileContext = `
+User's File Library Context:
+- Total Files: ${userStats.totalFiles}
+- Processed Files: ${userStats.processedFiles} 
+- Processing Files: ${userStats.processingFiles}
+- Failed Files: ${userStats.failedFiles}
+- Average Processing Time: ${userStats.avgProcessingTime}ms
+
+Top Categories: ${categories.map(c => `${c.category} (${c.count})`).join(", ")}
+
+Recent Files: ${recentFiles.slice(0, 5).map(f => `${f.originalName} (${f.mimeType})`).join(", ")}
+
+Note: You can help users search, analyze, and manage their files. If they ask about specific content, suggest using the search feature or browsing their files.`;
+        }
+
+        // If the message seems like a search query, try to provide search results
+        if (/(?:search|find|look for|where|what files)/i.test(message)) {
+          const searchTerms = message.replace(/(?:search|find|look for|where|what files|do I have)/gi, '').trim();
+          if (searchTerms.length > 2) {
+            try {
+              const searchResults = await storage.searchFiles(searchTerms, userId, 5);
+              if (searchResults.length > 0) {
+                fileContext += `\n\nSearch Results for "${searchTerms}":
+${searchResults.map(f => `- ${f.originalName}: ${f.metadata?.summary || 'No summary available'}`).join('\n')}`;
+              }
+            } catch (searchError) {
+              console.log("Search error in avatar chat:", searchError);
+            }
+          }
+        }
+      } catch (contextError) {
+        console.log("Error getting file context for avatar:", contextError);
+        fileContext = "User file context unavailable.";
+      }
+
       // Build conversation context from chat history
       const conversationMessages = [
         {
           role: "system",
           content: `You are an AI avatar with the following personality: ${personality}
 
+You are helping users with a smart file management and AI-powered document analysis system. You have access to information about their uploaded files and can help them:
+- Search and find specific documents
+- Get summaries and insights from their files  
+- Understand what content they have uploaded
+- Navigate their file organization
+- Suggest ways to analyze or work with their documents
+
+${fileContext}
+
 Stay in character throughout the conversation. Be helpful, engaging, and authentic to your personality. 
 Respond naturally as if you're having a real conversation with the user.
+When users ask about files or documents, reference the context above and guide them appropriately.
+If they want to search for something specific, encourage them to use the search feature.
 
 Keep your responses conversational and appropriately sized - usually 1-3 paragraphs unless the user asks for something longer.`
         }
