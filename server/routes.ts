@@ -480,20 +480,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { message, fileIds } = z.object({
+      const { message, fileIds, chatHistory = [], conversationContext } = z.object({
         message: z.string(),
         fileIds: z.array(z.string()).optional().default([]),
+        chatHistory: z.array(z.object({
+          role: z.string(),
+          content: z.string()
+        })).optional().default([]),
+        conversationContext: z.any().optional()
       }).parse(req.body);
+
+      // Process with oversight agent
+      const { processWithOversight } = await import("./oversightAgent");
+      const { oversightInstructions, updatedContext } = await processWithOversight(
+        message,
+        chatHistory,
+        conversationContext
+      );
 
       // Get context files
       const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
       
-      // Generate response using AI
-      const response = await chatWithFiles(message, files);
+      // Generate response using AI with oversight
+      const response = await chatWithFiles(message, files, oversightInstructions);
       
       res.json({ 
         response,
-        relatedFiles: fileIds
+        relatedFiles: fileIds,
+        conversationContext: updatedContext
       });
     } catch (error) {
       console.error("Error in chat:", error);
@@ -1012,10 +1026,10 @@ Please generate detailed, specific lesson content following the prompt above.`
     }
   });
 
-  // Avatar chat endpoint with database access
+  // Avatar chat endpoint with database access and oversight
   app.post("/api/avatar-chat", async (req: any, res) => {
     try {
-      const { message, avatarId, personality, chatHistory = [] } = req.body;
+      const { message, avatarId, personality, chatHistory = [], conversationContext } = req.body;
       const userId = "demo-user";
 
       if (!message || !avatarId || !personality) {
@@ -1024,6 +1038,14 @@ Please generate detailed, specific lesson content following the prompt above.`
 
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      // Process with oversight agent
+      const { processWithOversight } = await import("./oversightAgent");
+      const { oversightInstructions, updatedContext } = await processWithOversight(
+        message,
+        chatHistory,
+        conversationContext
+      );
 
       // Get user's file context for enhanced responses
       let fileContext = "";
@@ -1051,8 +1073,8 @@ User's File Library Context:
 - Total Files: ${userStats.totalFiles}
 - Processed Files: ${userStats.processedFiles} 
 - Processing Files: ${userStats.processingFiles}
-- Failed Files: ${userStats.failedFiles}
-- Average Processing Time: ${userStats.avgProcessingTime}ms
+- Error Files: ${userStats.errorFiles}
+- Total Size: ${(userStats.totalSize / (1024 * 1024)).toFixed(1)}MB
 
 Top Categories: ${categories.map(c => `${c.category} (${c.count})`).join(", ")}
 
@@ -1081,7 +1103,7 @@ ${searchResults.map(f => `- ${f.originalName}: ${f.metadata?.summary || 'No summ
         fileContext = "User file context unavailable.";
       }
 
-      // Build conversation context from chat history
+      // Build conversation context from chat history with oversight
       const conversationMessages = [
         {
           role: "system",
@@ -1095,6 +1117,8 @@ You are helping users with a smart file management and AI-powered document analy
 - Suggest ways to analyze or work with their documents
 
 ${fileContext}
+
+${oversightInstructions}
 
 Stay in character throughout the conversation. Be helpful, engaging, and authentic to your personality. 
 Respond naturally as if you're having a real conversation with the user.
@@ -1132,7 +1156,10 @@ Keep your responses conversational and appropriately sized - usually 1-3 paragra
         throw new Error("No response from OpenAI");
       }
 
-      res.json({ response: result });
+      res.json({ 
+        response: result,
+        conversationContext: updatedContext 
+      });
     } catch (error) {
       console.error("Error in avatar chat:", error);
       res.status(500).json({ 

@@ -126,6 +126,7 @@ export default function AvatarPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [speechRecognition, setSpeechRecognition] = useState<any | null>(null);
   const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
+  const [conversationContext, setConversationContext] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -238,7 +239,8 @@ export default function AvatarPage() {
           message: data.message,
           avatarId: data.avatar.id,
           personality: data.avatar.personality,
-          chatHistory: messages.slice(-10) // Send last 10 messages for context
+          chatHistory: messages.slice(-10), // Send last 10 messages for context
+          conversationContext: conversationContext
         })
       });
       
@@ -256,6 +258,11 @@ export default function AvatarPage() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Update conversation context from oversight agent
+      if (data.conversationContext) {
+        setConversationContext(data.conversationContext);
+      }
       
       // Automatically speak the response if voice is enabled
       if (voiceEnabled) {

@@ -28,6 +28,7 @@ export function Chat() {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [conversationContext, setConversationContext] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -42,7 +43,13 @@ export function Chat() {
   // Chat mutation
   const chatMutation = useMutation({
     mutationFn: async ({ message, fileIds }: { message: string; fileIds: string[] }) => {
-      const response = await apiRequest("POST", "/api/chat", { message, fileIds });
+      const chatHistory = messages.map(m => ({ role: m.type === 'user' ? 'user' : 'assistant', content: m.content }));
+      const response = await apiRequest("POST", "/api/chat", { 
+        message, 
+        fileIds, 
+        chatHistory: chatHistory.slice(-10), // Send last 10 messages for context
+        conversationContext: conversationContext
+      });
       return response.json();
     },
     onSuccess: (data: any) => {
@@ -54,6 +61,11 @@ export function Chat() {
         relatedFiles: data.relatedFiles || [],
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Update conversation context from oversight agent
+      if (data.conversationContext) {
+        setConversationContext(data.conversationContext);
+      }
     },
     onError: (error) => {
       console.error("Chat error:", error);

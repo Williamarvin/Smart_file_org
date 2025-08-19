@@ -266,7 +266,8 @@ Please provide a comprehensive response based on the content and context of thes
 
 export async function chatWithFiles(
   message: string,
-  files: Array<{ id: string; filename: string; extractedText?: string; metadata?: any }>
+  files: Array<{ id: string; filename: string; extractedText?: string; metadata?: any }>,
+  oversightInstructions?: string
 ): Promise<string> {
   try {
     let context = "";
@@ -287,12 +288,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       context = "No specific files selected. User is asking a general question.";
     }
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful AI assistant that can answer questions about uploaded documents. 
+    const baseSystemContent = `You are a helpful AI assistant that can answer questions about uploaded documents. 
 You have access to the user's document content and can provide specific information, summaries, analysis, and insights.
 
 When answering:
@@ -303,7 +299,18 @@ When answering:
 - Use a conversational, helpful tone
 
 Available document context:
-${context}`,
+${context}`;
+
+    const systemContent = oversightInstructions 
+      ? `${baseSystemContent}\n\n${oversightInstructions}`
+      : baseSystemContent;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: systemContent,
         },
         {
           role: "user",
