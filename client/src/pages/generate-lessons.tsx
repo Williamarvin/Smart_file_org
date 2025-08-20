@@ -363,9 +363,20 @@ export default function GenerateLessons() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      // Parse the generated prompt and populate sections
-      const sections = parsePromptIntoSections(data.teacherPrompt);
-      setTeacherSections(sections);
+      // If sections are provided from server, use them directly
+      if (data.sections) {
+        const newSections = [...teacherSections];
+        newSections[0].content = data.sections.introduction || "";
+        newSections[1].content = data.sections.warmup || "";
+        newSections[2].content = data.sections.mainContent || "";
+        newSections[3].content = data.sections.practice || "";
+        newSections[4].content = data.sections.wrapup || "";
+        setTeacherSections(newSections);
+      } else {
+        // Otherwise, parse from the prompt
+        const sections = parsePromptIntoSections(data.teacherPrompt);
+        setTeacherSections(sections);
+      }
       // Store the original prompt as well
       setTeacherPrompt(data.teacherPrompt); // Display version
       setTeacherPromptWithContent(data.teacherPromptWithContent); // Execution version

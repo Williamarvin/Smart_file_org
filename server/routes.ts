@@ -1078,13 +1078,98 @@ When you generate content, make it practical, engaging, and directly connected t
         `## Content Source Material:\n${combinedContent}`
       );
 
-      res.json({ 
-        teacherPrompt,
-        teacherPromptWithContent, // Send both versions
-        courseTitle: courseTitle || 'Educational Course',
-        targetAudience: targetAudience || 'General learners',
-        contentSourcesCount: contentSources.length
-      });
+      // Generate pre-filled sections using OpenAI
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const sectionPrompt = `Based on the following content, create a structured course with 5 sections. Provide specific, detailed content for each section.
+
+Course Title: ${courseTitle || 'Educational Course'}
+Target Audience: ${targetAudience || 'General learners'}
+
+Content to base the course on:
+${combinedContent.substring(0, 3000)} // Limit content to avoid token limits
+
+Please provide content for each section in the following format:
+
+## Introduction
+[Write 3-5 sentences introducing the topic, starting with a hook and stating learning objectives. Be specific and engaging.]
+
+## Warm-up Activities
+[Write 3-5 sentences describing vocabulary review or concept activation exercises. Include specific examples.]
+
+## Main Content
+[Write 5-7 sentences covering the core teaching content with key concepts and examples. Be detailed and comprehensive.]
+
+## Practice Activities
+[Write 3-5 sentences describing hands-on practice exercises and application tasks. Include specific activities.]
+
+## Wrap-up and Homework
+[Write 3-5 sentences summarizing key points and describing homework assignments. Be specific about tasks.]`;
+
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: "You are a master teacher creating structured lesson content. Provide specific, actionable content for each section based on the provided materials. Be detailed and practical."
+            },
+            {
+              role: "user",
+              content: sectionPrompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        });
+
+        const generatedContent = completion.choices[0].message.content || "";
+        
+        // Parse the generated content into sections
+        const sections = {
+          introduction: "",
+          warmup: "",
+          mainContent: "",
+          practice: "",
+          wrapup: ""
+        };
+        
+        // Extract content for each section
+        const introMatch = generatedContent.match(/##\s*Introduction\s*\n([\s\S]*?)(?=##\s*Warm-up|$)/i);
+        const warmupMatch = generatedContent.match(/##\s*Warm-up.*?\n([\s\S]*?)(?=##\s*Main\s*Content|$)/i);
+        const mainMatch = generatedContent.match(/##\s*Main\s*Content\s*\n([\s\S]*?)(?=##\s*Practice|$)/i);
+        const practiceMatch = generatedContent.match(/##\s*Practice.*?\n([\s\S]*?)(?=##\s*Wrap-up|$)/i);
+        const wrapupMatch = generatedContent.match(/##\s*Wrap-up.*?\n([\s\S]*?)$/i);
+        
+        if (introMatch) sections.introduction = introMatch[1].trim();
+        if (warmupMatch) sections.warmup = warmupMatch[1].trim();
+        if (mainMatch) sections.mainContent = mainMatch[1].trim();
+        if (practiceMatch) sections.practice = practiceMatch[1].trim();
+        if (wrapupMatch) sections.wrapup = wrapupMatch[1].trim();
+        
+        // Update the teacher prompt with the generated sections content
+        const updatedTeacherPrompt = generatedContent;
+        
+        res.json({ 
+          teacherPrompt: updatedTeacherPrompt, // Now contains the generated sections
+          teacherPromptWithContent: teacherPromptWithContent, // Full prompt for execution
+          courseTitle: courseTitle || 'Educational Course',
+          targetAudience: targetAudience || 'General learners',
+          contentSourcesCount: contentSources.length,
+          sections: sections // Send parsed sections for the UI
+        });
+      } catch (openaiError) {
+        console.error("Error generating sections with OpenAI:", openaiError);
+        // Fallback to original response if OpenAI fails
+        res.json({ 
+          teacherPrompt,
+          teacherPromptWithContent,
+          courseTitle: courseTitle || 'Educational Course',
+          targetAudience: targetAudience || 'General learners',
+          contentSourcesCount: contentSources.length
+        });
+      }
 
     } catch (error) {
       console.error("Error generating teacher prompt:", error);

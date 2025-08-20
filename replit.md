@@ -3,7 +3,8 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 20, 2025)
-- **✅ Structured Course Editor**: Teacher prompt now divided into 5 editable sections (Introduction, Warm-up, Main Content, Practice, Wrap-up/Homework)
+- **✅ AI Pre-filled Sections**: Teacher prompt sections now auto-populate with LLM-generated content based on selected files/folders
+- **✅ Structured Course Editor**: Teacher prompt divided into 5 editable sections (Introduction, Warm-up, Main Content, Practice, Wrap-up/Homework)
 - **✅ Section Configuration**: Each section has customizable content, action type (PPT/Audio/Video/Flashcards/Quiz/Discussion), and duration
 - **✅ Prompt Consolidation**: "Consolidate Sections" button combines all sections into a single prompt with preview
 - **✅ Chat Session Management**: Save, load, and share teacher chat sessions with custom titles and public URLs
