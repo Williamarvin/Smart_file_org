@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2, Save, Share2, History } from "lucide-react";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2, Save, Share2, History, Edit, Send } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 
 interface File {
@@ -40,6 +41,14 @@ interface LessonPrompt {
   generatedContent?: string;
 }
 
+interface TeacherSection {
+  id: string;
+  title: string;
+  content: string;
+  actionType: 'ppt' | 'audio' | 'video' | 'flashcards' | 'quiz' | 'discussion';
+  duration: number; // in minutes
+}
+
 export default function GenerateLessons() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
@@ -67,6 +76,15 @@ export default function GenerateLessons() {
   const [showSavedSessions, setShowSavedSessions] = useState(false);
   const [sessionTitle, setSessionTitle] = useState("");
   const [shareUrl, setShareUrl] = useState("");
+  
+  // Teacher sections for structured prompt
+  const [teacherSections, setTeacherSections] = useState<TeacherSection[]>([
+    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5 },
+    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10 },
+    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20 },
+    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15 },
+    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10 }
+  ]);
   
   const queryClient = useQueryClient();
   
@@ -292,6 +310,46 @@ export default function GenerateLessons() {
     }
   };
 
+  // Helper function to parse prompt into sections
+  const parsePromptIntoSections = (prompt: string): TeacherSection[] => {
+    const defaultSections = [...teacherSections];
+    
+    // Try to extract content for each section from the prompt
+    const introMatch = prompt.match(/Introduction[:\s]*(.*?)(?=Warm-up|Main Content|Practice|Wrap-up|$)/i);
+    const warmupMatch = prompt.match(/Warm-up[:\s]*(.*?)(?=Main Content|Practice|Wrap-up|$)/i);
+    const mainMatch = prompt.match(/Main Content[:\s]*(.*?)(?=Practice|Wrap-up|$)/i);
+    const practiceMatch = prompt.match(/Practice[:\s]*(.*?)(?=Wrap-up|$)/i);
+    const wrapupMatch = prompt.match(/Wrap-up[:\s]*(.*?)$/i);
+    
+    if (introMatch) defaultSections[0].content = introMatch[1].trim();
+    if (warmupMatch) defaultSections[1].content = warmupMatch[1].trim();
+    if (mainMatch) defaultSections[2].content = mainMatch[1].trim();
+    if (practiceMatch) defaultSections[3].content = practiceMatch[1].trim();
+    if (wrapupMatch) defaultSections[4].content = wrapupMatch[1].trim();
+    
+    // If no matches found, just put the entire prompt in the main content
+    if (!introMatch && !warmupMatch && !mainMatch && !practiceMatch && !wrapupMatch) {
+      defaultSections[2].content = prompt;
+    }
+    
+    return defaultSections;
+  };
+  
+  // Function to consolidate sections into a single prompt
+  const consolidateSectionsIntoPrompt = (): string => {
+    let consolidatedPrompt = `Course: ${courseTitle}\nTarget Audience: ${targetAudience}\n\n`;
+    let totalTime = 0;
+    
+    teacherSections.forEach(section => {
+      totalTime += section.duration;
+      consolidatedPrompt += `## ${section.title} (${section.duration} minutes - ${section.actionType.toUpperCase()})\n`;
+      consolidatedPrompt += `${section.content || '[Content to be added]'}\n\n`;
+    });
+    
+    consolidatedPrompt += `\nTotal Duration: ${totalTime} minutes\n`;
+    return consolidatedPrompt;
+  };
+
   // Generate teacher prompt mutation
   const generateTeacherPromptMutation = useMutation({
     mutationFn: async () => {
@@ -305,6 +363,10 @@ export default function GenerateLessons() {
       return response.json();
     },
     onSuccess: (data: any) => {
+      // Parse the generated prompt and populate sections
+      const sections = parsePromptIntoSections(data.teacherPrompt);
+      setTeacherSections(sections);
+      // Store the original prompt as well
       setTeacherPrompt(data.teacherPrompt); // Display version
       setTeacherPromptWithContent(data.teacherPromptWithContent); // Execution version
     },
@@ -909,41 +971,136 @@ export default function GenerateLessons() {
                 </Card>
               )}
 
-              {/* Teacher Prompt Preview */}
+              {/* Teacher Prompt Sections Editor */}
               {teacherPrompt && !teacherContent && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Teacher Prompt</CardTitle>
+                    <CardTitle>Course Structure Editor</CardTitle>
                     <CardDescription>
-                      This is the complete prompt that will be sent to the teacher agent to generate your course content.
+                      Edit each section of your course. Customize content, select action types, and set duration for each part.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <ScrollArea className="h-64">
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-800">
-                            {teacherPrompt}
-                          </p>
-                        </ScrollArea>
-                      </div>
-                      <Button
-                        onClick={() => executeTeacherPromptMutation.mutate()}
-                        disabled={executeTeacherPromptMutation.isPending}
-                        className="w-full"
-                      >
-                        {executeTeacherPromptMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending to Teacher Agent...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="mr-2 h-4 w-4" />
-                            Send to Teacher Agent
-                          </>
+                    <div className="space-y-6">
+                      {/* Section Editors */}
+                      {teacherSections.map((section, index) => (
+                        <div key={section.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-lg">{section.title}</h4>
+                            <Badge variant="outline">{section.duration} min</Badge>
+                          </div>
+                          
+                          {/* Content Editor */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`content-${section.id}`}>Content</Label>
+                            <Textarea
+                              id={`content-${section.id}`}
+                              value={section.content}
+                              onChange={(e) => {
+                                const newSections = [...teacherSections];
+                                newSections[index].content = e.target.value;
+                                setTeacherSections(newSections);
+                              }}
+                              placeholder={`Enter content for ${section.title}...`}
+                              className="min-h-[100px]"
+                            />
+                          </div>
+                          
+                          {/* Action Type and Duration */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`action-${section.id}`}>Action Type</Label>
+                              <Select
+                                value={section.actionType}
+                                onValueChange={(value) => {
+                                  const newSections = [...teacherSections];
+                                  newSections[index].actionType = value as any;
+                                  setTeacherSections(newSections);
+                                }}
+                              >
+                                <SelectTrigger id={`action-${section.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ppt">PowerPoint</SelectItem>
+                                  <SelectItem value="audio">Audio</SelectItem>
+                                  <SelectItem value="video">Video</SelectItem>
+                                  <SelectItem value="flashcards">Flashcards</SelectItem>
+                                  <SelectItem value="quiz">Quiz</SelectItem>
+                                  <SelectItem value="discussion">Discussion</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`duration-${section.id}`}>Duration (minutes)</Label>
+                              <Input
+                                id={`duration-${section.id}`}
+                                type="number"
+                                min="1"
+                                max="60"
+                                value={section.duration}
+                                onChange={(e) => {
+                                  const newSections = [...teacherSections];
+                                  newSections[index].duration = parseInt(e.target.value) || 5;
+                                  setTeacherSections(newSections);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Consolidate and Send Buttons */}
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => {
+                            const consolidated = consolidateSectionsIntoPrompt();
+                            setTeacherPrompt(consolidated);
+                            setTeacherPromptWithContent(consolidated);
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Consolidate Sections into Prompt
+                        </Button>
+                        
+                        {/* Show consolidated prompt preview */}
+                        {teacherPromptWithContent && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <h5 className="font-medium mb-2">Consolidated Prompt Preview:</h5>
+                            <ScrollArea className="h-32">
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-800">
+                                {teacherPromptWithContent}
+                              </p>
+                            </ScrollArea>
+                          </div>
                         )}
-                      </Button>
+                        
+                        <Button
+                          onClick={() => {
+                            // First consolidate, then execute
+                            const consolidated = consolidateSectionsIntoPrompt();
+                            setTeacherPromptWithContent(consolidated);
+                            executeTeacherPromptMutation.mutate();
+                          }}
+                          disabled={executeTeacherPromptMutation.isPending}
+                          className="w-full"
+                        >
+                          {executeTeacherPromptMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending to Teacher Agent...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="mr-2 h-4 w-4" />
+                              Send to Teacher Agent
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
