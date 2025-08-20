@@ -789,7 +789,7 @@ export default function GenerateLessons() {
               {teacherPrompt && !teacherContent && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Consolidated Teacher Prompt</CardTitle>
+                    <CardTitle>Teacher Prompt</CardTitle>
                     <CardDescription>
                       This is the complete prompt that will be sent to the teacher agent to generate your course content.
                     </CardDescription>
