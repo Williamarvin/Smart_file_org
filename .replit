@@ -39,6 +39,58 @@ waitForPort = 5000
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 32833
+externalPort = 8080
+
+[[ports]]
+localPort = 33865
+externalPort = 5000
+
+[[ports]]
+localPort = 34579
+externalPort = 3000
+
+[[ports]]
+localPort = 38335
+externalPort = 8000
+
+[[ports]]
+localPort = 39081
+externalPort = 4200
+
+[[ports]]
+localPort = 39507
+externalPort = 5173
+
+[[ports]]
+localPort = 40341
+externalPort = 6000
+
+[[ports]]
+localPort = 41995
+externalPort = 6800
+
+[[ports]]
+localPort = 43065
+externalPort = 8081
+
+[[ports]]
+localPort = 44371
+externalPort = 3003
+
+[[ports]]
+localPort = 45815
+externalPort = 3002
+
+[[ports]]
+localPort = 46347
+externalPort = 3001
+
+[[ports]]
+localPort = 46549
+externalPort = 8008
+
 [agent]
 integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_openai==1.0.0", "firebase_barebones_javascript==1.0.0", "javascript_websocket==1.0.0", "javascript_database==1.0.0"]
 

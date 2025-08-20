@@ -29,7 +29,7 @@ describe('DatabaseStorage', () => {
         { id: '2', originalName: 'file2.doc', userId: 'user1' }
       ];
 
-      (db.select as jest.Mock).mockReturnValue({
+      (db.select as any).mockReturnValue({
         from: jest.fn().mockReturnValue({
           where: jest.fn().mockReturnValue({
             orderBy: jest.fn().mockReturnValue({
@@ -48,7 +48,7 @@ describe('DatabaseStorage', () => {
 
   describe('getFileStats', () => {
     it('should calculate file statistics', async () => {
-      (db.execute as jest.Mock).mockResolvedValue({
+      (db.execute as any).mockResolvedValue({
         rows: [{
           totalFiles: '10',
           processedFiles: '8',
@@ -81,7 +81,7 @@ describe('DatabaseStorage', () => {
         }
       ];
 
-      (db.execute as jest.Mock).mockResolvedValue({
+      (db.execute as any).mockResolvedValue({
         rows: mockResults
       });
 
@@ -101,7 +101,7 @@ describe('DatabaseStorage', () => {
 
       (db.insert as jest.Mock).mockReturnValue({
         values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([mockFolder])
+          returning: jest.fn().mockResolvedValue([mockFolder]) as any
         })
       });
 
@@ -109,7 +109,7 @@ describe('DatabaseStorage', () => {
         name: 'Test Folder',
         parentId: null,
         userId: 'user1'
-      });
+      }, 'user1');
 
       expect(folder).toEqual(mockFolder);
     });

@@ -1,7 +1,8 @@
 // Backend API Integration Tests
 import request from 'supertest';
-import express from 'express';
+import express, { type Express } from 'express';
 import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
+import type { MockedFunction } from 'jest-mock';
 
 // Mock the database and storage
 jest.mock('../../server/db', () => ({
@@ -9,65 +10,116 @@ jest.mock('../../server/db', () => ({
   pool: { end: jest.fn() }
 }));
 
+// Mock nanoid
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn().mockReturnValue('test-id-123')
+}));
+
+// Mock server/openai.ts module
+jest.mock('../../server/openai', () => ({
+  extractFileMetadata: jest.fn(),
+  generateContentEmbedding: jest.fn(),
+  generateSearchEmbedding: jest.fn(),
+  findSimilarContent: jest.fn(),
+  generateContentFromFiles: jest.fn(),
+  chatWithFiles: jest.fn(),
+  transcribeVideo: jest.fn()
+}));
+
+const mockStorage = {
+  getFiles: jest.fn() as MockedFunction<any>,
+  getFileStats: jest.fn() as MockedFunction<any>,
+  getCategories: jest.fn() as MockedFunction<any>,
+  searchFiles: jest.fn() as MockedFunction<any>,
+  searchFilesBySimilarity: jest.fn() as MockedFunction<any>,
+  getFile: jest.fn() as MockedFunction<any>,
+  deleteFile: jest.fn() as MockedFunction<any>,
+  createFolder: jest.fn() as MockedFunction<any>,
+  getFolders: jest.fn() as MockedFunction<any>,
+  createSearchHistory: jest.fn() as MockedFunction<any>
+};
+
 jest.mock('../../server/storage', () => ({
-  storage: {
-    getFiles: jest.fn(),
-    getFileStats: jest.fn(),
-    getCategories: jest.fn(),
-    searchFiles: jest.fn(),
-    getFile: jest.fn(),
-    deleteFile: jest.fn(),
-    createFolder: jest.fn(),
-    getFolders: jest.fn()
-  }
+  storage: mockStorage
 }));
 
 // Mock OpenAI
+const mockOpenAI = {
+  chat: {
+    completions: {
+      create: jest.fn() as MockedFunction<any>
+    }
+  },
+  audio: {
+    speech: {
+      create: jest.fn() as MockedFunction<any>
+    }
+  }
+};
+
 jest.mock('openai', () => {
-  return {
-    default: jest.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: jest.fn().mockResolvedValue({
-            choices: [{ message: { content: 'Test response' } }]
-          })
-        }
-      },
-      audio: {
-        speech: {
-          create: jest.fn().mockResolvedValue({
-            arrayBuffer: jest.fn().mockResolvedValue(Buffer.from('audio-data'))
-          })
-        }
+  const mockInstance = {
+    chat: {
+      completions: {
+        create: jest.fn()
       }
-    }))
+    },
+    audio: {
+      speech: {
+        create: jest.fn()
+      }
+    }
+  };
+  
+  return {
+    default: jest.fn().mockImplementation(() => mockInstance)
   };
 });
 
 describe('API Endpoints', () => {
-  let app: express.Application;
+  let app: Express;
 
   beforeAll(async () => {
-    // Setup mock return values
-    const { storage } = await import('../../server/storage');
-    (storage.getFiles as jest.Mock).mockResolvedValue([
+    // Setup storage mock return values
+    (mockStorage.getFiles as any).mockResolvedValue([
       { id: '1', originalName: 'test.pdf', mimeType: 'application/pdf', size: 1024 }
     ]);
-    (storage.getFileStats as jest.Mock).mockResolvedValue({
+    (mockStorage.getFileStats as any).mockResolvedValue({
       totalFiles: 10, processedFiles: 8, processingFiles: 1, errorFiles: 1, totalSize: 10485760
     });
-    (storage.getCategories as jest.Mock).mockResolvedValue([
+    (mockStorage.getCategories as any).mockResolvedValue([
       { category: 'Education', count: 5 }, { category: 'Business', count: 3 }
     ]);
-    (storage.searchFiles as jest.Mock).mockResolvedValue([
+    (mockStorage.searchFiles as any).mockResolvedValue([
       { id: '1', originalName: 'test.pdf', metadata: { summary: 'Test document' } }
     ]);
+    (mockStorage.searchFilesBySimilarity as any).mockResolvedValue([]);
+    (mockStorage.getFile as any).mockResolvedValue({
+      id: '1', originalName: 'test.pdf', mimeType: 'application/pdf', size: 1024
+    });
+    (mockStorage.deleteFile as any).mockResolvedValue(true);
+    (mockStorage.createFolder as any).mockResolvedValue({
+      id: 'folder1', name: 'Test Folder', parentId: null
+    });
+    (mockStorage.getFolders as any).mockResolvedValue([
+      { id: 'folder1', name: 'Test Folder', parentId: null }
+    ]);
+    
+    // Setup OpenAI function mocks
+    const openaiModule = await import('../../server/openai');
+    (openaiModule.extractFileMetadata as any).mockResolvedValue({ summary: 'Test summary' });
+    (openaiModule.generateContentEmbedding as any).mockResolvedValue([0.1, 0.2, 0.3]);
+    (openaiModule.generateSearchEmbedding as any).mockResolvedValue([0.1, 0.2, 0.3]);
+    (openaiModule.findSimilarContent as any).mockResolvedValue([]);
+    (openaiModule.generateContentFromFiles as any).mockResolvedValue('Generated content');
+    (openaiModule.chatWithFiles as any).mockResolvedValue('Chat response');
+    (openaiModule.transcribeVideo as any).mockResolvedValue('Video transcription');
     
     // Import after mocks are set up
-    const { setupRoutes } = await import('../../server/routes');
+    const { registerRoutes } = await import('../../server/routes');
     app = express();
     app.use(express.json());
-    setupRoutes(app);
+    await registerRoutes(app);
   });
 
   describe('GET /api/files', () => {
@@ -113,22 +165,23 @@ describe('API Endpoints', () => {
     });
   });
 
-  describe('POST /api/search', () => {
+  describe('GET /api/search', () => {
     it('should search files', async () => {
       const response = await request(app)
-        .post('/api/search')
-        .send({ query: 'test' })
+        .get('/api/search/test')
         .expect(200);
 
       expect(response.body).toHaveLength(1);
       expect(response.body[0]).toHaveProperty('originalName', 'test.pdf');
     });
 
-    it('should reject empty search query', async () => {
-      await request(app)
-        .post('/api/search')
-        .send({ query: '' })
-        .expect(400);
+    it('should return all files for empty search', async () => {
+      const response = await request(app)
+        .get('/api/search/')
+        .expect(200);
+
+      expect(response.body).toHaveLength(1);
+      expect(response.body[0]).toHaveProperty('originalName', 'test.pdf');
     });
   });
 
@@ -146,7 +199,11 @@ describe('API Endpoints', () => {
     it('should create a folder', async () => {
       const response = await request(app)
         .post('/api/folders')
-        .send({ name: 'Test Folder' })
+        .send({ 
+          name: 'Test Folder',
+          path: '/test-folder',
+          parentId: null
+        })
         .expect(200);
 
       expect(response.body).toHaveProperty('id');
@@ -156,7 +213,11 @@ describe('API Endpoints', () => {
     it('should reject empty folder name', async () => {
       await request(app)
         .post('/api/folders')
-        .send({ name: '' })
+        .send({ 
+          name: '',
+          path: '/test-folder',
+          parentId: null
+        })
         .expect(400);
     });
   });
@@ -203,8 +264,10 @@ describe('API Endpoints', () => {
       const response = await request(app)
         .post('/api/generate-lesson-prompts')
         .send({
-          fileContent: 'Test content',
-          lessonType: 'comprehensive'
+          fileIds: ['1'],
+          title: 'Test Lesson',
+          lessonType: 'comprehensive',
+          executionMode: 'manual'
         })
         .expect(200);
 
