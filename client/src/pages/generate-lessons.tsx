@@ -851,7 +851,7 @@ export default function GenerateLessons() {
                   {/* Chat Interface - Only available after content is generated */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Refine with Teacher Agent</CardTitle>
+                      <CardTitle>Chat with Teacher</CardTitle>
                       <CardDescription>
                         Now you can chat with the teacher agent to refine or modify the generated course content.
                       </CardDescription>
@@ -859,10 +859,10 @@ export default function GenerateLessons() {
                     <CardContent>
                       <div className="space-y-4">
                         {/* Chat Messages */}
-                        {chatMessages.length > 0 && (
-                          <ScrollArea className="h-48 border rounded-lg p-4">
-                            <div className="space-y-3">
-                              {chatMessages.map((msg, index) => (
+                        <ScrollArea className="h-96 border rounded-lg p-4">
+                          <div className="space-y-3">
+                            {chatMessages.length > 0 ? (
+                              chatMessages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                   <div className={`max-w-[80%] p-3 rounded-lg ${
                                     msg.role === 'user' 
@@ -874,10 +874,14 @@ export default function GenerateLessons() {
                                     </p>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        )}
+                              ))
+                            ) : (
+                              <div className="text-center text-muted-foreground text-sm">
+                                Start a conversation with the teacher agent to refine your course content
+                              </div>
+                            )}
+                          </div>
+                        </ScrollArea>
 
                         {/* Chat Input */}
                         <div className="flex gap-2">
@@ -885,7 +889,7 @@ export default function GenerateLessons() {
                             placeholder="Ask about modifications, request changes, or get teaching advice..."
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            rows={2}
+                            rows={3}
                             className="resize-none"
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
