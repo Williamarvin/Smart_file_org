@@ -61,20 +61,19 @@ export default function GenerateLessons() {
   const [teacherContent, setTeacherContent] = useState<string>("");
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
   const [chatInput, setChatInput] = useState<string>("");
-  const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   
   const queryClient = useQueryClient();
   
-  // Text-to-speech function
-  const speakMessage = async (text: string, index: number) => {
-    if (speakingMessageIndex === index) {
-      // Stop speaking if already playing
-      setSpeakingMessageIndex(null);
-      return;
-    }
-    
+  // Auto-speak teacher responses
+  const speakTeacherResponse = async (text: string) => {
     try {
-      setSpeakingMessageIndex(index);
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+      
       const response = await apiRequest("POST", "/api/teacher-speak", {
         text,
         voice: "alloy" // Can be changed to echo, fable, onyx, nova, or shimmer
@@ -83,14 +82,16 @@ export default function GenerateLessons() {
       const blob = await response.blob();
       const audio = new Audio(URL.createObjectURL(blob));
       
+      setCurrentAudio(audio);
+      
       audio.onended = () => {
-        setSpeakingMessageIndex(null);
+        setCurrentAudio(null);
       };
       
       await audio.play();
     } catch (error) {
       console.error("Error playing speech:", error);
-      setSpeakingMessageIndex(null);
+      setCurrentAudio(null);
     }
   };
 
@@ -246,13 +247,16 @@ export default function GenerateLessons() {
       });
       return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       setChatMessages(prev => [
         ...prev,
         { role: "user", content: chatInput },
         { role: "assistant", content: data.response }
       ]);
       setChatInput("");
+      
+      // Automatically speak the teacher's response
+      await speakTeacherResponse(data.response);
     },
   });
 
@@ -881,9 +885,14 @@ export default function GenerateLessons() {
                   {/* Chat Interface - Only available after content is generated */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Chat with Teacher</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        Chat with Teacher
+                        {currentAudio && (
+                          <Volume2 className="h-4 w-4 text-blue-500 animate-pulse" />
+                        )}
+                      </CardTitle>
                       <CardDescription>
-                        Now you can chat with the teacher agent to refine or modify the generated course content.
+                        Now you can chat with the teacher agent to refine or modify the generated course content. Teacher responses are automatically read aloud.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -894,29 +903,14 @@ export default function GenerateLessons() {
                             {chatMessages.length > 0 ? (
                               chatMessages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`max-w-[80%] ${msg.role === 'assistant' ? 'flex gap-2' : ''}`}>
-                                    <div className={`flex-1 p-3 rounded-lg ${
-                                      msg.role === 'user' 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-muted text-foreground'
-                                    }`}>
-                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                        {msg.content}
-                                      </p>
-                                    </div>
-                                    {msg.role === 'assistant' && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => speakMessage(msg.content, index)}
-                                        className="shrink-0"
-                                        title={speakingMessageIndex === index ? "Stop speaking" : "Read aloud"}
-                                      >
-                                        <Volume2 
-                                          className={`h-4 w-4 ${speakingMessageIndex === index ? 'text-blue-500 animate-pulse' : ''}`} 
-                                        />
-                                      </Button>
-                                    )}
+                                  <div className={`max-w-[80%] p-3 rounded-lg ${
+                                    msg.role === 'user' 
+                                      ? 'bg-blue-500 text-white' 
+                                      : 'bg-muted text-foreground'
+                                  }`}>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                      {msg.content}
+                                    </p>
                                   </div>
                                 </div>
                               ))
