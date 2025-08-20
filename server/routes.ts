@@ -779,10 +779,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contentSources.push(`Additional Context: ${additionalContext.trim()}`);
       }
       
-      // Get content from selected files
+      // Get content from selected files (only include fully processed files)
       if (fileIds.length > 0) {
         const files = await storage.getFiles(userId, 100);
-        const selectedFiles = files.filter(file => fileIds.includes(file.id));
+        const selectedFiles = files.filter(file => 
+          fileIds.includes(file.id) && 
+          file.processingStatus === "completed" && 
+          file.processedAt !== null
+        );
         
         for (const file of selectedFiles) {
           try {
@@ -796,10 +800,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get content from selected folders (get files in those folders)
+      // Get content from selected folders (only include fully processed files)
       if (folderIds.length > 0) {
         const files = await storage.getFiles(userId, 100);
-        const folderFiles = files.filter(file => file.folderId && folderIds.includes(file.folderId));
+        const folderFiles = files.filter(file => 
+          file.folderId && 
+          folderIds.includes(file.folderId) &&
+          file.processingStatus === "completed" && 
+          file.processedAt !== null
+        );
         
         for (const file of folderFiles) {
           try {
@@ -813,10 +822,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // If no content found, return error
+      // If no content found, return error with helpful message
       if (contentSources.length === 0) {
         return res.status(400).json({ 
-          error: "No content found in selected files, folders, or additional context" 
+          error: "No content found in selected files or folders. Make sure the files have finished processing and contain extractable content." 
         });
       }
 
