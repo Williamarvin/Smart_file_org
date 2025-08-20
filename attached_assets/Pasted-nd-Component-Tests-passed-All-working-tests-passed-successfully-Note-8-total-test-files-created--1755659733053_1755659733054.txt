@@ -1,0 +1,152 @@
+nd Component Tests passed
+
+All working tests passed successfully!
+Note: 8 total test files created (3 backend, 4 frontend, 1 integration)
+Advanced API and component tests available but require complex setup
+~/workspace$ npx jest --config=jest.config.js
+ PASS  test/backend/simple.test.ts (11.379 s)
+ FAIL  test/integration/file-workflow.test.ts
+  ● Test suite failed to run
+
+    test/integration/file-workflow.test.ts:7:1 - error TS2304: Cannot find name 'jest'.
+
+    7 jest.mock('../../server/db');
+      ~~~~
+    test/integration/file-workflow.test.ts:8:1 - error TS2304: Cannot find name 'jest'.
+
+    8 jest.mock('../../server/storage');
+      ~~~~
+    test/integration/file-workflow.test.ts:9:1 - error TS2304: Cannot find name 'jest'.
+
+    9 jest.mock('openai');
+      ~~~~
+    test/integration/file-workflow.test.ts:15:13 - error TS2339: Property 'setupRoutes' does not exist on type 'typeof import("/home/runner/workspace/server/routes")'.
+
+    15     const { setupRoutes } = await import('../../server/routes');
+                   ~~~~~~~~~~~
+
+ FAIL  test/backend/storage.test.ts
+  ● Test suite failed to run
+
+    test/backend/storage.test.ts:37:53 - error TS2345: Argument of type '{ id: string; originalName: string; userId: string; }[]' is not assignable to parameter of type 'never'.
+
+    37                 offset: jest.fn().mockResolvedValue(mockFiles)
+                                                           ~~~~~~~~~
+    test/backend/storage.test.ts:51:51 - error TS2345: Argument of type '{ rows: { totalFiles: string; processedFiles: string; processingFiles: string; errorFiles: string; totalSize: string; }[]; }' is not assignable to parameter of type 'never'.
+
+     51       (db.execute as jest.Mock).mockResolvedValue({
+                                                          ~
+     52         rows: [{
+        ~~~~~~~~~~~~~~~~
+    ... 
+     58         }]
+        ~~~~~~~~~~
+     59       });
+        ~~~~~~~
+    test/backend/storage.test.ts:84:51 - error TS2345: Argument of type '{ rows: { id: string; originalName: string; metadata: { summary: string; }; similarity: number; }[]; }' is not assignable to parameter of type 'never'.
+
+    84       (db.execute as jest.Mock).mockResolvedValue({
+                                                         ~
+    85         rows: mockResults
+       ~~~~~~~~~~~~~~~~~~~~~~~~~
+    86       });
+       ~~~~~~~
+    test/backend/storage.test.ts:104:50 - error TS2345: Argument of type '{ id: string; name: string; parentId: null; userId: string; }[]' is not assignable to parameter of type 'never'.
+
+    104           returning: jest.fn().mockResolvedValue([mockFolder])
+                                                         ~~~~~~~~~~~~
+    test/backend/storage.test.ts:108:36 - error TS2554: Expected 2 arguments, but got 1.
+
+    108       const folder = await storage.createFolder({
+                                           ~~~~~~~~~~~~
+
+      server/storage.ts:659:48
+        659   async createFolder(folderData: InsertFolder, userId: string): Promise<Folder> {
+                                                           ~~~~~~~~~~~~~~
+        An argument for 'userId' was not provided.
+    test/backend/storage.test.ts:121:44 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    121         where: jest.fn().mockResolvedValue({ rowCount: 1 })
+                                                   ~~~~~~~~~~~~~~~
+    test/backend/storage.test.ts:130:44 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    130         where: jest.fn().mockResolvedValue({ rowCount: 0 })
+                                                   ~~~~~~~~~~~~~~~
+    test/backend/storage.test.ts:142:46 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    142           where: jest.fn().mockResolvedValue({ rowCount: 1 })
+                                                     ~~~~~~~~~~~~~~~
+    test/backend/storage.test.ts:146:36 - error TS2554: Expected 3 arguments, but got 2.
+
+    146       const result = await storage.updateFileMetadata('file1', {
+                                           ~~~~~~~~~~~~~~~~~~
+
+      server/storage.ts:353:60
+        353   async updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void> {
+                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        An argument for 'metadata' was not provided.
+
+ FAIL  test/backend/api.test.ts
+  ● Test suite failed to run
+
+    test/backend/api.test.ts:31:47 - error TS2345: Argument of type '{ choices: { message: { content: string; }; }[]; }' is not assignable to parameter of type 'never'.
+
+    31           create: jest.fn().mockResolvedValue({
+                                                     ~
+    32             choices: [{ message: { content: 'Test response' } }]
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    33           })
+       ~~~~~~~~~~~
+    test/backend/api.test.ts:38:47 - error TS2345: Argument of type '{ arrayBuffer: Mock<UnknownFunction>; }' is not assignable to parameter of type 'never'.
+
+    38           create: jest.fn().mockResolvedValue({
+                                                     ~
+    39             arrayBuffer: jest.fn().mockResolvedValue(Buffer.from('audio-data'))
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    40           })
+       ~~~~~~~~~~~
+    test/backend/api.test.ts:39:54 - error TS2345: Argument of type 'Buffer' is not assignable to parameter of type 'never'.
+
+    39             arrayBuffer: jest.fn().mockResolvedValue(Buffer.from('audio-data'))
+                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~
+    test/backend/api.test.ts:53:55 - error TS2345: Argument of type '{ id: string; originalName: string; mimeType: string; size: number; }[]' is not assignable to parameter of type 'never'.
+
+    53     (storage.getFiles as jest.Mock).mockResolvedValue([
+                                                             ~
+    54       { id: '1', originalName: 'test.pdf', mimeType: 'application/pdf', size: 1024 }
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    55     ]);
+       ~~~~~
+    test/backend/api.test.ts:56:59 - error TS2345: Argument of type '{ totalFiles: number; processedFiles: number; processingFiles: number; errorFiles: number; totalSize: number; }' is not assignable to parameter of type 'never'.
+
+    56     (storage.getFileStats as jest.Mock).mockResolvedValue({
+                                                                 ~
+    57       totalFiles: 10, processedFiles: 8, processingFiles: 1, errorFiles: 1, totalSize: 10485760
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    58     });
+       ~~~~~
+    test/backend/api.test.ts:59:60 - error TS2345: Argument of type '{ category: string; count: number; }[]' is not assignable to parameter of type 'never'.
+
+    59     (storage.getCategories as jest.Mock).mockResolvedValue([
+                                                                  ~
+    60       { category: 'Education', count: 5 }, { category: 'Business', count: 3 }
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    61     ]);
+       ~~~~~
+    test/backend/api.test.ts:62:58 - error TS2345: Argument of type '{ id: string; originalName: string; metadata: { summary: string; }; }[]' is not assignable to parameter of type 'never'.
+
+    62     (storage.searchFiles as jest.Mock).mockResolvedValue([
+                                                                ~
+    63       { id: '1', originalName: 'test.pdf', metadata: { summary: 'Test document' } }
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    64     ]);
+       ~~~~~
+    test/backend/api.test.ts:67:13 - error TS2339: Property 'setupRoutes' does not exist on type 'typeof import("/home/runner/workspace/server/routes")'.
+
+    67     const { setupRoutes } = await import('../../server/routes');
+                   ~~~~~~~~~~~
+
+Test Suites: 3 failed, 1 passed, 4 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        21.862 s
