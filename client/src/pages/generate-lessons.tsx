@@ -69,37 +69,70 @@ export default function GenerateLessons() {
   // Auto-speak teacher responses with faster playback
   const speakTeacherResponse = async (text: string) => {
     try {
+      console.log("Starting speech generation...");
+      
       // Stop any currently playing audio
       if (currentAudio) {
+        console.log("Stopping previous audio");
         currentAudio.pause();
         currentAudio.currentTime = 0;
+        setCurrentAudio(null);
       }
       
       setIsGeneratingSpeech(true);
       
+      console.log("Calling teacher-speak API...");
       const response = await apiRequest("POST", "/api/teacher-speak", {
-        text,
+        text: text.substring(0, 1000), // Limit text length to avoid timeouts
         voice: "nova" // Using nova voice which tends to be clearer at faster speeds
       });
       
-      const blob = await response.blob();
-      const audio = new Audio(URL.createObjectURL(blob));
+      if (!response.ok) {
+        throw new Error(`Speech API failed: ${response.status}`);
+      }
       
-      // Speed up playback to 1.3x to match reading speed better
-      audio.playbackRate = 1.3;
+      console.log("Converting response to audio...");
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      
+      // Set up event handlers before playing
+      audio.onloadeddata = () => {
+        console.log("Audio loaded, duration:", audio.duration);
+      };
+      
+      audio.onplay = () => {
+        console.log("Audio started playing");
+      };
+      
+      audio.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        setCurrentAudio(null);
+        setIsGeneratingSpeech(false);
+      };
+      
+      audio.onended = () => {
+        console.log("Audio playback ended");
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl); // Clean up
+      };
+      
+      // Speed up playback to 1.2x to match reading speed better
+      audio.playbackRate = 1.2;
       
       setCurrentAudio(audio);
       setIsGeneratingSpeech(false);
       
-      audio.onended = () => {
-        setCurrentAudio(null);
-      };
-      
+      console.log("Attempting to play audio...");
       await audio.play();
+      console.log("Audio playback started successfully");
+      
     } catch (error) {
-      console.error("Error playing speech:", error);
+      console.error("Error in speakTeacherResponse:", error);
       setCurrentAudio(null);
       setIsGeneratingSpeech(false);
+      // Show user-friendly error
+      console.error("Failed to generate speech. Please check console for details.");
     }
   };
 
@@ -256,14 +289,16 @@ export default function GenerateLessons() {
       return response.json();
     },
     onSuccess: async (data: any) => {
+      const userMessage = chatInput;
       setChatMessages(prev => [
         ...prev,
-        { role: "user", content: chatInput },
+        { role: "user", content: userMessage },
         { role: "assistant", content: data.response }
       ]);
       setChatInput("");
       
       // Automatically speak the teacher's response
+      console.log("Speaking teacher response:", data.response.substring(0, 50) + "...");
       await speakTeacherResponse(data.response);
     },
   });
