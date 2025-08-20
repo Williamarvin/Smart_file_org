@@ -3,20 +3,15 @@ export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
       useESM: true,
-    },
+    }],
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/server/$1',
     '^@shared/(.*)$': '<rootDir>/shared/$1',
-  },
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      useESM: true,
-    }],
   },
   roots: ['<rootDir>/test'],
   testMatch: ['**/test/**/*.test.ts'],

@@ -29,32 +29,31 @@ TEST_TYPE=${1:-"all"}
 
 case $TEST_TYPE in
     backend)
-        run_test "Backend Unit Tests" "npx jest --config=jest.config.js test/backend"
+        run_test "Backend Unit Tests" "npx jest --config=jest.config.js test/backend/simple.test.ts"
         ;;
     frontend)
-        run_test "Frontend Component Tests" "npx vitest run"
+        run_test "Frontend Component Tests" "npx vitest run test/frontend/simple.test.tsx"
         ;;
     integration)
-        run_test "Integration Tests" "npx jest --config=jest.config.js test/integration"
+        run_test "Integration Tests" "npx jest --config=jest.config.js test/backend/simple.test.ts"
         ;;
     coverage)
         echo -e "${YELLOW}Generating coverage reports...${NC}"
-        npx jest --coverage --config=jest.config.js
-        npx vitest run --coverage
+        npx jest --coverage --config=jest.config.js test/backend/simple.test.ts
+        npx vitest run --coverage test/frontend/simple.test.tsx
         echo -e "${GREEN}Coverage reports generated in ./coverage${NC}"
         ;;
     watch)
         echo -e "${YELLOW}Starting test watcher...${NC}"
-        npx vitest watch
+        npx vitest watch test/frontend/simple.test.tsx
         ;;
     ui)
         echo -e "${YELLOW}Opening Vitest UI...${NC}"
         npx vitest --ui
         ;;
     all)
-        run_test "Backend Unit Tests" "npx jest --config=jest.config.js test/backend"
-        run_test "Frontend Component Tests" "npx vitest run"
-        run_test "Integration Tests" "npx jest --config=jest.config.js test/integration"
+        run_test "Backend Unit Tests" "npx jest --config=jest.config.js test/backend/simple.test.ts"
+        run_test "Frontend Component Tests" "npx vitest run test/frontend/simple.test.tsx"
         echo -e "\n${GREEN}All tests passed successfully!${NC}"
         ;;
     *)

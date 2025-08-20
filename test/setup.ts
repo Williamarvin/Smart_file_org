@@ -14,9 +14,9 @@ process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-api-key';
 // Mock console methods to reduce test output noise
 global.console = {
   ...console,
-  log: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  info: jest.fn(),
-  debug: jest.fn(),
+  log: () => {},
+  error: () => {},
+  warn: () => {},
+  info: () => {},
+  debug: () => {},
 };
