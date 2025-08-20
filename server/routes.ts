@@ -1210,9 +1210,10 @@ Remember: You're not explaining the structure of a lesson - you're GIVING the le
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
       const mp3 = await openai.audio.speech.create({
-        model: "tts-1",
+        model: "tts-1", // Using tts-1 for faster generation (not tts-1-hd)
         voice: voice as any,
         input: text,
+        speed: 1.0 // Normal speed on server, we'll speed up on client
       });
       
       const buffer = Buffer.from(await mp3.arrayBuffer());

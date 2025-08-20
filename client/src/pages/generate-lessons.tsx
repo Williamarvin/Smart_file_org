@@ -62,10 +62,11 @@ export default function GenerateLessons() {
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
   const [chatInput, setChatInput] = useState<string>("");
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isGeneratingSpeech, setIsGeneratingSpeech] = useState<boolean>(false);
   
   const queryClient = useQueryClient();
   
-  // Auto-speak teacher responses
+  // Auto-speak teacher responses with faster playback
   const speakTeacherResponse = async (text: string) => {
     try {
       // Stop any currently playing audio
@@ -74,15 +75,21 @@ export default function GenerateLessons() {
         currentAudio.currentTime = 0;
       }
       
+      setIsGeneratingSpeech(true);
+      
       const response = await apiRequest("POST", "/api/teacher-speak", {
         text,
-        voice: "alloy" // Can be changed to echo, fable, onyx, nova, or shimmer
+        voice: "nova" // Using nova voice which tends to be clearer at faster speeds
       });
       
       const blob = await response.blob();
       const audio = new Audio(URL.createObjectURL(blob));
       
+      // Speed up playback to 1.3x to match reading speed better
+      audio.playbackRate = 1.3;
+      
       setCurrentAudio(audio);
+      setIsGeneratingSpeech(false);
       
       audio.onended = () => {
         setCurrentAudio(null);
@@ -92,6 +99,7 @@ export default function GenerateLessons() {
     } catch (error) {
       console.error("Error playing speech:", error);
       setCurrentAudio(null);
+      setIsGeneratingSpeech(false);
     }
   };
 
@@ -887,12 +895,18 @@ export default function GenerateLessons() {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         Chat with Teacher
-                        {currentAudio && (
+                        {isGeneratingSpeech && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Generating speech...
+                          </span>
+                        )}
+                        {currentAudio && !isGeneratingSpeech && (
                           <Volume2 className="h-4 w-4 text-blue-500 animate-pulse" />
                         )}
                       </CardTitle>
                       <CardDescription>
-                        Now you can chat with the teacher agent to refine or modify the generated course content. Teacher responses are automatically read aloud.
+                        Now you can chat with the teacher agent to refine or modify the generated course content. Teacher responses are automatically read aloud at 1.3x speed.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
