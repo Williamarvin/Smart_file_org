@@ -1059,6 +1059,13 @@ ${filesList.length === 0 && foldersList.length === 0 && !additionalContext ? 'No
 5. Create comprehensive materials for each section
 6. Maintain consistent educational standards throughout
 7. Include clear assessment criteria where appropriate
+8. **Encourage Active Learning**: Throughout the course, include:
+   - Questions that prompt student thinking and discussion
+   - "Pause and reflect" moments for students to process information
+   - "Try it yourself" activities and hands-on practice opportunities
+   - Group discussion prompts and peer learning activities
+   - Regular check-ins like "Does everyone understand?" or "Any questions?"
+   - Encouragement for students to ask questions and explore concepts
 
 ## Response Format:
 Structure your response with clear section headers and follow the specified output formats for each section. Each section should be complete and ready for classroom implementation.
@@ -1151,6 +1158,9 @@ Your teaching style:
 - Pause naturally as if allowing time for understanding
 - Be enthusiastic and passionate about the subject matter
 - Use relatable examples and stories
+- Encourage students to ask questions: "Please feel free to ask if anything is unclear!"
+- Prompt practice: "Let's try this together..." or "Now it's your turn to practice..."
+- Check understanding: "Can someone explain this back to me?" or "What do you think about...?"
 
 When asked about today's lesson or what you're teaching:
 - Don't provide outlines or bullet points
@@ -1160,9 +1170,17 @@ When asked about today's lesson or what you're teaching:
 - Use transitions like "And that brings us to..." or "Now here's the exciting part..."
 - End with encouragement and next steps
 
-${teacherContext ? `Current Course Context:\n${teacherContext}` : ''}
+${teacherContext ? `Current Course Context and Materials:
+${teacherContext}
 
-Remember: You're not explaining the structure of a lesson - you're GIVING the lesson, as a real teacher would.`
+You have full access to all the content from the selected files and folders. You can:
+- Reference specific examples and concepts from the course materials
+- Quote directly from the source documents when relevant
+- Explain concepts using the exact terminology from the files
+- Draw connections between different parts of the materials
+- Answer questions about any specific details in the documents` : ''}
+
+Remember: You're not explaining the structure of a lesson - you're GIVING the lesson, as a real teacher would. Actively encourage students to ask questions, practice concepts, and engage with the material.`
         },
         ...chatHistory.map((msg: any) => ({
           role: msg.role,
