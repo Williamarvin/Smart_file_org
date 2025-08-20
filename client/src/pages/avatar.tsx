@@ -31,6 +31,7 @@ interface AvatarOption {
     rate: number;
     pitch: number;
     voiceName?: string;
+    openAIVoice: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
   };
   expressions: {
     idle: string;
@@ -46,12 +47,12 @@ const avatarOptions: AvatarOption[] = [
     id: 'sage',
     name: 'Sage',
     description: 'Wise and knowledgeable mentor',
-    personality: 'A thoughtful and wise mentor who provides deep insights and guidance. Speaks with wisdom and patience.',
+    personality: 'A thoughtful and wise mentor who provides deep insights and guidance. Speaks with wisdom and patience, using a calm and measured tone.',
     avatar: '🧙‍♂️',
     color: 'bg-purple-500',
     icon: <Brain className="h-4 w-4" />,
     animationClass: 'animate-pulse',
-    voice: { rate: 0.8, pitch: 0.8 },
+    voice: { rate: 0.8, pitch: 0.8, openAIVoice: 'onyx' }, // Deep, wise voice
     expressions: {
       idle: '🧙‍♂️',
       speaking: '🗣️🧙‍♂️',
@@ -64,12 +65,12 @@ const avatarOptions: AvatarOption[] = [
     id: 'spark',
     name: 'Spark',
     description: 'Creative and energetic companion',
-    personality: 'An enthusiastic and creative companion who loves brainstorming and coming up with innovative ideas. Always upbeat and inspiring.',
+    personality: 'A naturally enthusiastic creative companion who gets excited about new ideas. Speaks with genuine energy and warmth, like a supportive friend.',
     avatar: '✨',
     color: 'bg-yellow-500',
     icon: <Sparkles className="h-4 w-4" />,
     animationClass: 'animate-bounce',
-    voice: { rate: 1.2, pitch: 1.1 },
+    voice: { rate: 1.2, pitch: 1.1, openAIVoice: 'nova' }, // Energetic female voice
     expressions: {
       idle: '✨😊',
       speaking: '🗣️✨',
@@ -82,12 +83,12 @@ const avatarOptions: AvatarOption[] = [
     id: 'zen',
     name: 'Zen',
     description: 'Calm and mindful guide',
-    personality: 'A peaceful and mindful guide who promotes wellness and balance. Speaks with serenity and clarity.',
+    personality: 'A peaceful guide who speaks softly and thoughtfully. Uses calming language and gentle encouragement, like a meditation instructor.',
     avatar: '🧘‍♀️',
     color: 'bg-green-500',
     icon: <Heart className="h-4 w-4" />,
     animationClass: 'animate-pulse',
-    voice: { rate: 0.9, pitch: 0.9 },
+    voice: { rate: 0.9, pitch: 0.9, openAIVoice: 'shimmer' }, // Soft, calming voice
     expressions: {
       idle: '🧘‍♀️',
       speaking: '🗣️🧘‍♀️',
@@ -100,12 +101,12 @@ const avatarOptions: AvatarOption[] = [
     id: 'bolt',
     name: 'Bolt',
     description: 'Quick and efficient problem solver',
-    personality: 'A fast-thinking problem solver who gets straight to the point. Direct, efficient, and solutions-focused.',
+    personality: 'A practical problem solver who gets straight to the point without being harsh. Clear and direct like a helpful tech expert.',
     avatar: '⚡',
     color: 'bg-blue-500',
     icon: <Zap className="h-4 w-4" />,
     animationClass: 'animate-ping',
-    voice: { rate: 1.3, pitch: 1.0 },
+    voice: { rate: 1.3, pitch: 1.0, openAIVoice: 'echo' }, // Clear male voice
     expressions: {
       idle: '⚡😐',
       speaking: '🗣️⚡',
@@ -123,7 +124,9 @@ export default function AvatarPage() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentExpression, setCurrentExpression] = useState<keyof AvatarOption['expressions']>('idle');
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(true); // Default to voice on
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speechRecognition, setSpeechRecognition] = useState<any | null>(null);
   const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
   const [conversationContext, setConversationContext] = useState<any>(null);
@@ -219,13 +222,22 @@ export default function AvatarPage() {
     speechSynthesis.speak(utterance);
   };
 
-  // Stop speech
+  // Stop speech and audio playback
   const stopSpeaking = () => {
+    // Stop browser TTS
     if (speechSynthesis) {
       speechSynthesis.cancel();
-      setIsSpeaking(false);
-      setCurrentExpression('idle');
     }
+    
+    // Stop OpenAI audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    setIsSpeaking(false);
+    setIsPlayingAudio(false);
+    setCurrentExpression('idle');
   };
 
   const chatMutation = useMutation({
@@ -239,8 +251,10 @@ export default function AvatarPage() {
           message: data.message,
           avatarId: data.avatar.id,
           personality: data.avatar.personality,
-          chatHistory: messages.slice(-10), // Send last 10 messages for context
-          conversationContext: conversationContext
+          chatHistory: messages.slice(-10),
+          conversationContext: conversationContext,
+          voiceEnabled: voiceEnabled,
+          voiceModel: data.avatar.voice.openAIVoice
         })
       });
       
@@ -264,11 +278,40 @@ export default function AvatarPage() {
         setConversationContext(data.conversationContext);
       }
       
-      // Automatically speak the response if voice is enabled
-      if (voiceEnabled) {
+      // Play OpenAI's natural voice if available
+      if (voiceEnabled && data.audioData) {
+        // Create audio element and play the MP3 from base64
+        const audio = new Audio(`data:audio/mp3;base64,${data.audioData}`);
+        audioRef.current = audio;
+        
+        audio.onplay = () => {
+          setIsPlayingAudio(true);
+          setCurrentExpression('speaking');
+        };
+        
+        audio.onended = () => {
+          setIsPlayingAudio(false);
+          setCurrentExpression('idle');
+        };
+        
+        audio.onerror = () => {
+          console.error('Error playing audio');
+          setIsPlayingAudio(false);
+          setCurrentExpression('idle');
+          // Fallback to browser TTS if OpenAI audio fails
+          speakText(data.response, selectedAvatar);
+        };
+        
+        audio.play().catch(err => {
+          console.error('Error playing audio:', err);
+          // Fallback to browser TTS
+          speakText(data.response, selectedAvatar);
+        });
+      } else if (voiceEnabled) {
+        // Fallback to browser TTS if no audio data
         setTimeout(() => {
           speakText(data.response, selectedAvatar);
-        }, 500); // Small delay to ensure UI updates first
+        }, 500);
       }
     },
     onError: (error) => {
@@ -410,8 +453,8 @@ export default function AvatarPage() {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         {selectedAvatar.name}
-                        <div className={`w-2 h-2 rounded-full ${selectedAvatar.color} ${isSpeaking ? 'animate-ping' : 'animate-pulse'}`}></div>
-                        {isSpeaking && <span className="text-xs text-green-600 font-medium">Speaking...</span>}
+                        <div className={`w-2 h-2 rounded-full ${selectedAvatar.color} ${(isSpeaking || isPlayingAudio) ? 'animate-ping' : 'animate-pulse'}`}></div>
+                        {(isSpeaking || isPlayingAudio) && <span className="text-xs text-green-600 font-medium">Speaking...</span>}
                         {isListening && <span className="text-xs text-blue-600 font-medium">Listening...</span>}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
@@ -431,7 +474,7 @@ export default function AvatarPage() {
                       {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                       <span className="text-xs">{voiceEnabled ? 'Voice On' : 'Voice Off'}</span>
                     </Button>
-                    {isSpeaking && (
+                    {(isSpeaking || isPlayingAudio) && (
                       <Button
                         variant="outline"
                         size="sm"

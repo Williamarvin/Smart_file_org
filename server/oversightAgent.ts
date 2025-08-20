@@ -132,20 +132,20 @@ export function generateOversightInstructions(
   offTopicStreak: number
 ): string {
   if (!analysis.shouldIntervene) {
-    return `Main conversation topic: "${topic}". Continue the conversation naturally while staying focused on this topic.`;
+    return `Be natural and conversational. Focus on "${topic}" but speak like a real person - use contractions, vary your tone, show personality. Don't sound robotic or like customer service.`;
   }
 
   const interventionLevel = offTopicStreak > 2 ? "strong" : "gentle";
   
-  return `OVERSIGHT INSTRUCTION: The user has asked something off-topic from "${topic}". 
+  return `Keep it natural! The conversation has shifted from "${topic}". 
   
-  Your response should:
-  1. Briefly acknowledge their off-topic question (1-2 sentences max)
-  2. ${interventionLevel === "strong" ? "Clearly but politely" : "Gently"} redirect back to "${topic}"
-  3. ${analysis.suggestedRedirect ? `Use this transition: "${analysis.suggestedRedirect}"` : `Find a creative way to connect their question back to ${topic}`}
-  4. Continue the conversation about "${topic}"
+  Your response approach:
+  - Acknowledge what they said casually (like "That's interesting!" or "Oh yeah, I get that...")
+  - ${interventionLevel === "strong" ? "Smoothly but clearly" : "Casually"} weave back to "${topic}"
+  - ${analysis.suggestedRedirect ? `Try something like: "${analysis.suggestedRedirect}"` : `Find a natural connection back to ${topic}`}
+  - Keep your personality and tone conversational throughout
   
-  Example pattern: "Bitcoin is currently around $43k. Speaking of values - did you know that Mandarin tones actually change the meaning and 'value' of words? Let's continue working on your tone practice..."`;
+  Remember: You're having a real conversation, not managing a support ticket. Be genuine!`;
 }
 
 /**

@@ -1031,10 +1031,10 @@ Please generate detailed, specific lesson content following the prompt above.`
     }
   });
 
-  // Avatar chat endpoint with database access and oversight
+  // Avatar chat endpoint with natural voice synthesis
   app.post("/api/avatar-chat", async (req: any, res) => {
     try {
-      const { message, avatarId, personality, chatHistory = [], conversationContext } = req.body;
+      const { message, avatarId, personality, chatHistory = [], conversationContext, voiceEnabled = false, voiceModel = "alloy" } = req.body;
       const userId = "demo-user";
 
       if (!message || !avatarId || !personality) {
@@ -1125,12 +1125,17 @@ ${fileContext}
 
 ${oversightInstructions}
 
-Stay in character throughout the conversation. Be helpful, engaging, and authentic to your personality. 
-Respond naturally as if you're having a real conversation with the user.
-When users ask about files or documents, reference the context above and guide them appropriately.
-If they want to search for something specific, encourage them to use the search feature.
+IMPORTANT: Be natural and conversational. Avoid being robotic or overly formal. Use these guidelines:
+- Speak naturally, as if you're having a real conversation with a friend
+- Use contractions (I'm, you're, let's, etc.) to sound more natural
+- Vary your sentence structure and length
+- Show genuine personality and emotion appropriate to your character
+- Use natural transitions and conversational phrases
+- Don't be overly enthusiastic or use excessive exclamation marks
+- Sound human, not like a customer service bot
 
-Keep your responses conversational and appropriately sized - usually 1-3 paragraphs unless the user asks for something longer.`
+When discussing files or documents, be helpful but conversational.
+Keep responses appropriately sized - usually 1-3 paragraphs unless asked for more.`
         }
       ];
 
@@ -1152,8 +1157,10 @@ Keep your responses conversational and appropriately sized - usually 1-3 paragra
       const completion = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: conversationMessages as any,
-        temperature: 0.8,
-        max_tokens: 1000
+        temperature: 0.9, // Slightly higher for more natural variation
+        max_tokens: 1000,
+        presence_penalty: 0.1, // Encourage variety
+        frequency_penalty: 0.1 // Reduce repetition
       });
 
       const result = completion.choices[0].message.content;
@@ -1161,8 +1168,37 @@ Keep your responses conversational and appropriately sized - usually 1-3 paragra
         throw new Error("No response from OpenAI");
       }
 
+      // Generate natural voice if enabled
+      let audioBase64 = null;
+      if (voiceEnabled) {
+        try {
+          // Available voices: alloy, echo, fable, onyx, nova, shimmer
+          // alloy: neutral and fast
+          // echo: male voice
+          // fable: British accent
+          // onyx: deep male voice  
+          // nova: female voice
+          // shimmer: soft female voice
+          const voiceResponse = await openai.audio.speech.create({
+            model: "tts-1", // or "tts-1-hd" for higher quality
+            voice: voiceModel as any, // Use the selected voice model
+            input: result,
+            response_format: "mp3",
+            speed: 1.0 // Natural speaking speed
+          });
+
+          // Convert to base64 for easy transmission
+          const audioBuffer = Buffer.from(await voiceResponse.arrayBuffer());
+          audioBase64 = audioBuffer.toString('base64');
+        } catch (voiceError) {
+          console.error("Error generating voice:", voiceError);
+          // Continue without voice if it fails
+        }
+      }
+
       res.json({ 
         response: result,
+        audioData: audioBase64,
         conversationContext: updatedContext 
       });
     } catch (error) {
