@@ -922,6 +922,240 @@ Do not forget to include these format specifications in each individual prompt y
     }
   });
 
+  // Generate consolidated teacher agent prompt
+  app.post("/api/generate-teacher-prompt", async (req: any, res) => {
+    try {
+      const { fileIds = [], folderIds = [], additionalContext, courseTitle, targetAudience } = req.body;
+
+      const userId = "demo-user";
+      let contentSources: string[] = [];
+      
+      if (additionalContext && additionalContext.trim()) {
+        contentSources.push(`Additional Context: ${additionalContext.trim()}`);
+      }
+      
+      // Get content from selected files (only processed ones)
+      if (fileIds.length > 0) {
+        const files = await storage.getFiles(userId, 100);
+        const selectedFiles = files.filter(file => 
+          fileIds.includes(file.id) && 
+          file.processingStatus === "completed" && 
+          file.processedAt !== null
+        );
+        
+        for (const file of selectedFiles) {
+          try {
+            const metadata = await storage.getFileMetadata(file.id, userId);
+            if (metadata?.extractedText) {
+              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            }
+          } catch (error) {
+            console.error(`Error getting metadata for file ${file.id}:`, error);
+          }
+        }
+      }
+
+      // Get content from selected folders (only processed files)
+      if (folderIds.length > 0) {
+        const files = await storage.getFiles(userId, 100);
+        const folderFiles = files.filter(file => 
+          file.folderId && 
+          folderIds.includes(file.folderId) &&
+          file.processingStatus === "completed" && 
+          file.processedAt !== null
+        );
+        
+        for (const file of folderFiles) {
+          try {
+            const metadata = await storage.getFileMetadata(file.id, userId);
+            if (metadata?.extractedText) {
+              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            }
+          } catch (error) {
+            console.error(`Error getting metadata for file ${file.id}:`, error);
+          }
+        }
+      }
+
+      if (contentSources.length === 0) {
+        return res.status(400).json({ 
+          error: "No content found in selected files or folders. Make sure the files have finished processing and contain extractable content." 
+        });
+      }
+
+      const combinedContent = contentSources.join("\n\n---\n\n");
+      
+      // Generate comprehensive teacher agent prompt
+      const teacherPrompt = `# Master Teacher Agent for: ${courseTitle || 'Educational Course'}
+
+## Target Audience: ${targetAudience || 'General learners'}
+
+You are an experienced educator designing a complete course structure. Based on the provided content, you will act as a comprehensive teacher agent that creates educational materials across 5 key sections.
+
+## Course Structure:
+Your course should follow this 5-section structure:
+
+### 1. INTRODUCTION SECTION
+- Welcome students and set expectations
+- Present course overview and learning objectives  
+- Establish relevance and motivation
+- **Output Format: PowerPoint slides** with clear slide titles, bullet points, and speaker notes
+
+### 2. WARM-UP ACTIVITIES SECTION
+- Create engaging pre-learning activities
+- Activate prior knowledge and interest
+- Build foundational concepts
+- **Output Format: Interactive flashcards** with front/back content for each card
+
+### 3. MAIN CONTENT SECTION  
+- Present core educational material
+- Explain key concepts with examples
+- Include visual aids and detailed explanations
+- **Output Format: Comprehensive PowerPoint slides** with detailed slide content and speaker notes
+
+### 4. PRACTICE EXERCISES SECTION
+- Design hands-on learning activities
+- Create assessment opportunities
+- Reinforce key concepts through application
+- **Output Format: Interactive quiz questions** with multiple choice, true/false, or short answer format
+
+### 5. HOMEWORK ASSIGNMENTS SECTION
+- Extend learning beyond the classroom  
+- Create independent practice opportunities
+- Assess understanding and application
+- **Output Format: Quiz questions with detailed answer keys** included
+
+## Content Source Material:
+${combinedContent}
+
+## Instructions for Teacher Agent:
+1. Analyze all provided content thoroughly
+2. Identify key learning objectives from the material
+3. Design age-appropriate and engaging activities
+4. Ensure logical flow between all sections
+5. Create comprehensive materials for each section
+6. Maintain consistent educational standards throughout
+7. Include clear assessment criteria where appropriate
+
+## Response Format:
+Structure your response with clear section headers and follow the specified output formats for each section. Each section should be complete and ready for classroom implementation.
+
+When you generate content, make it practical, engaging, and directly connected to the source materials provided. Focus on creating a cohesive learning experience that builds knowledge progressively through the 5 sections.`;
+
+      res.json({ 
+        teacherPrompt,
+        courseTitle: courseTitle || 'Educational Course',
+        targetAudience: targetAudience || 'General learners',
+        contentSourcesCount: contentSources.length
+      });
+
+    } catch (error) {
+      console.error("Error generating teacher prompt:", error);
+      res.status(500).json({ 
+        error: "Failed to generate teacher prompt",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Execute teacher agent prompt
+  app.post("/api/execute-teacher-prompt", async (req: any, res) => {
+    try {
+      const { teacherPrompt } = req.body;
+      
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are a master teacher and curriculum designer with expertise in creating comprehensive educational experiences. Generate complete, structured educational content following the specified format requirements."
+          },
+          {
+            role: "user",
+            content: teacherPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 4000
+      });
+
+      const result = completion.choices[0].message.content;
+      if (!result) {
+        throw new Error("No response from OpenAI");
+      }
+
+      res.json({ content: result });
+
+    } catch (error) {
+      console.error("Error executing teacher prompt:", error);
+      res.status(500).json({ 
+        error: "Failed to execute teacher prompt",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Chat with teacher agent
+  app.post("/api/chat-teacher-agent", async (req: any, res) => {
+    try {
+      const { message, chatHistory = [], teacherContext } = req.body;
+      
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      // Build conversation history
+      const messages = [
+        {
+          role: "system",
+          content: `You are a master teacher agent with expertise in curriculum design and educational content creation. You specialize in creating comprehensive courses with 5 structured sections: Introduction, Warm-up Activities, Main Content, Practice Exercises, and Homework Assignments.
+
+${teacherContext ? `Current Course Context:\n${teacherContext}` : ''}
+
+Your role is to:
+- Help refine and improve educational content
+- Answer questions about course structure and design
+- Provide teaching best practices and pedagogical insights
+- Suggest improvements to lesson plans and activities
+- Adapt content for different learning styles and audiences
+
+Maintain a professional, knowledgeable, and supportive tone while providing practical educational guidance.`
+        },
+        ...chatHistory.map((msg: any) => ({
+          role: msg.role,
+          content: msg.content
+        })),
+        {
+          role: "user",
+          content: message
+        }
+      ];
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const result = completion.choices[0].message.content;
+      if (!result) {
+        throw new Error("No response from OpenAI");
+      }
+
+      res.json({ response: result });
+
+    } catch (error) {
+      console.error("Error chatting with teacher agent:", error);
+      res.status(500).json({ 
+        error: "Failed to chat with teacher agent",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Execute individual lesson prompt against database
   app.post("/api/execute-lesson-prompt", async (req: any, res) => {
     try {

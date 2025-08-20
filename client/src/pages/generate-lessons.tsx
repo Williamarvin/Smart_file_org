@@ -51,6 +51,16 @@ export default function GenerateLessons() {
   const [currentExecutingIndex, setCurrentExecutingIndex] = useState<number>(-1);
   const [autoExecutionActive, setAutoExecutionActive] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
+  
+  // Teacher Agent states
+  const [teacherMode, setTeacherMode] = useState<boolean>(false);
+  const [courseTitle, setCourseTitle] = useState<string>("");
+  const [targetAudience, setTargetAudience] = useState<string>("");
+  const [teacherPrompt, setTeacherPrompt] = useState<string>("");
+  const [teacherContent, setTeacherContent] = useState<string>("");
+  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [chatInput, setChatInput] = useState<string>("");
+  
   const queryClient = useQueryClient();
 
   // Fetch files and folders
@@ -164,6 +174,56 @@ export default function GenerateLessons() {
     }
   };
 
+  // Generate teacher prompt mutation
+  const generateTeacherPromptMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/generate-teacher-prompt", {
+        fileIds: selectedFiles,
+        folderIds: selectedFolders,
+        additionalContext,
+        courseTitle,
+        targetAudience
+      });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      setTeacherPrompt(data.teacherPrompt);
+    },
+  });
+
+  // Execute teacher prompt mutation
+  const executeTeacherPromptMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/execute-teacher-prompt", {
+        teacherPrompt
+      });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      setTeacherContent(data.content);
+    },
+  });
+
+  // Chat with teacher agent mutation
+  const chatTeacherMutation = useMutation({
+    mutationFn: async ({ message }: { message: string }) => {
+      const response = await apiRequest("POST", "/api/chat-teacher-agent", {
+        message,
+        chatHistory: chatMessages,
+        teacherContext: teacherContent
+      });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      setChatMessages(prev => [
+        ...prev,
+        { role: "user", content: chatInput },
+        { role: "assistant", content: data.response }
+      ]);
+      setChatInput("");
+    },
+  });
+
   // Execute all prompts with manual control
   const executeAllPromptsManual = () => {
     const firstUnexecuted = generatedPrompts.findIndex(p => !p.generatedContent);
@@ -272,11 +332,32 @@ export default function GenerateLessons() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Generate Lessons</h1>
-        <p className="text-muted-foreground">
-          Select files and folders to generate structured lesson prompts for different educational agents.
-        </p>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Generate Lessons</h1>
+          <p className="text-muted-foreground">
+            Select files and folders to generate structured lesson prompts for different educational agents.
+          </p>
+        </div>
+        
+        {/* Mode Toggle */}
+        <div className="flex items-center space-x-4 p-4 border rounded-lg bg-muted/20">
+          <span className="text-sm font-medium">Mode:</span>
+          <RadioGroup
+            value={teacherMode ? 'teacher' : 'agents'}
+            onValueChange={(value) => setTeacherMode(value === 'teacher')}
+            className="flex space-x-6"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="agents" id="agents" />
+              <Label htmlFor="agents" className="text-sm">Individual Agents</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="teacher" id="teacher" />
+              <Label htmlFor="teacher" className="text-sm">Master Teacher Agent</Label>
+            </div>
+          </RadioGroup>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -392,22 +473,49 @@ export default function GenerateLessons() {
                   </div>
                 </div>
 
+                {/* Teacher Agent Configuration */}
+                {teacherMode && (
+                  <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
+                    <h4 className="font-medium text-blue-900">Teacher Agent Configuration</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="course-title" className="text-sm">Course Title</Label>
+                        <Input
+                          id="course-title"
+                          placeholder="Enter course title (e.g., Introduction to Machine Learning)"
+                          value={courseTitle}
+                          onChange={(e) => setCourseTitle(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="target-audience" className="text-sm">Target Audience</Label>
+                        <Input
+                          id="target-audience"
+                          placeholder="Enter target audience (e.g., High school students, College freshmen)"
+                          value={targetAudience}
+                          onChange={(e) => setTargetAudience(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <Button
-                    onClick={handleGeneratePrompts}
+                    onClick={teacherMode ? () => generateTeacherPromptMutation.mutate() : handleGeneratePrompts}
                     disabled={
                       (selectedFiles.length === 0 && selectedFolders.length === 0 && !additionalContext.trim()) ||
-                      generatePromptsMutation.isPending
+                      (teacherMode ? generateTeacherPromptMutation.isPending : generatePromptsMutation.isPending)
                     }
                     className="w-full"
                   >
-                    {generatePromptsMutation.isPending ? (
+                    {(teacherMode ? generateTeacherPromptMutation.isPending : generatePromptsMutation.isPending) ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating Prompts...
+                        {teacherMode ? 'Generating Teacher Prompt...' : 'Generating Prompts...'}
                       </>
                     ) : (
-                      "Generate Lesson Prompts"
+                      teacherMode ? "Generate Teacher Prompt" : "Generate Lesson Prompts"
                     )}
                   </Button>
                   
@@ -567,87 +675,221 @@ export default function GenerateLessons() {
           </Card>
         </div>
 
-        {/* Generated Prompts */}
+        {/* Generated Prompts / Teacher Agent Content */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generated Lesson Prompts</CardTitle>
-              <CardDescription>
-                AI-generated prompts for different lesson agents. Click "Execute Prompt" to generate actual lesson content.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {generatedPrompts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Select files and folders, then click "Generate Lesson Prompts" to create structured prompts for lesson agents.</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[600px]">
-                  <div className="space-y-4">
-                    {generatedPrompts.map((prompt, index) => (
-                      <Card key={prompt.type} className="border-l-4 border-l-primary">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg">
-                              {prompt.icon}
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg">{prompt.title}</CardTitle>
-                              <CardDescription className="text-sm">
-                                {prompt.description}
-                              </CardDescription>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="space-y-4">
-                            <div className="bg-muted/50 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <h5 className="font-medium text-sm">Agent Prompt:</h5>
-                                <Button
-                                  size="sm"
-                                  onClick={() => executePrompt(prompt.type, prompt.prompt)}
-                                  disabled={executingPrompts.includes(prompt.type)}
-                                  className="h-8"
-                                >
-                                  {executingPrompts.includes(prompt.type) ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                      Generating...
-                                    </>
-                                  ) : (
-                                    "Execute Prompt"
-                                  )}
-                                </Button>
-                              </div>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                                {prompt.prompt}
-                              </p>
-                            </div>
-                            
-                            {prompt.generatedContent && (
-                              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <h5 className="font-medium text-sm text-green-800">Generated Content:</h5>
-                                </div>
-                                <div className="prose prose-sm max-w-none">
-                                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-green-700">
-                                    {prompt.generatedContent}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+          {!teacherMode ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Generated Lesson Prompts</CardTitle>
+                <CardDescription>
+                  AI-generated prompts for different lesson agents. Click "Execute Prompt" to generate actual lesson content.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {generatedPrompts.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Select files and folders, then click "Generate Lesson Prompts" to create structured prompts for lesson agents.</p>
                   </div>
-                </ScrollArea>
+                ) : (
+                  <ScrollArea className="h-[600px]">
+                    <div className="space-y-4">
+                      {generatedPrompts.map((prompt, index) => (
+                        <Card key={prompt.type} className="border-l-4 border-l-primary">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-primary/10 rounded-lg">
+                                {prompt.icon}
+                              </div>
+                              <div>
+                                <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                                <CardDescription className="text-sm">
+                                  {prompt.description}
+                                </CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="space-y-4">
+                              <div className="bg-muted/50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="font-medium text-sm">Agent Prompt:</h5>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => executePrompt(prompt.type, prompt.prompt)}
+                                    disabled={executingPrompts.includes(prompt.type)}
+                                    className="h-8"
+                                  >
+                                    {executingPrompts.includes(prompt.type) ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                        Generating...
+                                      </>
+                                    ) : (
+                                      "Execute Prompt"
+                                    )}
+                                  </Button>
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                                  {prompt.prompt}
+                                </p>
+                              </div>
+                              
+                              {prompt.generatedContent && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <h5 className="font-medium text-sm text-green-800">Generated Content:</h5>
+                                  </div>
+                                  <div className="prose prose-sm max-w-none">
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap text-green-700">
+                                      {prompt.generatedContent}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            /* Teacher Agent Interface */
+            <div className="space-y-4">
+              {/* Teacher Prompt Preview */}
+              {teacherPrompt && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Teacher Agent Prompt Preview</CardTitle>
+                    <CardDescription>
+                      Review the generated prompt before execution, or chat with the teacher agent to refine it.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <ScrollArea className="h-48">
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-800">
+                            {teacherPrompt}
+                          </p>
+                        </ScrollArea>
+                      </div>
+                      <Button
+                        onClick={() => executeTeacherPromptMutation.mutate()}
+                        disabled={executeTeacherPromptMutation.isPending}
+                        className="w-full"
+                      >
+                        {executeTeacherPromptMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Executing Teacher Prompt...
+                          </>
+                        ) : (
+                          "Execute Teacher Prompt"
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+
+              {/* Generated Teacher Content */}
+              {teacherContent && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Teacher Agent Generated Course</CardTitle>
+                    <CardDescription>
+                      Complete course structure with 5 sections generated by the master teacher agent.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <ScrollArea className="h-96">
+                        <div className="prose prose-sm max-w-none">
+                          <div className="whitespace-pre-wrap text-green-800 text-sm leading-relaxed">
+                            {teacherContent}
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Chat Interface */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Chat with Teacher Agent</CardTitle>
+                  <CardDescription>
+                    Ask questions, request modifications, or get teaching advice from the master teacher agent.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Chat Messages */}
+                    {chatMessages.length > 0 && (
+                      <ScrollArea className="h-48 border rounded-lg p-4">
+                        <div className="space-y-3">
+                          {chatMessages.map((msg, index) => (
+                            <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[80%] p-3 rounded-lg ${
+                                msg.role === 'user' 
+                                  ? 'bg-blue-500 text-white' 
+                                  : 'bg-muted text-foreground'
+                              }`}>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                  {msg.content}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+
+                    {/* Chat Input */}
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Ask the teacher agent about course design, modifications, or teaching strategies..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        rows={2}
+                        className="resize-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (chatInput.trim()) {
+                              chatTeacherMutation.mutate({ message: chatInput.trim() });
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() => {
+                          if (chatInput.trim()) {
+                            chatTeacherMutation.mutate({ message: chatInput.trim() });
+                          }
+                        }}
+                        disabled={!chatInput.trim() || chatTeacherMutation.isPending}
+                        size="sm"
+                        className="shrink-0"
+                      >
+                        {chatTeacherMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Send"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>
