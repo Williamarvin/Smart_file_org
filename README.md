@@ -184,16 +184,16 @@ The project includes comprehensive testing coverage:
 
 ### Quick Start
 ```bash
-# Run all tests
+# Run all working tests
 ./run-tests.sh
 
 # Run specific test suites
-./run-tests.sh backend      # Backend unit tests
-./run-tests.sh frontend     # Frontend component tests
-./run-tests.sh integration  # Integration tests
-./run-tests.sh coverage     # Generate coverage reports
-./run-tests.sh watch        # Watch mode for development
-./run-tests.sh ui           # Interactive Vitest UI
+./run-tests.sh backend       # Backend unit tests
+./run-tests.sh frontend      # Frontend component tests
+./run-tests.sh comprehensive # Tests + live API verification
+./run-tests.sh coverage      # Generate coverage reports
+./run-tests.sh watch         # Watch mode for development
+./run-tests.sh ui            # Interactive Vitest UI
 ```
 
 ### Using NPM Commands

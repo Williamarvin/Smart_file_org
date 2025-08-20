@@ -11,39 +11,14 @@ jest.mock('../../server/db', () => ({
 
 jest.mock('../../server/storage', () => ({
   storage: {
-    getFiles: jest.fn().mockResolvedValue([
-      { id: '1', originalName: 'test.pdf', mimeType: 'application/pdf', size: 1024 }
-    ]),
-    getFileStats: jest.fn().mockResolvedValue({
-      totalFiles: 10,
-      processedFiles: 8,
-      processingFiles: 1,
-      errorFiles: 1,
-      totalSize: 10485760
-    }),
-    getCategories: jest.fn().mockResolvedValue([
-      { category: 'Education', count: 5 },
-      { category: 'Business', count: 3 }
-    ]),
-    searchFiles: jest.fn().mockResolvedValue([
-      { id: '1', originalName: 'test.pdf', metadata: { summary: 'Test document' } }
-    ]),
-    getFile: jest.fn().mockResolvedValue({
-      id: '1',
-      originalName: 'test.pdf',
-      mimeType: 'application/pdf',
-      size: 1024,
-      metadata: { summary: 'Test document' }
-    }),
-    deleteFile: jest.fn().mockResolvedValue(true),
-    createFolder: jest.fn().mockResolvedValue({
-      id: 'folder1',
-      name: 'Test Folder',
-      parentId: null
-    }),
-    getFolders: jest.fn().mockResolvedValue([
-      { id: 'folder1', name: 'Test Folder', parentId: null }
-    ])
+    getFiles: jest.fn(),
+    getFileStats: jest.fn(),
+    getCategories: jest.fn(),
+    searchFiles: jest.fn(),
+    getFile: jest.fn(),
+    deleteFile: jest.fn(),
+    createFolder: jest.fn(),
+    getFolders: jest.fn()
   }
 }));
 
@@ -73,6 +48,21 @@ describe('API Endpoints', () => {
   let app: express.Application;
 
   beforeAll(async () => {
+    // Setup mock return values
+    const { storage } = await import('../../server/storage');
+    (storage.getFiles as jest.Mock).mockResolvedValue([
+      { id: '1', originalName: 'test.pdf', mimeType: 'application/pdf', size: 1024 }
+    ]);
+    (storage.getFileStats as jest.Mock).mockResolvedValue({
+      totalFiles: 10, processedFiles: 8, processingFiles: 1, errorFiles: 1, totalSize: 10485760
+    });
+    (storage.getCategories as jest.Mock).mockResolvedValue([
+      { category: 'Education', count: 5 }, { category: 'Business', count: 3 }
+    ]);
+    (storage.searchFiles as jest.Mock).mockResolvedValue([
+      { id: '1', originalName: 'test.pdf', metadata: { summary: 'Test document' } }
+    ]);
+    
     // Import after mocks are set up
     const { setupRoutes } = await import('../../server/routes');
     app = express();
