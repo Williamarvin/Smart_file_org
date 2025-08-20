@@ -25,4 +25,7 @@ export default {
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   testTimeout: 30000,
+  transformIgnorePatterns: [
+    'node_modules/(?!(nanoid|@neondatabase)/)'
+  ],
 };

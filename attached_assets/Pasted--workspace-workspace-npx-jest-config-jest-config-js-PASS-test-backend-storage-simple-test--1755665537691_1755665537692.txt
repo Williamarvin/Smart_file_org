@@ -1,0 +1,54 @@
+~/workspace$ 
+~/workspace$ npx jest --config=jest.config.js
+ PASS  test/backend/storage-simple.test.ts (16.977 s)
+ PASS  test/backend/simple.test.ts (16.941 s)
+ PASS  test/backend/api.test.ts (18.092 s)
+ FAIL  test/integration/file-workflow.test.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation, specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /home/runner/workspace/node_modules/nanoid/index.js:1
+    import { webcrypto as crypto } from 'node:crypto'
+    ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      13 | import fs from "fs";
+      14 | import path from "path";
+    > 15 | import { nanoid } from "nanoid";
+         | ^
+      16 |
+      17 | const upload = multer({ storage: multer.memoryStorage() });
+      18 |
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1316:40)
+      at Object.<anonymous> (server/routes.ts:15:1)
+      at Object.<anonymous> (test/integration/file-workflow.test.ts:5:1)
+
+
+ RUNS  test/backend/storage.test.ts
+
+Test Suites: 1 failed, 3 passed, 4 of 5 total
+Tests:       20 passed, 20 total
+Snapshots:   0 total
