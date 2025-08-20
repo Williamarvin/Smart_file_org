@@ -1,7 +1,8 @@
 // End-to-End File Workflow Integration Tests
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
+import { registerRoutes } from '../../server/routes';
 
 // Mock dependencies
 jest.mock('../../server/db');
@@ -12,10 +13,8 @@ describe('File Workflow Integration', () => {
   let app: express.Application;
 
   beforeAll(async () => {
-    const { setupRoutes } = await import('../../server/routes');
     app = express();
-    app.use(express.json());
-    setupRoutes(app);
+    registerRoutes(app as any);
   });
 
   describe('Complete File Upload and Processing Workflow', () => {

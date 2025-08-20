@@ -1,0 +1,125 @@
+/workspace$ npx jest --config=jest.config.js
+ PASS  test/backend/simple.test.ts (13 s)
+ FAIL  test/backend/api.test.ts (13.579 s)
+  ● API Endpoints › POST /api/folders › should reject empty folder name
+
+    expected 400 "Bad Request", got 200 "OK"
+
+      219 |           parentId: null
+      220 |         })
+    > 221 |         .expect(400);
+          |          ^
+      222 |     });
+      223 |   });
+      224 |
+
+      at test/backend/api.test.ts:221:10
+      at test/backend/api.test.ts:31:71
+      at __awaiter (test/backend/api.test.ts:27:12)
+      at Object.<anonymous> (test/backend/api.test.ts:213:54)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:309:14)
+      at node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (node_modules/supertest/lib/test.js:195:23)
+      at localAssert (node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (node_modules/supertest/lib/test.js:152:11)
+
+  ● API Endpoints › POST /api/avatar-chat › should handle avatar chat request
+
+    expected 200 "OK", got 500 "Internal Server Error"
+
+      246 |           voiceModel: 'onyx'
+      247 |         })
+    > 248 |         .expect(200);
+          |          ^
+      249 |
+      250 |       expect(response.body).toHaveProperty('response');
+      251 |       expect(response.body).toHaveProperty('audioData');
+
+      at test/backend/api.test.ts:248:10
+      at test/backend/api.test.ts:31:71
+      at __awaiter (test/backend/api.test.ts:27:12)
+      at Object.<anonymous> (test/backend/api.test.ts:237:56)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:309:14)
+      at node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (node_modules/supertest/lib/test.js:195:23)
+      at localAssert (node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (node_modules/supertest/lib/test.js:152:11)
+
+  ● API Endpoints › POST /api/generate-lesson-prompts › should generate lesson prompts
+
+    expected 200 "OK", got 400 "Bad Request"
+
+      270 |           executionMode: 'manual'
+      271 |         })
+    > 272 |         .expect(200);
+          |          ^
+      273 |
+      274 |       expect(response.body).toHaveProperty('prompts');
+      275 |     });
+
+      at test/backend/api.test.ts:272:10
+      at test/backend/api.test.ts:31:71
+      at __awaiter (test/backend/api.test.ts:27:12)
+      at Object.<anonymous> (test/backend/api.test.ts:263:53)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:309:14)
+      at node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (node_modules/supertest/lib/test.js:195:23)
+      at localAssert (node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (node_modules/supertest/lib/test.js:152:11)
+
+ FAIL  test/integration/file-workflow.test.ts
+  ● Test suite failed to run
+
+    test/integration/file-workflow.test.ts:7:1 - error TS2304: Cannot find name 'jest'.
+
+    7 jest.mock('../../server/db');
+      ~~~~
+    test/integration/file-workflow.test.ts:8:1 - error TS2304: Cannot find name 'jest'.
+
+    8 jest.mock('../../server/storage');
+      ~~~~
+    test/integration/file-workflow.test.ts:9:1 - error TS2304: Cannot find name 'jest'.
+
+    9 jest.mock('openai');
+      ~~~~
+    test/integration/file-workflow.test.ts:15:13 - error TS2339: Property 'setupRoutes' does not exist on type 'typeof import("/home/runner/workspace/server/routes")'.
+
+    15     const { setupRoutes } = await import('../../server/routes');
+                   ~~~~~~~~~~~
+
+ FAIL  test/backend/storage.test.ts
+  ● Test suite failed to run
+
+    test/backend/storage.test.ts:41:53 - error TS2345: Argument of type '{ id: string; originalName: string; userId: string; }[]' is not assignable to parameter of type 'never'.
+
+    41                 offset: jest.fn().mockResolvedValue(mockFiles) as any
+                                                           ~~~~~~~~~
+    test/backend/storage.test.ts:108:50 - error TS2345: Argument of type '{ id: string; name: string; parentId: null; userId: string; }[]' is not assignable to parameter of type 'never'.
+
+    108           returning: jest.fn().mockResolvedValue([mockFolder])
+                                                         ~~~~~~~~~~~~
+    test/backend/storage.test.ts:126:44 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    126         where: jest.fn().mockResolvedValue({ rowCount: 1 })
+                                                   ~~~~~~~~~~~~~~~
+    test/backend/storage.test.ts:135:44 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    135         where: jest.fn().mockResolvedValue({ rowCount: 0 })
+                                                   ~~~~~~~~~~~~~~~
+    test/backend/storage.test.ts:147:46 - error TS2345: Argument of type '{ rowCount: number; }' is not assignable to parameter of type 'never'.
+
+    147           where: jest.fn().mockResolvedValue({ rowCount: 1 })
+                                                     ~~~~~~~~~~~~~~~
+
+Test Suites: 3 failed, 1 passed, 4 total
+Tests:       3 failed, 15 passed, 18 total
+Snapshots:   0 total
+Time:        22.251 s
+Ran all test suites.
+~/workspace$ 

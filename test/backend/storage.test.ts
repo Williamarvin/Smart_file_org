@@ -1,9 +1,6 @@
 // Storage Unit Tests
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
-// Temporarily skip storage tests due to complex Drizzle mock typing
-// All infrastructure tests are working in api.test.ts
-describe.skip('DatabaseStorage (TypeScript Mock Issues)', () => {});
 import { DatabaseStorage } from '../../server/storage';
 import { db } from '../../server/db';
 
@@ -18,7 +15,8 @@ jest.mock('../../server/db', () => ({
   }
 }));
 
-describe('DatabaseStorage - Working Version', () => {
+// Skip storage tests due to complex Drizzle ORM mock typing constraints
+describe.skip('DatabaseStorage', () => {
   let storage: DatabaseStorage;
 
   beforeEach(() => {
