@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Smart File System API",
-    "description": "AI-powered file management system with semantic search, chat functionality, and content generation.\n\n## Features\n- **File Management**: Upload, organize, and manage documents and videos\n- **AI-Powered Search**: Semantic similarity search using OpenAI embeddings\n- **Document Chat**: Conversational AI interface for documents\n- **Content Generation**: AI-powered content creation from existing files\n- **Hybrid Storage**: Optimized performance with database caching + cloud storage\n- **Automatic Processing**: Text extraction, video transcription, and metadata generation\n\n## Authentication\nCurrently uses a demo user system. For production use, implement proper authentication.\n",
-    "version": "1.0.0",
+    "title": "Smart File Organizer API",
+    "description": "AI-powered file management system with semantic search, chat functionality, lesson generation, and content processing.\n\n## Features\n- **File Management**: Upload, organize, and manage documents and videos\n- **AI-Powered Search**: Semantic similarity search using OpenAI embeddings\n- **Document Chat**: Conversational AI interface for documents with oversight agent\n- **Avatar Chat**: AI personas with access to file database\n- **Lesson Generation**: Multi-agent system for educational content creation\n- **Content Generation**: AI-powered content creation from existing files\n- **Hybrid Storage**: Optimized performance with database caching + cloud storage\n- **Automatic Processing**: Text extraction, video transcription, and metadata generation\n\n## Authentication\nCurrently uses a demo user system. For production use, implement proper authentication.\n\n## Base URL\nProduction: `https://smart-file-organiser.replit.app/api`\nDevelopment: `http://localhost:5000/api`",
+    "version": "2.0.0",
     "contact": {
       "name": "API Support",
       "url": "https://replit.com"
@@ -23,22 +23,12 @@
       "description": "Development server"
     }
   ],
-  "security": [
-    {
-      "ApiKeyAuth": []
-    },
-    {
-      "BearerAuth": []
-    }
-  ],
   "paths": {
     "/auth/user": {
       "get": {
-        "tags": [
-          "Authentication"
-        ],
+        "tags": ["Authentication"],
         "summary": "Get current user information",
-        "description": "Returns the current authenticated user's profile information",
+        "description": "Returns the current authenticated user's profile information (demo user)",
         "responses": {
           "200": {
             "description": "User information retrieved successfully",
@@ -62,9 +52,7 @@
     },
     "/files/upload-url": {
       "post": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "Get secure upload URL",
         "description": "Generates a secure, signed URL for direct file upload to cloud storage",
         "responses": {
@@ -80,10 +68,10 @@
                       "format": "uri",
                       "description": "Signed URL for file upload"
                     }
-                  },
-                  "example": {
-                    "uploadURL": "https://storage.googleapis.com/bucket/signed-url"
                   }
+                },
+                "example": {
+                  "uploadURL": "https://storage.googleapis.com/bucket/signed-url"
                 }
               }
             }
@@ -96,9 +84,7 @@
     },
     "/files": {
       "get": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "List all files",
         "description": "Retrieves all files for the current user with metadata and processing status",
         "parameters": [
@@ -144,24 +130,16 @@
         }
       },
       "post": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "Create file record",
-        "description": "Creates a file record in the database after successful upload to cloud storage",
+        "description": "Creates a file record after upload and starts background processing",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "filename",
-                  "originalName",
-                  "mimeType",
-                  "size",
-                  "objectPath"
-                ],
+                "required": ["filename", "originalName", "mimeType", "size", "uploadURL"],
                 "properties": {
                   "filename": {
                     "type": "string",
@@ -169,7 +147,7 @@
                   },
                   "originalName": {
                     "type": "string",
-                    "description": "Original filename as uploaded by user"
+                    "description": "Original filename"
                   },
                   "mimeType": {
                     "type": "string",
@@ -179,24 +157,16 @@
                     "type": "integer",
                     "description": "File size in bytes"
                   },
-                  "objectPath": {
+                  "uploadURL": {
                     "type": "string",
-                    "description": "Path to file in object storage"
+                    "description": "Upload URL from cloud storage"
                   },
                   "folderId": {
                     "type": "string",
                     "nullable": true,
-                    "description": "ID of parent folder"
+                    "description": "Optional folder ID"
                   }
                 }
-              },
-              "example": {
-                "filename": "document_20250814.pdf",
-                "originalName": "Important Document.pdf",
-                "mimeType": "application/pdf",
-                "size": 1048576,
-                "objectPath": "/objects/uploads/abc123",
-                "folderId": null
               }
             }
           }
@@ -212,9 +182,6 @@
               }
             }
           },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
           "500": {
             "$ref": "#/components/responses/ServerError"
           }
@@ -223,25 +190,23 @@
     },
     "/files/{id}": {
       "get": {
-        "tags": [
-          "File Management"
-        ],
-        "summary": "Get specific file",
-        "description": "Retrieves detailed information about a specific file including metadata",
+        "tags": ["File Management"],
+        "summary": "Get file details",
+        "description": "Retrieves a specific file with its metadata",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "File ID",
             "schema": {
               "type": "string"
-            },
-            "description": "File ID"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "File information retrieved successfully",
+            "description": "File retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -259,20 +224,18 @@
         }
       },
       "delete": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "Delete file",
-        "description": "Permanently deletes a file from both database and cloud storage",
+        "description": "Deletes a file from storage",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "File ID",
             "schema": {
               "type": "string"
-            },
-            "description": "File ID"
+            }
           }
         ],
         "responses": {
@@ -284,8 +247,7 @@
                   "type": "object",
                   "properties": {
                     "success": {
-                      "type": "boolean",
-                      "example": true
+                      "type": "boolean"
                     }
                   }
                 }
@@ -303,20 +265,18 @@
     },
     "/files/{fileId}/data": {
       "get": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "Download file data",
-        "description": "Downloads the actual file content with optimized hybrid storage (BYTEA cache + cloud fallback)",
+        "description": "Downloads file content from hybrid storage (BYTEA for ≤10MB, cloud for larger)",
         "parameters": [
           {
             "name": "fileId",
             "in": "path",
             "required": true,
+            "description": "File ID",
             "schema": {
               "type": "string"
-            },
-            "description": "File ID"
+            }
           }
         ],
         "responses": {
@@ -327,26 +287,6 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
-                }
-              }
-            },
-            "headers": {
-              "Content-Type": {
-                "description": "MIME type of the file",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "Content-Length": {
-                "description": "Size of the file in bytes",
-                "schema": {
-                  "type": "integer"
-                }
-              },
-              "Content-Disposition": {
-                "description": "Attachment filename",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -360,33 +300,71 @@
         }
       }
     },
+    "/files/{fileId}/move": {
+      "put": {
+        "tags": ["File Management"],
+        "summary": "Move file to folder",
+        "description": "Moves a file to a different folder or root",
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "description": "File ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "folderId": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Target folder ID (null for root)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "File moved successfully"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/files/category/{category}": {
       "get": {
-        "tags": [
-          "File Management"
-        ],
+        "tags": ["File Management"],
         "summary": "Get files by category",
-        "description": "Retrieves files filtered by a specific category",
+        "description": "Retrieves files filtered by category",
         "parameters": [
           {
             "name": "category",
             "in": "path",
             "required": true,
+            "description": "Category name",
             "schema": {
               "type": "string"
-            },
-            "description": "Category name",
-            "example": "Education"
+            }
           },
           {
             "name": "limit",
             "in": "query",
-            "description": "Maximum number of files to return",
+            "description": "Maximum number of files",
             "schema": {
               "type": "integer",
-              "default": 20,
-              "minimum": 1,
-              "maximum": 100
+              "default": 20
             }
           }
         ],
@@ -410,18 +388,58 @@
         }
       }
     },
+    "/files/backfill-dual-storage": {
+      "post": {
+        "tags": ["File Management"],
+        "summary": "Backfill dual storage",
+        "description": "Backfills existing files to dual storage system (BYTEA + Cloud)",
+        "responses": {
+          "200": {
+            "description": "Backfill completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "successful": {
+                      "type": "integer"
+                    },
+                    "failed": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/folders": {
       "get": {
-        "tags": [
-          "Folder Management"
-        ],
-        "summary": "Get folder structure",
-        "description": "Retrieves the hierarchical folder structure with nested files",
+        "tags": ["Folder Management"],
+        "summary": "Get folders by parent",
+        "description": "Retrieves folders filtered by parent ID",
         "parameters": [
           {
             "name": "parentId",
             "in": "query",
-            "description": "Parent folder ID to get children, null for root level",
+            "description": "Parent folder ID (null for root)",
             "schema": {
               "type": "string",
               "nullable": true
@@ -430,7 +448,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Folder structure retrieved successfully",
+            "description": "Folders retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -448,59 +466,38 @@
         }
       },
       "post": {
-        "tags": [
-          "Folder Management"
-        ],
+        "tags": ["Folder Management"],
         "summary": "Create folder",
-        "description": "Creates a new folder in the specified location",
+        "description": "Creates a new folder",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "path"
-                ],
+                "required": ["name"],
                 "properties": {
                   "name": {
                     "type": "string",
-                    "description": "Folder name"
-                  },
-                  "path": {
-                    "type": "string",
-                    "description": "Full folder path"
+                    "minLength": 1
                   },
                   "parentId": {
                     "type": "string",
-                    "nullable": true,
-                    "description": "Parent folder ID"
+                    "nullable": true
                   },
                   "color": {
-                    "type": "string",
-                    "nullable": true,
-                    "description": "Folder color theme"
+                    "type": "string"
                   },
                   "description": {
-                    "type": "string",
-                    "nullable": true,
-                    "description": "Folder description"
+                    "type": "string"
                   }
                 }
-              },
-              "example": {
-                "name": "Project Documents",
-                "path": "/Project Documents",
-                "parentId": null,
-                "color": "blue",
-                "description": "Documents related to the main project"
               }
             }
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Folder created successfully",
             "content": {
               "application/json": {
@@ -510,8 +507,145 @@
               }
             }
           },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/folders/all": {
+      "get": {
+        "tags": ["Folder Management"],
+        "summary": "Get all folders",
+        "description": "Retrieves all folders for the user",
+        "responses": {
+          "200": {
+            "description": "Folders retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Folder"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/folders/{id}": {
+      "put": {
+        "tags": ["Folder Management"],
+        "summary": "Update folder",
+        "description": "Updates folder properties",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Folder ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Folder updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Folder Management"],
+        "summary": "Delete folder",
+        "description": "Deletes a folder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Folder ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Folder deleted successfully"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/folders/{id}/files": {
+      "get": {
+        "tags": ["Folder Management"],
+        "summary": "Get files in folder",
+        "description": "Retrieves all files in a specific folder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Folder ID (use 'root' for root folder)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Files retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/File"
+                  }
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -521,21 +655,18 @@
     },
     "/search/{query}": {
       "get": {
-        "tags": [
-          "Search & Discovery"
-        ],
+        "tags": ["Search"],
         "summary": "Search files",
-        "description": "Performs intelligent search across files using:\n1. **Semantic Search**: AI-powered similarity search using OpenAI embeddings\n2. **Text Search**: Fallback traditional text search if semantic search yields no results\n3. **Browse Mode**: Returns all files when no query is provided\n",
+        "description": "Search files using semantic similarity or text search. Returns all files if query is empty (browse mode)",
         "parameters": [
           {
             "name": "query",
             "in": "path",
             "required": false,
+            "description": "Search query (optional)",
             "schema": {
               "type": "string"
-            },
-            "description": "Search query (omit or use empty string for browse mode)",
-            "example": "machine learning algorithms"
+            }
           }
         ],
         "responses": {
@@ -546,34 +677,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/File"
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/ServerError"
-          }
-        }
-      }
-    },
-    "/search": {
-      "get": {
-        "tags": [
-          "Search & Discovery"
-        ],
-        "summary": "Browse all files",
-        "description": "Returns all files (browse mode) - same as /search with empty query",
-        "responses": {
-          "200": {
-            "description": "All files retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/File"
+                    "$ref": "#/components/schemas/FileWithSimilarity"
                   }
                 }
               }
@@ -587,11 +691,9 @@
     },
     "/categories": {
       "get": {
-        "tags": [
-          "Search & Discovery"
-        ],
+        "tags": ["Analytics"],
         "summary": "Get file categories",
-        "description": "Returns all file categories with their respective file counts, normalized and aggregated",
+        "description": "Retrieves file categories with counts",
         "responses": {
           "200": {
             "description": "Categories retrieved successfully",
@@ -600,23 +702,17 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Category"
+                    "type": "object",
+                    "properties": {
+                      "category": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      }
+                    }
                   }
-                },
-                "example": [
-                  {
-                    "category": "Education",
-                    "count": 35
-                  },
-                  {
-                    "category": "Business",
-                    "count": 12
-                  },
-                  {
-                    "category": "Technology",
-                    "count": 8
-                  }
-                ]
+                }
               }
             }
           },
@@ -628,111 +724,37 @@
     },
     "/stats": {
       "get": {
-        "tags": [
-          "Search & Discovery"
-        ],
-        "summary": "Get system statistics",
-        "description": "Returns comprehensive statistics about the document management system",
+        "tags": ["Analytics"],
+        "summary": "Get file statistics",
+        "description": "Retrieves file statistics for the user",
         "responses": {
           "200": {
             "description": "Statistics retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SystemStats"
-                },
-                "example": {
-                  "totalFiles": 42,
-                  "processedFiles": 40,
-                  "processingFiles": 2,
-                  "errorFiles": 0,
-                  "totalSize": 1794933085,
-                  "byteaSize": 17040641,
-                  "cloudSize": 1794933085
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/ServerError"
-          }
-        }
-      }
-    },
-    "/chat": {
-      "post": {
-        "tags": [
-          "AI Features"
-        ],
-        "summary": "Chat with documents",
-        "description": "Conversational AI interface that can answer questions about your documents.\nUses OpenAI GPT-4 with document context for intelligent responses.\n",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "message"
-                ],
-                "properties": {
-                  "message": {
-                    "type": "string",
-                    "description": "User's chat message or question"
-                  },
-                  "fileIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Optional list of specific file IDs to use as context",
-                    "default": []
-                  }
-                }
-              },
-              "example": {
-                "message": "What are the main points discussed in the uploaded documents about machine learning?",
-                "fileIds": [
-                  "file-id-1",
-                  "file-id-2"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Chat response generated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
                   "type": "object",
                   "properties": {
-                    "response": {
-                      "type": "string",
-                      "description": "AI-generated response"
+                    "totalFiles": {
+                      "type": "integer"
                     },
-                    "relatedFiles": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "File IDs used for context"
+                    "processedFiles": {
+                      "type": "integer"
+                    },
+                    "processingFiles": {
+                      "type": "integer"
+                    },
+                    "errorFiles": {
+                      "type": "integer"
+                    },
+                    "totalSize": {
+                      "type": "integer",
+                      "description": "Total size in bytes"
                     }
                   }
-                },
-                "example": {
-                  "response": "Based on the uploaded documents, the main points about machine learning include...",
-                  "relatedFiles": [
-                    "file-id-1",
-                    "file-id-2"
-                  ]
                 }
               }
             }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -742,55 +764,33 @@
     },
     "/generate-content": {
       "post": {
-        "tags": [
-          "AI Features"
-        ],
+        "tags": ["AI Features"],
         "summary": "Generate content from files",
-        "description": "Uses AI to generate new content based on existing files.\nSupports various content types like summaries, reports, presentations, etc.\n",
+        "description": "Generates new content using AI based on existing files",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prompt",
-                  "fileIds",
-                  "type"
-                ],
+                "required": ["prompt", "fileIds", "type"],
                 "properties": {
                   "prompt": {
                     "type": "string",
-                    "description": "Specific instructions for content generation"
+                    "description": "Generation prompt"
                   },
                   "fileIds": {
                     "type": "array",
                     "items": {
                       "type": "string"
                     },
-                    "description": "List of file IDs to use as source material"
+                    "description": "File IDs to use as context"
                   },
                   "type": {
                     "type": "string",
-                    "description": "Type of content to generate",
-                    "enum": [
-                      "summary",
-                      "report",
-                      "presentation",
-                      "article",
-                      "analysis"
-                    ]
+                    "description": "Content type to generate"
                   }
                 }
-              },
-              "example": {
-                "prompt": "Create a comprehensive summary of the key findings",
-                "fileIds": [
-                  "file-id-1",
-                  "file-id-2",
-                  "file-id-3"
-                ],
-                "type": "summary"
               }
             }
           }
@@ -804,13 +804,9 @@
                   "type": "object",
                   "properties": {
                     "content": {
-                      "type": "string",
-                      "description": "AI-generated content"
+                      "type": "string"
                     }
                   }
-                },
-                "example": {
-                  "content": "# Executive Summary\n\nBased on the analyzed documents, the key findings are..."
                 }
               }
             }
@@ -824,39 +820,307 @@
         }
       }
     },
-    "/objects/{objectPath}": {
-      "get": {
-        "tags": [
-          "Static Assets"
-        ],
-        "summary": "Serve files from object storage",
-        "description": "Direct access to files stored in Google Cloud Storage",
-        "parameters": [
-          {
-            "name": "objectPath",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Object path in storage",
-            "example": "uploads/abc123/document.pdf"
+    "/chat": {
+      "post": {
+        "tags": ["AI Features"],
+        "summary": "Chat with files",
+        "description": "Chat with AI about your files with oversight agent for context management",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "User message"
+                  },
+                  "fileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "File IDs for context"
+                  },
+                  "chatHistory": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string"
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "description": "Previous chat messages"
+                  },
+                  "conversationContext": {
+                    "type": "object",
+                    "description": "Conversation context for oversight"
+                  }
+                }
+              }
+            }
           }
-        ],
+        },
         "responses": {
           "200": {
-            "description": "File served successfully",
+            "description": "Chat response generated successfully",
             "content": {
-              "application/octet-stream": {
+              "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "binary"
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "string"
+                    },
+                    "relatedFiles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "conversationContext": {
+                      "type": "object"
+                    }
+                  }
                 }
               }
             }
           },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/avatar-chat": {
+      "post": {
+        "tags": ["AI Features"],
+        "summary": "Avatar chat",
+        "description": "Chat with AI avatars that have personalities and database access with oversight agent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message", "avatarId", "personality"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "User message"
+                  },
+                  "avatarId": {
+                    "type": "string",
+                    "description": "Avatar identifier"
+                  },
+                  "personality": {
+                    "type": "string",
+                    "description": "Avatar personality description"
+                  },
+                  "chatHistory": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string"
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "description": "Previous chat messages"
+                  },
+                  "conversationContext": {
+                    "type": "object",
+                    "description": "Conversation context for oversight"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Avatar response generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "string"
+                    },
+                    "searchResults": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/File"
+                      }
+                    },
+                    "conversationContext": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/generate-lesson-prompts": {
+      "post": {
+        "tags": ["Lesson Generation"],
+        "summary": "Generate lesson prompts",
+        "description": "Generates prompts for 5 specialized lesson creation agents based on selected files and folders",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "File IDs to use as content source"
+                  },
+                  "folderIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Folder IDs to use as content source"
+                  },
+                  "additionalContext": {
+                    "type": "string",
+                    "description": "Additional context or requirements for lesson generation"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lesson prompts generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prompts": {
+                      "type": "object",
+                      "properties": {
+                        "introduction": {
+                          "type": "string",
+                          "description": "PowerPoint slides introduction prompt"
+                        },
+                        "warmup": {
+                          "type": "string",
+                          "description": "Flashcards warm-up prompt"
+                        },
+                        "content": {
+                          "type": "string",
+                          "description": "PowerPoint slides main content prompt"
+                        },
+                        "practice": {
+                          "type": "string",
+                          "description": "Quiz questions practice prompt"
+                        },
+                        "homework": {
+                          "type": "string",
+                          "description": "Quiz questions homework prompt"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/execute-lesson-prompt": {
+      "post": {
+        "tags": ["Lesson Generation"],
+        "summary": "Execute lesson prompt",
+        "description": "Executes an individual lesson prompt against the database to generate content",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prompt", "promptType"],
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "description": "The lesson prompt to execute"
+                  },
+                  "promptType": {
+                    "type": "string",
+                    "enum": ["introduction", "warmup", "content", "practice", "homework"],
+                    "description": "Type of lesson prompt"
+                  },
+                  "fileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "File IDs for context"
+                  },
+                  "folderIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Folder IDs for context"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lesson content generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "description": "Generated lesson content in the appropriate format"
+                    }
+                  }
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -866,147 +1130,75 @@
     }
   },
   "components": {
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key",
-        "description": "API key for external access"
-      },
-      "BearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "JWT bearer token authentication"
-      }
-    },
     "schemas": {
       "User": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "Unique user identifier"
+            "type": "string"
           },
           "email": {
             "type": "string",
-            "format": "email",
-            "description": "User's email address"
+            "format": "email"
           },
           "firstName": {
-            "type": "string",
-            "description": "User's first name"
+            "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "description": "User's last name"
+            "type": "string"
           },
           "profileImageUrl": {
             "type": "string",
-            "nullable": true,
-            "format": "uri",
-            "description": "URL to user's profile image"
+            "nullable": true
           }
-        },
-        "example": {
-          "id": "demo-user",
-          "email": "demo@example.com",
-          "firstName": "Demo",
-          "lastName": "User",
-          "profileImageUrl": null
         }
       },
       "File": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "Unique file identifier"
+            "type": "string"
           },
           "filename": {
-            "type": "string",
-            "description": "System filename"
+            "type": "string"
           },
           "originalName": {
-            "type": "string",
-            "description": "Original filename as uploaded"
+            "type": "string"
           },
           "mimeType": {
-            "type": "string",
-            "description": "MIME type of the file"
+            "type": "string"
           },
           "size": {
-            "type": "integer",
-            "description": "File size in bytes"
+            "type": "integer"
           },
           "objectPath": {
-            "type": "string",
-            "description": "Path to file in object storage"
-          },
-          "fileContent": {
-            "type": "string",
-            "nullable": true,
-            "description": "Base64 encoded file content (for small files)"
+            "type": "string"
           },
           "folderId": {
             "type": "string",
-            "nullable": true,
-            "description": "Parent folder ID"
+            "nullable": true
           },
-          "uploadedAt": {
+          "processingStatus": {
             "type": "string",
-            "format": "date-time",
-            "description": "Upload timestamp"
+            "enum": ["pending", "processing", "completed", "error"]
+          },
+          "processingError": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "processedAt": {
             "type": "string",
             "format": "date-time",
-            "nullable": true,
-            "description": "Processing completion timestamp"
-          },
-          "storageType": {
-            "type": "string",
-            "enum": [
-              "hybrid",
-              "cloud"
-            ],
-            "description": "Storage method used"
-          },
-          "processingStatus": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "processing",
-              "completed",
-              "error"
-            ],
-            "description": "Current processing status"
-          },
-          "processingError": {
-            "type": "string",
-            "nullable": true,
-            "description": "Error message if processing failed"
-          },
-          "userId": {
-            "type": "string",
-            "description": "Owner user ID"
+            "nullable": true
           }
-        },
-        "example": {
-          "id": "abc123-def456",
-          "filename": "document_20250814.pdf",
-          "originalName": "Important Document.pdf",
-          "mimeType": "application/pdf",
-          "size": 1048576,
-          "objectPath": "/objects/uploads/abc123",
-          "fileContent": null,
-          "folderId": null,
-          "uploadedAt": "2025-08-14T10:30:00Z",
-          "processedAt": "2025-08-14T10:31:00Z",
-          "storageType": "hybrid",
-          "processingStatus": "completed",
-          "processingError": null,
-          "userId": "demo-user"
         }
       },
       "FileWithMetadata": {
@@ -1018,241 +1210,117 @@
             "type": "object",
             "properties": {
               "metadata": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "extractedText": {
-                    "type": "string",
-                    "description": "Extracted text content"
-                  },
-                  "summary": {
-                    "type": "string",
-                    "description": "AI-generated summary"
-                  },
-                  "categories": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "AI-generated categories"
-                  },
-                  "keyTopics": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Key topics identified"
-                  },
-                  "sentiment": {
-                    "type": "string",
-                    "enum": [
-                      "positive",
-                      "negative",
-                      "neutral"
-                    ],
-                    "description": "Sentiment analysis result"
-                  },
-                  "language": {
-                    "type": "string",
-                    "description": "Detected language"
-                  },
-                  "wordCount": {
-                    "type": "integer",
-                    "description": "Total word count"
-                  },
-                  "readingTime": {
-                    "type": "integer",
-                    "description": "Estimated reading time in minutes"
-                  },
-                  "embedding": {
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    },
-                    "description": "Vector embedding for semantic search"
-                  },
-                  "createdAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "updatedAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
-                }
+                "$ref": "#/components/schemas/FileMetadata"
               }
             }
           }
         ]
       },
+      "FileWithSimilarity": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/File"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "similarity": {
+                "type": "number",
+                "description": "Similarity score (0-1)"
+              }
+            }
+          }
+        ]
+      },
+      "FileMetadata": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extractedText": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Folder": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "Unique folder identifier"
+            "type": "string"
           },
           "name": {
-            "type": "string",
-            "description": "Folder name"
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
           },
           "parentId": {
             "type": "string",
-            "nullable": true,
-            "description": "Parent folder ID"
-          },
-          "path": {
-            "type": "string",
-            "description": "Full folder path"
+            "nullable": true
           },
           "color": {
             "type": "string",
-            "nullable": true,
-            "description": "Folder color theme"
+            "nullable": true
           },
           "description": {
             "type": "string",
-            "nullable": true,
-            "description": "Folder description"
+            "nullable": true
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "description": "Creation timestamp"
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "format": "date-time",
-            "description": "Last update timestamp"
-          },
-          "userId": {
-            "type": "string",
-            "description": "Owner user ID"
-          },
-          "children": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Folder"
-            },
-            "description": "Nested child folders"
-          },
-          "files": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/File"
-            },
-            "description": "Files in this folder"
+            "format": "date-time"
           }
-        },
-        "example": {
-          "id": "folder-123",
-          "name": "Project Documents",
-          "parentId": null,
-          "path": "/Project Documents",
-          "color": "blue",
-          "description": "Documents related to the main project",
-          "createdAt": "2025-08-14T09:00:00Z",
-          "updatedAt": "2025-08-14T10:00:00Z",
-          "userId": "demo-user",
-          "children": [],
-          "files": []
-        }
-      },
-      "Category": {
-        "type": "object",
-        "properties": {
-          "category": {
-            "type": "string",
-            "description": "Category name"
-          },
-          "count": {
-            "type": "integer",
-            "description": "Number of files in this category"
-          }
-        },
-        "example": {
-          "category": "Education",
-          "count": 35
-        }
-      },
-      "SystemStats": {
-        "type": "object",
-        "properties": {
-          "totalFiles": {
-            "type": "integer",
-            "description": "Total number of files"
-          },
-          "processedFiles": {
-            "type": "integer",
-            "description": "Number of successfully processed files"
-          },
-          "processingFiles": {
-            "type": "integer",
-            "description": "Number of files currently being processed"
-          },
-          "errorFiles": {
-            "type": "integer",
-            "description": "Number of files with processing errors"
-          },
-          "totalSize": {
-            "type": "integer",
-            "description": "Total size of all files in bytes"
-          },
-          "byteaSize": {
-            "type": "integer",
-            "description": "Size of files cached in database in bytes"
-          },
-          "cloudSize": {
-            "type": "integer",
-            "description": "Total size of files in cloud storage in bytes"
-          }
-        },
-        "example": {
-          "totalFiles": 42,
-          "processedFiles": 40,
-          "processingFiles": 2,
-          "errorFiles": 0,
-          "totalSize": 1794933085,
-          "byteaSize": 17040641,
-          "cloudSize": 1794933085
-        }
-      },
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Error message"
-          },
-          "code": {
-            "type": "string",
-            "description": "Error code"
-          },
-          "details": {
-            "type": "object",
-            "description": "Additional error details"
-          }
-        },
-        "example": {
-          "error": "File not found",
-          "code": "FILE_NOT_FOUND",
-          "details": {}
         }
       }
     },
     "responses": {
       "BadRequest": {
-        "description": "Bad request - invalid input parameters",
+        "description": "Bad request",
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "Invalid input parameters",
-              "code": "BAD_REQUEST"
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -1262,11 +1330,12 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "File not found",
-              "code": "NOT_FOUND"
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -1276,41 +1345,19 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "Internal server error",
-              "code": "INTERNAL_ERROR"
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "details": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
       }
     }
-  },
-  "tags": [
-    {
-      "name": "Authentication",
-      "description": "User authentication and profile management"
-    },
-    {
-      "name": "File Management",
-      "description": "File upload, retrieval, and management operations"
-    },
-    {
-      "name": "Folder Management",
-      "description": "Folder creation and organization"
-    },
-    {
-      "name": "Search & Discovery",
-      "description": "Search, browse, and categorization features"
-    },
-    {
-      "name": "AI Features",
-      "description": "AI-powered chat and content generation"
-    },
-    {
-      "name": "Static Assets",
-      "description": "Direct file serving from object storage"
-    }
-  ]
+  }
 }
