@@ -1,0 +1,70 @@
+e$ ./run-tests.sh
+================================
+Smart File Organizer Test Suite
+================================
+
+Running Backend Unit Tests...
+ts-jest[ts-jest-transformer] (WARN) Define `ts-jest` config under `globals` is deprecated. Please do
+transform: {
+    <transform_regex>: ['ts-jest', { /* ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/presets#advanced
+ts-jest[ts-jest-transformer] (WARN) Define `ts-jest` config under `globals` is deprecated. Please do
+transform: {
+    <transform_regex>: ['ts-jest', { /* ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/presets#advanced
+ FAIL  test/backend/storage.test.ts
+  ● Test suite failed to run
+
+    test/setup.ts:17:8 - error TS2304: Cannot find name 'jest'.
+
+    17   log: jest.fn(),
+              ~~~~
+    test/setup.ts:18:10 - error TS2304: Cannot find name 'jest'.
+
+    18   error: jest.fn(),
+                ~~~~
+    test/setup.ts:19:9 - error TS2304: Cannot find name 'jest'.
+
+    19   warn: jest.fn(),
+               ~~~~
+    test/setup.ts:20:9 - error TS2304: Cannot find name 'jest'.
+
+    20   info: jest.fn(),
+               ~~~~
+    test/setup.ts:21:10 - error TS2304: Cannot find name 'jest'.
+
+    21   debug: jest.fn(),
+                ~~~~
+
+ FAIL  test/backend/api.test.ts
+  ● Test suite failed to run
+
+    test/setup.ts:17:8 - error TS2304: Cannot find name 'jest'.
+
+    17   log: jest.fn(),
+              ~~~~
+    test/setup.ts:18:10 - error TS2304: Cannot find name 'jest'.
+
+    18   error: jest.fn(),
+                ~~~~
+    test/setup.ts:19:9 - error TS2304: Cannot find name 'jest'.
+
+    19   warn: jest.fn(),
+               ~~~~
+    test/setup.ts:20:9 - error TS2304: Cannot find name 'jest'.
+
+    20   info: jest.fn(),
+               ~~~~
+    test/setup.ts:21:10 - error TS2304: Cannot find name 'jest'.
+
+    21   debug: jest.fn(),
+                ~~~~
+
+Test Suites: 2 failed, 2 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        19.16 s
+Ran all test suites matching test/backend.
+✗ Backend Unit Tests failed
