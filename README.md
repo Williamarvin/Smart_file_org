@@ -175,14 +175,87 @@ smart-file-organizer/
 
 ## 🧪 Testing
 
-### API Testing
-```bash
-# Run API tests
-npm run test:api
+### Test Suite Overview
+The project includes comprehensive testing coverage:
+- **Unit Tests**: Backend services and storage layer
+- **Component Tests**: React components and UI interactions  
+- **Integration Tests**: End-to-end workflows and API endpoints
+- **Coverage Reports**: Code coverage analysis
 
-# Test with curl
-./test-api.sh
+### Quick Start
+```bash
+# Run all tests
+./run-tests.sh
+
+# Run specific test suites
+./run-tests.sh backend      # Backend unit tests
+./run-tests.sh frontend     # Frontend component tests
+./run-tests.sh integration  # Integration tests
+./run-tests.sh coverage     # Generate coverage reports
+./run-tests.sh watch        # Watch mode for development
+./run-tests.sh ui           # Interactive Vitest UI
 ```
+
+### Using NPM Commands
+```bash
+# Backend tests (Jest)
+npx jest --config=jest.config.js
+
+# Frontend tests (Vitest)
+npx vitest run
+
+# Watch mode for development
+npx vitest watch
+
+# Interactive UI for test debugging
+npx vitest --ui
+
+# Generate coverage reports
+npx jest --coverage
+npx vitest run --coverage
+```
+
+### Test Structure
+```
+test/
+├── backend/              # Backend unit tests
+│   ├── api.test.ts      # API endpoint tests
+│   └── storage.test.ts  # Storage layer tests
+├── frontend/            # Frontend component tests
+│   ├── avatar.test.tsx  # Avatar chat tests
+│   ├── dashboard.test.tsx # Dashboard tests
+│   └── upload.test.tsx  # Upload interface tests
+├── integration/         # Integration tests
+│   └── file-workflow.test.ts # E2E workflows
+└── setup.ts            # Test configuration
+```
+
+### Test Coverage Areas
+
+#### Backend Testing
+- ✅ All API endpoints (25+ endpoints)
+- ✅ Database operations and queries
+- ✅ File processing workflows
+- ✅ OpenAI integration (voice synthesis)
+- ✅ Search functionality
+- ✅ Folder management
+- ✅ Error handling
+
+#### Frontend Testing
+- ✅ Avatar chat interactions
+- ✅ Voice control functionality
+- ✅ Dashboard statistics display
+- ✅ File upload interface
+- ✅ Component rendering
+- ✅ User interactions
+- ✅ API communication
+
+#### Integration Testing
+- ✅ Complete file upload workflow
+- ✅ Multi-turn avatar conversations
+- ✅ Lesson generation pipeline
+- ✅ Folder hierarchy management
+- ✅ Search and retrieval workflows
 
 ### Manual Testing
 1. Upload test files through the UI
