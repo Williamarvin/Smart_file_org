@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare } from "lucide-react";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -61,8 +61,38 @@ export default function GenerateLessons() {
   const [teacherContent, setTeacherContent] = useState<string>("");
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
   const [chatInput, setChatInput] = useState<string>("");
+  const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
   
   const queryClient = useQueryClient();
+  
+  // Text-to-speech function
+  const speakMessage = async (text: string, index: number) => {
+    if (speakingMessageIndex === index) {
+      // Stop speaking if already playing
+      setSpeakingMessageIndex(null);
+      return;
+    }
+    
+    try {
+      setSpeakingMessageIndex(index);
+      const response = await apiRequest("POST", "/api/teacher-speak", {
+        text,
+        voice: "alloy" // Can be changed to echo, fable, onyx, nova, or shimmer
+      });
+      
+      const blob = await response.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      
+      audio.onended = () => {
+        setSpeakingMessageIndex(null);
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error("Error playing speech:", error);
+      setSpeakingMessageIndex(null);
+    }
+  };
 
   // Fetch files and folders
   const { data: files = [], isLoading: filesLoading } = useQuery({
@@ -864,14 +894,29 @@ export default function GenerateLessons() {
                             {chatMessages.length > 0 ? (
                               chatMessages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`max-w-[80%] p-3 rounded-lg ${
-                                    msg.role === 'user' 
-                                      ? 'bg-blue-500 text-white' 
-                                      : 'bg-muted text-foreground'
-                                  }`}>
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                      {msg.content}
-                                    </p>
+                                  <div className={`max-w-[80%] ${msg.role === 'assistant' ? 'flex gap-2' : ''}`}>
+                                    <div className={`flex-1 p-3 rounded-lg ${
+                                      msg.role === 'user' 
+                                        ? 'bg-blue-500 text-white' 
+                                        : 'bg-muted text-foreground'
+                                    }`}>
+                                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                        {msg.content}
+                                      </p>
+                                    </div>
+                                    {msg.role === 'assistant' && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => speakMessage(msg.content, index)}
+                                        className="shrink-0"
+                                        title={speakingMessageIndex === index ? "Stop speaking" : "Read aloud"}
+                                      >
+                                        <Volume2 
+                                          className={`h-4 w-4 ${speakingMessageIndex === index ? 'text-blue-500 animate-pulse' : ''}`} 
+                                        />
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               ))

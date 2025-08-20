@@ -3,8 +3,11 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 20, 2025)
+- **✅ Natural Teacher Voice**: Teacher agent now speaks conversationally like a real classroom teacher, not in bullet points
+- **✅ Text-to-Speech Integration**: Teacher responses can be read aloud using OpenAI TTS with multiple voice options (alloy, echo, fable, onyx, nova, shimmer)
+- **✅ Enhanced Chat Interface**: "Chat with Teacher" with larger chat area (h-96) and speak buttons for teacher messages
 - **✅ Master Teacher Agent**: Consolidated lesson generation into single comprehensive prompt with 5-section course structure
-- **✅ Teacher Agent Flow**: Generate consolidated prompt → Preview → Execute → Chat for refinements
+- **✅ Teacher Agent Flow**: Generate prompt → Preview → Execute → Chat for refinements
 - **✅ Interactive Chat Interface**: Chat with teacher agent after course generation for modifications and improvements
 - **✅ Course Configuration**: Title and target audience fields for customized course generation
 - **✅ Structured Course Output**: 5 sections (Introduction/PowerPoint, Warm-up/Flashcards, Content/PowerPoint, Practice/Quiz, Homework/Quiz)

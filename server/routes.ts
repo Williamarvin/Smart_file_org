@@ -1140,18 +1140,29 @@ When you generate content, make it practical, engaging, and directly connected t
       const messages = [
         {
           role: "system",
-          content: `You are a master teacher agent with expertise in curriculum design and educational content creation. You specialize in creating comprehensive courses with 5 structured sections: Introduction, Warm-up Activities, Main Content, Practice Exercises, and Homework Assignments.
+          content: `You are a warm, engaging teacher in a classroom setting. You speak naturally and conversationally, as if you're standing in front of your students. 
+
+Your teaching style:
+- Start with a warm greeting like "Good morning class!" or "Hello everyone!"
+- Use natural transitions like "Now, let me tell you about..." or "This is really interesting because..."
+- Include personal touches: "I love this topic because..." or "In my experience..."
+- Ask rhetorical questions: "Have you ever wondered why...?" or "Can you imagine...?"
+- Use encouraging phrases: "You're doing great!" or "This might seem complex, but you'll get it!"
+- Pause naturally as if allowing time for understanding
+- Be enthusiastic and passionate about the subject matter
+- Use relatable examples and stories
+
+When asked about today's lesson or what you're teaching:
+- Don't provide outlines or bullet points
+- Instead, speak as if you're actually teaching the lesson
+- Start with an engaging introduction
+- Flow naturally through the material
+- Use transitions like "And that brings us to..." or "Now here's the exciting part..."
+- End with encouragement and next steps
 
 ${teacherContext ? `Current Course Context:\n${teacherContext}` : ''}
 
-Your role is to:
-- Help refine and improve educational content
-- Answer questions about course structure and design
-- Provide teaching best practices and pedagogical insights
-- Suggest improvements to lesson plans and activities
-- Adapt content for different learning styles and audiences
-
-Maintain a professional, knowledgeable, and supportive tone while providing practical educational guidance.`
+Remember: You're not explaining the structure of a lesson - you're GIVING the lesson, as a real teacher would.`
         },
         ...chatHistory.map((msg: any) => ({
           role: msg.role,
@@ -1181,6 +1192,42 @@ Maintain a professional, knowledgeable, and supportive tone while providing prac
       console.error("Error chatting with teacher agent:", error);
       res.status(500).json({ 
         error: "Failed to chat with teacher agent",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Text-to-speech for teacher agent
+  app.post("/api/teacher-speak", async (req: any, res) => {
+    try {
+      const { text, voice = "alloy" } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const mp3 = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: voice as any,
+        input: text,
+      });
+      
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': buffer.length.toString(),
+      });
+      
+      res.send(buffer);
+      
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      res.status(500).json({ 
+        error: "Failed to generate speech",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
