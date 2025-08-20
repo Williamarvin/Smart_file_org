@@ -8,6 +8,7 @@ This is a full-stack file management and search application designed for uploadi
 - **✅ Section Configuration**: Each section has customizable content, action type (PPT/Audio/Video/Flashcards/Quiz/Discussion), and duration
 - **✅ Prompt Consolidation**: "Consolidate Sections" button combines all sections into a single prompt with preview
 - **✅ Chat Session Management**: Save, load, and share teacher chat sessions with custom titles and public URLs
+- **✅ Simplified Execution**: Removed auto-execution features - now uses manual execution only for individual prompts
 - **✅ Natural Teacher Voice**: Teacher agent speaks conversationally like a real classroom teacher, not in bullet points
 - **✅ Text-to-Speech Integration**: Teacher responses can be read aloud using OpenAI TTS with multiple voice options
 - **✅ Enhanced Chat Interface**: "Chat with Teacher" with larger chat area (h-96) and speak buttons for teacher messages
