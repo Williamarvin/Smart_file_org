@@ -47,6 +47,8 @@ interface TeacherSection {
   content: string;
   actionType: 'ppt' | 'audio' | 'video' | 'flashcards' | 'quiz' | 'discussion';
   duration: number; // in minutes
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  teachingStyle: 'visual' | 'storytelling' | 'hands-on' | 'discussion' | 'analytical';
 }
 
 export default function GenerateLessons() {
@@ -74,11 +76,11 @@ export default function GenerateLessons() {
   
   // Teacher sections for structured prompt
   const [teacherSections, setTeacherSections] = useState<TeacherSection[]>([
-    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5 },
-    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10 },
-    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20 },
-    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15 },
-    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10 }
+    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5, difficulty: 'beginner', teachingStyle: 'visual' },
+    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10, difficulty: 'beginner', teachingStyle: 'hands-on' },
+    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20, difficulty: 'intermediate', teachingStyle: 'analytical' },
+    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15, difficulty: 'intermediate', teachingStyle: 'hands-on' },
+    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10, difficulty: 'intermediate', teachingStyle: 'discussion' }
   ]);
   
   const queryClient = useQueryClient();
@@ -337,7 +339,8 @@ export default function GenerateLessons() {
     
     teacherSections.forEach(section => {
       totalTime += section.duration;
-      consolidatedPrompt += `## ${section.title} (${section.duration} minutes - ${section.actionType.toUpperCase()})\n`;
+      consolidatedPrompt += `## ${section.title}\n`;
+      consolidatedPrompt += `**Duration:** ${section.duration} minutes | **Format:** ${section.actionType.toUpperCase()} | **Difficulty:** ${section.difficulty} | **Teaching Style:** ${section.teachingStyle}\n\n`;
       consolidatedPrompt += `${section.content || '[Content to be added]'}\n\n`;
     });
     
@@ -834,6 +837,53 @@ export default function GenerateLessons() {
                                   setTeacherSections(newSections);
                                 }}
                               />
+                            </div>
+                          </div>
+                          
+                          {/* Difficulty and Teaching Style */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`difficulty-${section.id}`}>Difficulty Level</Label>
+                              <Select
+                                value={section.difficulty}
+                                onValueChange={(value) => {
+                                  const newSections = [...teacherSections];
+                                  newSections[index].difficulty = value as any;
+                                  setTeacherSections(newSections);
+                                }}
+                              >
+                                <SelectTrigger id={`difficulty-${section.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="beginner">Beginner</SelectItem>
+                                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                                  <SelectItem value="advanced">Advanced</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`style-${section.id}`}>Teaching Style</Label>
+                              <Select
+                                value={section.teachingStyle}
+                                onValueChange={(value) => {
+                                  const newSections = [...teacherSections];
+                                  newSections[index].teachingStyle = value as any;
+                                  setTeacherSections(newSections);
+                                }}
+                              >
+                                <SelectTrigger id={`style-${section.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="visual">Visual (with diagrams & images)</SelectItem>
+                                  <SelectItem value="storytelling">Storytelling (narrative approach)</SelectItem>
+                                  <SelectItem value="hands-on">Hands-on (practical exercises)</SelectItem>
+                                  <SelectItem value="discussion">Discussion (interactive dialogue)</SelectItem>
+                                  <SelectItem value="analytical">Analytical (detailed explanations)</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
                         </div>

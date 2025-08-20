@@ -5,7 +5,9 @@ This is a full-stack file management and search application designed for uploadi
 ## Recent Updates (August 20, 2025)
 - **✅ AI Pre-filled Sections**: Teacher prompt sections now auto-populate with LLM-generated content based on selected files/folders
 - **✅ Structured Course Editor**: Teacher prompt divided into 5 editable sections (Introduction, Warm-up, Main Content, Practice, Wrap-up/Homework)
-- **✅ Section Configuration**: Each section has customizable content, action type (PPT/Audio/Video/Flashcards/Quiz/Discussion), and duration
+- **✅ Enhanced Section Configuration**: Each section has customizable content, action type, duration, difficulty level, and teaching style
+- **✅ Difficulty Levels**: Beginner, Intermediate, Advanced for each section
+- **✅ Teaching Styles**: Visual, Storytelling, Hands-on, Discussion, Analytical approaches per section
 - **✅ Prompt Consolidation**: "Consolidate Sections" button combines all sections into a single prompt with preview
 - **✅ Chat Session Management**: Save, load, and share teacher chat sessions with custom titles and public URLs
 - **✅ Simplified Execution**: Removed auto-execution features - now uses manual execution only for individual prompts
