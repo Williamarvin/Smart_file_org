@@ -995,6 +995,7 @@ Do not forget to include these format specifications in each individual prompt y
           .filter(file => fileIds.includes(file.id) && file.processingStatus === "completed")
           .map(file => `• ${file.originalName}`);
         filesList = selectedFileNames;
+        console.log(`Selected files for prompt: ${filesList.length} files`, filesList);
       }
       
       if (folderIds.length > 0) {
@@ -1003,6 +1004,7 @@ Do not forget to include these format specifications in each individual prompt y
           .filter(folder => folderIds.includes(folder.id))
           .map(folder => `• ${folder.name}`);
         foldersList = selectedFolderNames;
+        console.log(`Selected folders for prompt: ${foldersList.length} folders`, foldersList);
       }
       
       // Generate comprehensive teacher agent prompt (for display)
@@ -1046,7 +1048,8 @@ Your course should follow this 5-section structure:
 - **Output Format: Quiz questions with detailed answer keys** included
 
 ## Content Source Material:
-${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}
+${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}\n` : ''}
+${filesList.length === 0 && foldersList.length === 0 && !additionalContext ? 'No specific files or folders selected.' : ''}
 
 ## Instructions for Teacher Agent:
 1. Analyze all provided content thoroughly
