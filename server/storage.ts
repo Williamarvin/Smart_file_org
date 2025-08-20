@@ -4,6 +4,7 @@ import {
   fileMetadata, 
   searchHistory,
   folders,
+  teacherChatSessions,
   type User,
   type UpsertUser,
   type File, 
@@ -22,6 +23,8 @@ import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle
 import { cache } from "./cache";
 
 // Storage interface for cloud-only file management
+
+import type { InsertTeacherChatSession, TeacherChatSession } from "@shared/schema";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -75,6 +78,14 @@ export interface IStorage {
   // File-folder operations
   moveFileToFolder(fileId: string, folderId: string | null, userId: string): Promise<void>;
   getFilesInFolder(folderId: string | null, userId: string): Promise<FileWithMetadata[]>;
+  getFilesByFolder(folderId: string, userId: string): Promise<FileWithMetadata[]>;
+  
+  // Teacher chat sessions
+  saveTeacherChatSession(session: InsertTeacherChatSession): Promise<TeacherChatSession>;
+  getUserTeacherChatSessions(userId: string): Promise<TeacherChatSession[]>;
+  getTeacherChatSessionByShareId(shareId: string): Promise<TeacherChatSession | null>;
+  updateTeacherChatSessionSharing(sessionId: string, userId: string, isPublic: number): Promise<TeacherChatSession>;
+  deleteTeacherChatSession(sessionId: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -919,6 +930,56 @@ export class DatabaseStorage implements IStorage {
       storageType: row.storageType || null, // Use actual value or default
       metadata: row.metadata || undefined,
     }));
+  }
+  
+  async getFilesByFolder(folderId: string, userId: string): Promise<FileWithMetadata[]> {
+    return this.getFilesInFolder(folderId, userId);
+  }
+  
+  // Teacher chat sessions
+  async saveTeacherChatSession(session: InsertTeacherChatSession): Promise<TeacherChatSession> {
+    const [savedSession] = await db
+      .insert(teacherChatSessions)
+      .values(session)
+      .returning();
+    return savedSession;
+  }
+  
+  async getUserTeacherChatSessions(userId: string): Promise<TeacherChatSession[]> {
+    return await db
+      .select()
+      .from(teacherChatSessions)
+      .where(eq(teacherChatSessions.userId, userId))
+      .orderBy(desc(teacherChatSessions.createdAt));
+  }
+  
+  async getTeacherChatSessionByShareId(shareId: string): Promise<TeacherChatSession | null> {
+    const [session] = await db
+      .select()
+      .from(teacherChatSessions)
+      .where(eq(teacherChatSessions.shareId, shareId));
+    return session || null;
+  }
+  
+  async updateTeacherChatSessionSharing(sessionId: string, userId: string, isPublic: number): Promise<TeacherChatSession> {
+    const [updated] = await db
+      .update(teacherChatSessions)
+      .set({ isPublic, updatedAt: new Date() })
+      .where(and(
+        eq(teacherChatSessions.id, sessionId),
+        eq(teacherChatSessions.userId, userId)
+      ))
+      .returning();
+    return updated;
+  }
+  
+  async deleteTeacherChatSession(sessionId: string, userId: string): Promise<void> {
+    await db
+      .delete(teacherChatSessions)
+      .where(and(
+        eq(teacherChatSessions.id, sessionId),
+        eq(teacherChatSessions.userId, userId)
+      ));
   }
 }
 

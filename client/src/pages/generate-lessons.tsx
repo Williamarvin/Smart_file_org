@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2 } from "lucide-react";
+import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2, Save, Share2, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -63,6 +63,10 @@ export default function GenerateLessons() {
   const [chatInput, setChatInput] = useState<string>("");
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState<boolean>(false);
+  const [savedSessions, setSavedSessions] = useState<any[]>([]);
+  const [showSavedSessions, setShowSavedSessions] = useState(false);
+  const [sessionTitle, setSessionTitle] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
   
   const queryClient = useQueryClient();
   
@@ -325,7 +329,9 @@ export default function GenerateLessons() {
       const response = await apiRequest("POST", "/api/chat-teacher-agent", {
         message,
         chatHistory: chatMessages,
-        teacherContext: teacherContent
+        teacherContext: teacherContent,
+        fileIds: selectedFiles,
+        folderIds: selectedFolders
       });
       return response.json();
     },
@@ -983,17 +989,70 @@ export default function GenerateLessons() {
                       </CardTitle>
                       <CardDescription className="flex items-center justify-between">
                         <span>Now you can chat with the teacher agent. Teacher responses are automatically read aloud.</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            console.log("Testing speech...");
-                            await speakTeacherResponse("Hello! This is a test of the text to speech system. Can you hear me?");
-                          }}
-                        >
-                          <Volume2 className="h-4 w-4 mr-1" />
-                          Test Speech
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              // Save chat session
+                              const title = prompt("Enter a title for this chat session:", `${courseTitle} - Chat Session`);
+                              if (title) {
+                                try {
+                                  const response = await apiRequest("POST", "/api/teacher-chat-sessions", {
+                                    title,
+                                    courseTitle,
+                                    targetAudience,
+                                    teacherPrompt,
+                                    teacherContent,
+                                    chatHistory: chatMessages,
+                                    selectedFiles,
+                                    selectedFolders
+                                  });
+                                  const session = await response.json();
+                                  alert("Session saved successfully!");
+                                  
+                                  // Load saved sessions
+                                  const sessionsResponse = await apiRequest("GET", "/api/teacher-chat-sessions");
+                                  const sessions = await sessionsResponse.json();
+                                  setSavedSessions(sessions);
+                                } catch (error) {
+                                  console.error("Error saving session:", error);
+                                  alert("Failed to save session");
+                                }
+                              }
+                            }}
+                          >
+                            <Save className="h-4 w-4 mr-1" />
+                            Save Session
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              // Toggle saved sessions view
+                              if (!showSavedSessions && savedSessions.length === 0) {
+                                const response = await apiRequest("GET", "/api/teacher-chat-sessions");
+                                const sessions = await response.json();
+                                setSavedSessions(sessions);
+                              }
+                              setShowSavedSessions(!showSavedSessions);
+                            }}
+                          >
+                            <History className="h-4 w-4 mr-1" />
+                            History
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              console.log("Testing speech...");
+                              await speakTeacherResponse("Hello! This is a test of the text to speech system. Can you hear me?");
+                            }}
+                          >
+                            <Volume2 className="h-4 w-4 mr-1" />
+                            Test Speech
+                          </Button>
+                        </div>
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1060,6 +1119,86 @@ export default function GenerateLessons() {
                       </div>
                     </CardContent>
                   </Card>
+                  
+                  {/* Saved Sessions */}
+                  {showSavedSessions && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Saved Chat Sessions</CardTitle>
+                        <CardDescription>Load a previous chat session or share it with others</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {savedSessions.length === 0 ? (
+                          <p className="text-muted-foreground">No saved sessions yet</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {savedSessions.map((session: any) => (
+                              <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex-1">
+                                  <h4 className="font-medium">{session.title}</h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(session.createdAt).toLocaleDateString()} - {session.chatHistory?.length || 0} messages
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      // Load session
+                                      setCourseTitle(session.courseTitle || "");
+                                      setTargetAudience(session.targetAudience || "");
+                                      setTeacherPrompt(session.teacherPrompt || "");
+                                      setTeacherContent(session.teacherContent || "");
+                                      setChatMessages(session.chatHistory || []);
+                                      setSelectedFiles(session.selectedFiles || []);
+                                      setSelectedFolders(session.selectedFolders || []);
+                                      setShowSavedSessions(false);
+                                    }}
+                                  >
+                                    Load
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      // Toggle sharing
+                                      const isPublic = session.isPublic === 1;
+                                      try {
+                                        const response = await apiRequest("PATCH", `/api/teacher-chat-sessions/${session.id}/share`, {
+                                          isPublic: !isPublic
+                                        });
+                                        const updated = await response.json();
+                                        
+                                        if (!isPublic) {
+                                          const shareUrl = `${window.location.origin}/shared-chat/${updated.shareId}`;
+                                          navigator.clipboard.writeText(shareUrl);
+                                          alert(`Session is now public! Share URL copied to clipboard:\n${shareUrl}`);
+                                        } else {
+                                          alert("Session is now private");
+                                        }
+                                        
+                                        // Refresh sessions
+                                        const sessionsResponse = await apiRequest("GET", "/api/teacher-chat-sessions");
+                                        const sessions = await sessionsResponse.json();
+                                        setSavedSessions(sessions);
+                                      } catch (error) {
+                                        console.error("Error sharing session:", error);
+                                        alert("Failed to update sharing status");
+                                      }
+                                    }}
+                                  >
+                                    <Share2 className="h-4 w-4 mr-1" />
+                                    {session.isPublic === 1 ? "Unshare" : "Share"}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </>
               )}
             </div>

@@ -115,6 +115,24 @@ export const searchHistory = pgTable("search_history", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 });
 
+// Teacher chat sessions table
+export const teacherChatSessions = pgTable("teacher_chat_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(), // Session title/name
+  courseTitle: text("course_title"), // Associated course title
+  targetAudience: text("target_audience"), // Associated target audience
+  teacherPrompt: text("teacher_prompt"), // The original teacher prompt used
+  teacherContent: text("teacher_content"), // The generated teacher content
+  chatHistory: jsonb("chat_history").notNull(), // Array of chat messages
+  selectedFiles: jsonb("selected_files"), // Array of selected file IDs
+  selectedFolders: jsonb("selected_folders"), // Array of selected folder IDs
+  shareId: varchar("share_id").unique(), // Unique ID for sharing
+  isPublic: integer("is_public").default(0), // 0 = private, 1 = public
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+});
+
 export const insertFileSchema = createInsertSchema(files).omit({
   id: true,
   uploadedAt: true,
@@ -137,6 +155,13 @@ export const insertFolderSchema = createInsertSchema(folders).omit({
   updatedAt: true,
 });
 
+export const insertTeacherChatSessionSchema = createInsertSchema(teacherChatSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  shareId: true,
+});
+
 // Relations
 import { relations } from "drizzle-orm";
 
@@ -144,6 +169,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   files: many(files),
   folders: many(folders),
   searchHistory: many(searchHistory),
+  teacherChatSessions: many(teacherChatSessions),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -167,6 +193,10 @@ export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   user: one(users, { fields: [searchHistory.userId], references: [users.id] }),
 }));
 
+export const teacherChatSessionsRelations = relations(teacherChatSessions, ({ one }) => ({
+  user: one(users, { fields: [teacherChatSessions.userId], references: [users.id] }),
+}));
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFile = z.infer<typeof insertFileSchema>;
@@ -178,6 +208,8 @@ export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
 export type SearchHistory = typeof searchHistory.$inferSelect;
 export type InsertFolder = z.infer<typeof insertFolderSchema>;
 export type Folder = typeof folders.$inferSelect;
+export type InsertTeacherChatSession = z.infer<typeof insertTeacherChatSessionSchema>;
+export type TeacherChatSession = typeof teacherChatSessions.$inferSelect;
 
 export type FileWithMetadata = File & {
   metadata?: FileMetadata;

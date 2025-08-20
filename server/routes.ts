@@ -1138,7 +1138,39 @@ When you generate content, make it practical, engaging, and directly connected t
   // Chat with teacher agent
   app.post("/api/chat-teacher-agent", async (req: any, res) => {
     try {
-      const { message, chatHistory = [], teacherContext } = req.body;
+      const { message, chatHistory = [], teacherContext, fileIds = [], folderIds = [] } = req.body;
+      
+      // Get actual file and folder content if provided
+      let fileContent = "";
+      let folderContent = "";
+      
+      if (fileIds.length > 0 || folderIds.length > 0) {
+        const user = await req.storage.getUserByUsername("demo-user");
+        
+        // Get files content
+        if (fileIds.length > 0) {
+          const selectedFiles = await req.storage.getFilesByIds(fileIds, user.id);
+          for (const file of selectedFiles) {
+            const metadata = await req.storage.getFileMetadata(file.id);
+            if (metadata?.extractedText) {
+              fileContent += `\n\nFile: ${file.originalName}\nContent:\n${metadata.extractedText.substring(0, 2000)}\n`;
+            }
+          }
+        }
+        
+        // Get folder files content  
+        if (folderIds.length > 0) {
+          for (const folderId of folderIds) {
+            const folderFiles = await req.storage.getFilesByFolder(folderId, user.id);
+            for (const file of folderFiles) {
+              const metadata = await req.storage.getFileMetadata(file.id);
+              if (metadata?.extractedText) {
+                folderContent += `\n\nFile in folder: ${file.originalName}\nContent:\n${metadata.extractedText.substring(0, 2000)}\n`;
+              }
+            }
+          }
+        }
+      }
       
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -1194,6 +1226,9 @@ You have full access to all the content from the selected files and folders. You
 - Draw connections between different parts of the materials
 - Answer questions about any specific details in the documents` : ''}
 
+${fileContent ? `\nActual File Content:\n${fileContent}` : ''}
+${folderContent ? `\nActual Folder Content:\n${folderContent}` : ''}
+
 Remember: 
 - You're GIVING the lesson as a real teacher would, not explaining its structure
 - Ask DIRECT, SPECIFIC questions about the topic throughout your teaching
@@ -1231,6 +1266,108 @@ Remember:
         error: "Failed to chat with teacher agent",
         details: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // Save teacher chat session
+  app.post("/api/teacher-chat-sessions", async (req: any, res) => {
+    try {
+      const user = await req.storage.getUserByUsername("demo-user");
+      const { 
+        title, 
+        courseTitle, 
+        targetAudience, 
+        teacherPrompt, 
+        teacherContent,
+        chatHistory,
+        selectedFiles,
+        selectedFolders 
+      } = req.body;
+      
+      // Generate unique share ID
+      const shareId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      const session = await req.storage.saveTeacherChatSession({
+        title,
+        courseTitle,
+        targetAudience,
+        teacherPrompt,
+        teacherContent,
+        chatHistory,
+        selectedFiles,
+        selectedFolders,
+        shareId,
+        isPublic: 0,
+        userId: user.id
+      });
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error saving chat session:", error);
+      res.status(500).json({ error: "Failed to save chat session" });
+    }
+  });
+  
+  // Get user's teacher chat sessions
+  app.get("/api/teacher-chat-sessions", async (req: any, res) => {
+    try {
+      const user = await req.storage.getUserByUsername("demo-user");
+      const sessions = await req.storage.getUserTeacherChatSessions(user.id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting chat sessions:", error);
+      res.status(500).json({ error: "Failed to get chat sessions" });
+    }
+  });
+  
+  // Get shared teacher chat session
+  app.get("/api/teacher-chat-sessions/share/:shareId", async (req: any, res) => {
+    try {
+      const { shareId } = req.params;
+      const session = await req.storage.getTeacherChatSessionByShareId(shareId);
+      
+      if (!session || session.isPublic !== 1) {
+        return res.status(404).json({ error: "Session not found or not public" });
+      }
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error getting shared session:", error);
+      res.status(500).json({ error: "Failed to get shared session" });
+    }
+  });
+  
+  // Update session sharing status
+  app.patch("/api/teacher-chat-sessions/:sessionId/share", async (req: any, res) => {
+    try {
+      const user = await req.storage.getUserByUsername("demo-user");
+      const { sessionId } = req.params;
+      const { isPublic } = req.body;
+      
+      const session = await req.storage.updateTeacherChatSessionSharing(
+        sessionId, 
+        user.id, 
+        isPublic ? 1 : 0
+      );
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error updating session sharing:", error);
+      res.status(500).json({ error: "Failed to update session sharing" });
+    }
+  });
+  
+  // Delete teacher chat session
+  app.delete("/api/teacher-chat-sessions/:sessionId", async (req: any, res) => {
+    try {
+      const user = await req.storage.getUserByUsername("demo-user");
+      const { sessionId } = req.params;
+      
+      await req.storage.deleteTeacherChatSession(sessionId, user.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      res.status(500).json({ error: "Failed to delete session" });
     }
   });
 
