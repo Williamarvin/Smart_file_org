@@ -985,7 +985,27 @@ Do not forget to include these format specifications in each individual prompt y
 
       const combinedContent = contentSources.join("\n\n---\n\n");
       
-      // Generate comprehensive teacher agent prompt
+      // Get list of selected files and folders for the prompt display
+      let filesList: string[] = [];
+      let foldersList: string[] = [];
+      
+      if (fileIds.length > 0) {
+        const allFiles = await storage.getFiles(userId, 100);
+        const selectedFileNames = allFiles
+          .filter(file => fileIds.includes(file.id) && file.processingStatus === "completed")
+          .map(file => `• ${file.originalName}`);
+        filesList = selectedFileNames;
+      }
+      
+      if (folderIds.length > 0) {
+        const allFolders = await storage.getFolders(userId);
+        const selectedFolderNames = allFolders
+          .filter(folder => folderIds.includes(folder.id))
+          .map(folder => `• ${folder.name}`);
+        foldersList = selectedFolderNames;
+      }
+      
+      // Generate comprehensive teacher agent prompt (for display)
       const teacherPrompt = `# Master Teacher Agent for: ${courseTitle || 'Educational Course'}
 
 ## Target Audience: ${targetAudience || 'General learners'}
@@ -1026,7 +1046,7 @@ Your course should follow this 5-section structure:
 - **Output Format: Quiz questions with detailed answer keys** included
 
 ## Content Source Material:
-${combinedContent}
+${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}
 
 ## Instructions for Teacher Agent:
 1. Analyze all provided content thoroughly
@@ -1042,8 +1062,15 @@ Structure your response with clear section headers and follow the specified outp
 
 When you generate content, make it practical, engaging, and directly connected to the source materials provided. Focus on creating a cohesive learning experience that builds knowledge progressively through the 5 sections.`;
 
+      // Create the full prompt with actual content for execution
+      const teacherPromptWithContent = teacherPrompt.replace(
+        `## Content Source Material:\n${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}`,
+        `## Content Source Material:\n${combinedContent}`
+      );
+
       res.json({ 
         teacherPrompt,
+        teacherPromptWithContent, // Send both versions
         courseTitle: courseTitle || 'Educational Course',
         targetAudience: targetAudience || 'General learners',
         contentSourcesCount: contentSources.length

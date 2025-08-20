@@ -56,7 +56,8 @@ export default function GenerateLessons() {
   const [teacherMode, setTeacherMode] = useState<boolean>(false);
   const [courseTitle, setCourseTitle] = useState<string>("");
   const [targetAudience, setTargetAudience] = useState<string>("");
-  const [teacherPrompt, setTeacherPrompt] = useState<string>("");
+  const [teacherPrompt, setTeacherPrompt] = useState<string>(""); // Display version
+  const [teacherPromptWithContent, setTeacherPromptWithContent] = useState<string>(""); // Execution version
   const [teacherContent, setTeacherContent] = useState<string>("");
   const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
   const [chatInput, setChatInput] = useState<string>("");
@@ -187,7 +188,8 @@ export default function GenerateLessons() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      setTeacherPrompt(data.teacherPrompt);
+      setTeacherPrompt(data.teacherPrompt); // Display version
+      setTeacherPromptWithContent(data.teacherPromptWithContent); // Execution version
     },
   });
 
@@ -195,7 +197,7 @@ export default function GenerateLessons() {
   const executeTeacherPromptMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/execute-teacher-prompt", {
-        teacherPrompt
+        teacherPrompt: teacherPromptWithContent // Use the version with full content
       });
       return response.json();
     },
