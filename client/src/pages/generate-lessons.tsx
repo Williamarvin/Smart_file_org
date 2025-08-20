@@ -66,10 +66,11 @@ export default function GenerateLessons() {
   
   const queryClient = useQueryClient();
   
-  // Auto-speak teacher responses with faster playback
+  // Auto-speak teacher responses
   const speakTeacherResponse = async (text: string) => {
     try {
-      console.log("Starting speech generation...");
+      console.log("=== SPEECH DEBUG START ===");
+      console.log("Text to speak (first 100 chars):", text.substring(0, 100));
       
       // Stop any currently playing audio
       if (currentAudio) {
@@ -81,24 +82,46 @@ export default function GenerateLessons() {
       
       setIsGeneratingSpeech(true);
       
-      console.log("Calling teacher-speak API...");
-      const response = await apiRequest("POST", "/api/teacher-speak", {
-        text: text.substring(0, 1000), // Limit text length to avoid timeouts
-        voice: "nova" // Using nova voice which tends to be clearer at faster speeds
+      // Truncate text to avoid API timeout, but keep it reasonable
+      const textToSpeak = text.substring(0, 800);
+      console.log("Sending text length:", textToSpeak.length);
+      
+      const response = await fetch("/api/teacher-speak", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: textToSpeak,
+          voice: "alloy" // Using alloy voice as it's most reliable
+        }),
       });
       
+      console.log("API Response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error(`Speech API failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error("API Error:", errorText);
+        throw new Error(`Speech API failed: ${response.status} - ${errorText}`);
       }
       
-      console.log("Converting response to audio...");
       const blob = await response.blob();
+      console.log("Blob size:", blob.size, "type:", blob.type);
+      
+      if (blob.size === 0) {
+        throw new Error("Received empty audio blob");
+      }
+      
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
       
-      // Set up event handlers before playing
-      audio.onloadeddata = () => {
-        console.log("Audio loaded, duration:", audio.duration);
+      // Add all event handlers before attempting to play
+      audio.onloadedmetadata = () => {
+        console.log("Audio metadata loaded, duration:", audio.duration);
+      };
+      
+      audio.oncanplaythrough = () => {
+        console.log("Audio can play through");
       };
       
       audio.onplay = () => {
@@ -107,6 +130,7 @@ export default function GenerateLessons() {
       
       audio.onerror = (e) => {
         console.error("Audio playback error:", e);
+        console.error("Audio error details:", audio.error);
         setCurrentAudio(null);
         setIsGeneratingSpeech(false);
       };
@@ -114,25 +138,42 @@ export default function GenerateLessons() {
       audio.onended = () => {
         console.log("Audio playback ended");
         setCurrentAudio(null);
-        URL.revokeObjectURL(audioUrl); // Clean up
+        URL.revokeObjectURL(audioUrl);
       };
       
-      // Speed up playback to 1.2x to match reading speed better
-      audio.playbackRate = 1.2;
+      // Set volume to ensure it's audible
+      audio.volume = 1.0;
       
       setCurrentAudio(audio);
       setIsGeneratingSpeech(false);
       
+      // Try to play with user interaction fallback
       console.log("Attempting to play audio...");
-      await audio.play();
-      console.log("Audio playback started successfully");
+      const playPromise = audio.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("Audio playback started successfully");
+          })
+          .catch((error) => {
+            console.error("Play promise rejected:", error);
+            // Try to play on next user interaction
+            console.log("Will retry on next user interaction");
+            document.addEventListener('click', () => {
+              audio.play().catch(e => console.error("Retry play failed:", e));
+            }, { once: true });
+          });
+      }
+      
+      console.log("=== SPEECH DEBUG END ===");
       
     } catch (error) {
-      console.error("Error in speakTeacherResponse:", error);
+      console.error("=== SPEECH ERROR ===");
+      console.error("Error details:", error);
       setCurrentAudio(null);
       setIsGeneratingSpeech(false);
-      // Show user-friendly error
-      console.error("Failed to generate speech. Please check console for details.");
+      alert("Speech generation failed. Check browser console (F12) for details.");
     }
   };
 
@@ -940,8 +981,19 @@ export default function GenerateLessons() {
                           <Volume2 className="h-4 w-4 text-blue-500 animate-pulse" />
                         )}
                       </CardTitle>
-                      <CardDescription>
-                        Now you can chat with the teacher agent to refine or modify the generated course content. Teacher responses are automatically read aloud at 1.3x speed.
+                      <CardDescription className="flex items-center justify-between">
+                        <span>Now you can chat with the teacher agent. Teacher responses are automatically read aloud.</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            console.log("Testing speech...");
+                            await speakTeacherResponse("Hello! This is a test of the text to speech system. Can you hear me?");
+                          }}
+                        >
+                          <Volume2 className="h-4 w-4 mr-1" />
+                          Test Speech
+                        </Button>
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
