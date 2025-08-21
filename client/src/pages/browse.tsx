@@ -150,6 +150,48 @@ export function Browse() {
     },
   });
 
+  // Retry processing mutation
+  const retryProcessingMutation = useMutation({
+    mutationFn: (fileId: string) => apiRequest("POST", `/api/files/${fileId}/retry-processing`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Processing restarted",
+        description: "The file will be processed again. This may take a few minutes.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error retrying processing",
+        description: error.message || "Could not restart processing",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mark file as failed mutation
+  const markFailedMutation = useMutation({
+    mutationFn: (fileId: string) => apiRequest("POST", `/api/files/${fileId}/mark-failed`, {
+      reason: "Processing timeout - marked as failed by user"
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "File marked as failed",
+        description: "The file has been marked as failed and won't be processed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error marking file as failed",
+        description: error.message || "Could not mark file as failed",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete folder mutation
   const deleteFolderMutation = useMutation({
     mutationFn: (folderId: string) => apiRequest("DELETE", `/api/folders/${folderId}`),
@@ -209,6 +251,14 @@ export function Browse() {
 
   const handleDeleteFile = (fileId: string) => {
     deleteFileMutation.mutate(fileId);
+  };
+
+  const handleRetryProcessing = (fileId: string) => {
+    retryProcessingMutation.mutate(fileId);
+  };
+
+  const handleMarkFailed = (fileId: string) => {
+    markFailedMutation.mutate(fileId);
   };
 
   const handleDeleteFolder = (folderId: string) => {
@@ -540,6 +590,8 @@ export function Browse() {
           isLoading={isLoading}
           onDeleteFile={handleDeleteFile}
           onMoveFile={handleMoveFile}
+          onRetryProcessing={handleRetryProcessing}
+          onMarkFailed={handleMarkFailed}
           isSearchResults={!!searchQuery}
           searchQuery={searchQuery}
           isSelectionMode={isSelectionMode}

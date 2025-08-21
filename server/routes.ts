@@ -276,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete file
+  // Delete file (works for any status including processing)
   app.delete("/api/files/:id", async (req: any, res) => {
     try {
       const userId = "demo-user";
@@ -285,12 +285,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
 
-      // TODO: Delete from object storage as well
+      // Log if deleting a file stuck in processing
+      if (file.processingStatus === 'processing') {
+        console.log(`Deleting file stuck in processing: ${file.originalName} (uploaded: ${file.uploadedAt})`);
+      }
+
+      // Delete from database (works for any status)
       await storage.deleteFile(req.params.id, userId);
-      res.json({ success: true });
+      
+      // TODO: Also delete from Google Cloud Storage
+      // const objectStorageService = new ObjectStorageService();
+      // await objectStorageService.deleteObject(file.objectPath);
+      
+      res.json({ success: true, deletedFile: file.originalName });
     } catch (error) {
       console.error("Error deleting file:", error);
       res.status(500).json({ error: "Failed to delete file" });
+    }
+  });
+
+  // Retry processing for stuck files
+  app.post("/api/files/:id/retry-processing", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const fileId = req.params.id;
+      
+      const file = await storage.getFile(fileId, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Only retry if file is in processing or error status
+      if (file.processingStatus !== 'processing' && file.processingStatus !== 'error') {
+        return res.status(400).json({ 
+          error: "File is not eligible for retry", 
+          currentStatus: file.processingStatus 
+        });
+      }
+      
+      console.log(`Retrying processing for file: ${file.originalName} (status: ${file.processingStatus})`);
+      
+      // Process file asynchronously
+      processFileAsync(fileId, userId).catch(err => {
+        console.error(`Failed to retry processing for ${fileId}:`, err);
+      });
+      
+      res.json({ 
+        message: "Processing retry initiated", 
+        fileId, 
+        filename: file.originalName 
+      });
+    } catch (error) {
+      console.error("Error retrying file processing:", error);
+      res.status(500).json({ error: "Failed to retry processing" });
+    }
+  });
+
+  // Mark stuck files as failed
+  app.post("/api/files/:id/mark-failed", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const fileId = req.params.id;
+      const { reason = "Manual failure - stuck in processing" } = req.body;
+      
+      const file = await storage.getFile(fileId, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Only mark as failed if file is in processing status
+      if (file.processingStatus !== 'processing') {
+        return res.status(400).json({ 
+          error: "File is not in processing status", 
+          currentStatus: file.processingStatus 
+        });
+      }
+      
+      console.log(`Marking file as failed: ${file.originalName} - Reason: ${reason}`);
+      
+      // Update status to error
+      await storage.updateFileProcessingStatus(fileId, userId, "error", reason);
+      
+      res.json({ 
+        message: "File marked as failed", 
+        fileId, 
+        filename: file.originalName,
+        reason 
+      });
+    } catch (error) {
+      console.error("Error marking file as failed:", error);
+      res.status(500).json({ error: "Failed to mark file as failed" });
     }
   });
 

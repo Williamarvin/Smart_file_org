@@ -65,6 +65,8 @@ interface FileGridProps {
   isLoading: boolean;
   onDeleteFile: (fileId: string) => void;
   onMoveFile?: (fileId: string) => void;
+  onRetryProcessing?: (fileId: string) => void;
+  onMarkFailed?: (fileId: string) => void;
   isSearchResults?: boolean;
   searchQuery?: string;
   isSelectionMode?: boolean;
@@ -118,11 +120,21 @@ const formatDate = (dateString: string) => {
 
 // Removed similarity scoring system as requested
 
+// Check if file has been stuck in processing for too long
+const isStuckProcessing = (uploadedAt: string) => {
+  const uploadTime = new Date(uploadedAt).getTime();
+  const now = new Date().getTime();
+  const hoursSinceUpload = (now - uploadTime) / (1000 * 60 * 60);
+  return hoursSinceUpload > 2; // Consider stuck after 2 hours
+};
+
 export default function FileGrid({ 
   files, 
   isLoading, 
   onDeleteFile, 
   onMoveFile,
+  onRetryProcessing,
+  onMarkFailed,
   isSearchResults = false, 
   searchQuery,
   isSelectionMode = false,
@@ -263,11 +275,52 @@ export default function FileGrid({
                         {/* Processing Status */}
                         {file.processingStatus === 'processing' && (
                           <div className="mt-2">
-                            <div className="flex items-center text-sm text-amber-700 mb-2">
-                              <Bot className="mr-2 h-4 w-4" />
-                              <span>AI is extracting metadata and generating keywords...</span>
-                            </div>
-                            <Progress value={60} className="h-2" />
+                            {isStuckProcessing(file.uploadedAt) ? (
+                              <>
+                                <div className="flex items-center text-sm text-orange-700 mb-2">
+                                  <AlertTriangle className="mr-2 h-4 w-4" />
+                                  <span>Processing seems stuck (uploaded {formatDate(file.uploadedAt)})</span>
+                                </div>
+                                <div className="mt-3 flex space-x-2">
+                                  {onRetryProcessing && (
+                                    <Button 
+                                      variant="link" 
+                                      size="sm" 
+                                      className="text-blue-600 hover:text-blue-800 p-0"
+                                      onClick={() => onRetryProcessing(file.id)}
+                                    >
+                                      Retry Processing
+                                    </Button>
+                                  )}
+                                  {onMarkFailed && (
+                                    <Button 
+                                      variant="link" 
+                                      size="sm" 
+                                      className="text-orange-600 hover:text-orange-800 p-0"
+                                      onClick={() => onMarkFailed(file.id)}
+                                    >
+                                      Mark as Failed
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="link" 
+                                    size="sm" 
+                                    className="text-red-600 hover:text-red-800 p-0"
+                                    onClick={() => onDeleteFile(file.id)}
+                                  >
+                                    Delete File
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center text-sm text-amber-700 mb-2">
+                                  <Bot className="mr-2 h-4 w-4" />
+                                  <span>AI is extracting metadata and generating keywords...</span>
+                                </div>
+                                <Progress value={60} className="h-2" />
+                              </>
+                            )}
                           </div>
                         )}
 
@@ -279,9 +332,16 @@ export default function FileGrid({
                               <span>Failed to process: {file.processingError || 'Unknown error'}</span>
                             </div>
                             <div className="mt-3 flex space-x-2">
-                              <Button variant="link" size="sm" className="text-blue-600 hover:text-blue-800 p-0">
-                                Retry Processing
-                              </Button>
+                              {onRetryProcessing && (
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-blue-600 hover:text-blue-800 p-0"
+                                  onClick={() => onRetryProcessing(file.id)}
+                                >
+                                  Retry Processing
+                                </Button>
+                              )}
                               <Button 
                                 variant="link" 
                                 size="sm" 
