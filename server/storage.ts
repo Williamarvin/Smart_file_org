@@ -450,7 +450,8 @@ export class DatabaseStorage implements IStorage {
   async searchFilesBySimilarity(embedding: number[], userId: string = "demo-user", limit = 20): Promise<FileWithMetadata[]> {
     console.log(`Storage: pgvector semantic search for user ${userId}`);
     
-    // Use pgvector for optimized similarity search
+    // Use pgvector for optimized similarity search with proper parameterized queries
+    const embeddingVector = JSON.stringify(embedding);
     const result = await db.execute(
       sql`
         SELECT 
@@ -458,13 +459,13 @@ export class DatabaseStorage implements IStorage {
           f.folder_id, f.uploaded_at, f.processed_at, f.storage_type, f.processing_status,
           f.processing_error, f.user_id,
           fm.*,
-          (fm.embedding_vector <=> ${JSON.stringify(embedding)}::vector) AS distance
+          (fm.embedding_vector <=> ${embeddingVector}::vector) AS distance
         FROM files f
         INNER JOIN file_metadata fm ON f.id = fm.file_id
         WHERE f.user_id = ${userId}
           AND f.processing_status = 'completed'
           AND fm.embedding_vector IS NOT NULL
-        ORDER BY fm.embedding_vector <=> ${JSON.stringify(embedding)}::vector
+        ORDER BY fm.embedding_vector <=> ${embeddingVector}::vector
         LIMIT ${limit}
       `
     );
