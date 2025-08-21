@@ -100,6 +100,22 @@ curl -X PUT https://smart-file-organiser.replit.app/api/files/FILE_ID/move \
   -d '{"folderId": "FOLDER_ID"}'
 ```
 
+#### Retry File Processing
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/files/FILE_ID/retry-processing
+```
+
+Use this endpoint to retry processing for files that failed or got stuck during processing.
+
+#### Mark File as Failed
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/files/FILE_ID/mark-failed \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Processing timeout - file too large"}'
+```
+
+Manually mark a file as failed when processing cannot be completed.
+
 #### Get Files by Category
 ```bash
 curl https://smart-file-organiser.replit.app/api/files/category/Education?limit=20

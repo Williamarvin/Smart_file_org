@@ -280,6 +280,82 @@ paths:
           description: File moved successfully
         '500':
           $ref: '#/components/responses/ServerError'
+  /files/{fileId}/retry-processing:
+    post:
+      tags:
+        - File Management
+      summary: Retry file processing
+      description: Retries processing for files that failed or got stuck during processing
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: File ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Processing retry initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  fileId:
+                    type: string
+                  filename:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /files/{fileId}/mark-failed:
+    post:
+      tags:
+        - File Management
+      summary: Mark file as failed
+      description: Manually mark a file as failed when processing cannot be completed
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: File ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for marking the file as failed
+              required:
+                - reason
+      responses:
+        '200':
+          description: File marked as failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  fileId:
+                    type: string
+                  filename:
+                    type: string
+                  reason:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /files/category/{category}:
     get:
       tags:

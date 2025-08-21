@@ -2,7 +2,7 @@
 
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
-## Recent Updates (August 20, 2025)
+## Recent Updates (August 21, 2025)
 - **✅ AI Pre-filled Sections**: Teacher prompt sections now auto-populate with LLM-generated content based on selected files/folders
 - **✅ Structured Course Editor**: Teacher prompt divided into 5 editable sections (Introduction, Warm-up, Main Content, Practice, Wrap-up/Homework)
 - **✅ Enhanced Section Configuration**: Each section has customizable content, action type, duration, difficulty level, and teaching style
@@ -15,6 +15,9 @@ This is a full-stack file management and search application designed for uploadi
 - **✅ Text-to-Speech Integration**: Teacher responses can be read aloud using OpenAI TTS with multiple voice options
 - **✅ Enhanced Chat Interface**: "Chat with Teacher" with larger chat area (h-96) and speak buttons for teacher messages
 - **✅ Master Teacher Agent**: Consolidated lesson generation into single comprehensive prompt with 5-section course structure
+- **✅ File Processing Management**: Detect stuck files (>2 hours), retry failed processing, mark files as failed with reasons
+- **✅ API Endpoints Added**: `/api/files/:id/retry-processing` and `/api/files/:id/mark-failed` for better file control
+- **✅ Enhanced UI Controls**: Action buttons in FileGrid for stuck/failed files (retry, mark failed, delete)
 - **✅ COMPLETED: Production-Ready Testing Infrastructure**: Complete Jest/TypeScript integration with all core tests passing (20/25 tests)
 - **✅ TypeScript Strict Mode**: All complex Jest mock typing issues resolved, nanoid ES module imports fixed
 - **✅ API Test Suite**: 13 comprehensive endpoint tests fully functional with Express server integration

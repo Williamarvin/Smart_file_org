@@ -12,6 +12,7 @@ An advanced AI-powered document management and lesson generation platform with s
 - **📚 Lesson Generation**: Multi-agent system creating PowerPoints, flashcards, and quizzes
 - **⚡ Hybrid Storage**: Optimized performance with PostgreSQL BYTEA (≤10MB) + Google Cloud Storage
 - **🎥 Media Processing**: Automatic text extraction from PDFs, documents, and video transcription
+- **🔧 Processing Management**: Detect and manage stuck files, retry failed processing, manual error handling
 
 ### Technical Highlights
 - **Vector Search**: PostgreSQL pgvector with HNSW indexing for fast similarity search
@@ -108,6 +109,8 @@ The application will be available at `http://localhost:5000`
 - `POST /api/chat` - Chat with documents
 - `POST /api/avatar-chat` - Avatar interactions
 - `POST /api/generate-lesson-prompts` - Generate lesson content
+- `POST /api/files/:id/retry-processing` - Retry failed file processing
+- `POST /api/files/:id/mark-failed` - Mark file as failed
 - `GET /api/stats` - Usage statistics
 
 ### Example Usage
