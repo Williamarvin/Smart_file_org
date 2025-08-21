@@ -49,6 +49,7 @@ interface TeacherSection {
   duration: number; // in minutes
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   teachingStyle: 'visual' | 'storytelling' | 'hands-on' | 'discussion' | 'analytical';
+  expertiseSubject: 'mathematics' | 'science' | 'language-arts' | 'social-studies' | 'computer-science' | 'arts' | 'physical-education' | 'general';
 }
 
 export default function GenerateLessons() {
@@ -76,11 +77,11 @@ export default function GenerateLessons() {
   
   // Teacher sections for structured prompt
   const [teacherSections, setTeacherSections] = useState<TeacherSection[]>([
-    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5, difficulty: 'beginner', teachingStyle: 'visual' },
-    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10, difficulty: 'beginner', teachingStyle: 'hands-on' },
-    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20, difficulty: 'intermediate', teachingStyle: 'analytical' },
-    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15, difficulty: 'intermediate', teachingStyle: 'hands-on' },
-    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10, difficulty: 'intermediate', teachingStyle: 'discussion' }
+    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5, difficulty: 'beginner', teachingStyle: 'visual', expertiseSubject: 'general' },
+    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10, difficulty: 'beginner', teachingStyle: 'hands-on', expertiseSubject: 'general' },
+    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20, difficulty: 'intermediate', teachingStyle: 'analytical', expertiseSubject: 'general' },
+    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15, difficulty: 'intermediate', teachingStyle: 'hands-on', expertiseSubject: 'general' },
+    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10, difficulty: 'intermediate', teachingStyle: 'discussion', expertiseSubject: 'general' }
   ]);
   
   const queryClient = useQueryClient();
@@ -340,7 +341,7 @@ export default function GenerateLessons() {
     teacherSections.forEach(section => {
       totalTime += section.duration;
       consolidatedPrompt += `## ${section.title}\n`;
-      consolidatedPrompt += `**Duration:** ${section.duration} minutes | **Format:** ${section.actionType.toUpperCase()} | **Difficulty:** ${section.difficulty} | **Teaching Style:** ${section.teachingStyle}\n\n`;
+      consolidatedPrompt += `**Duration:** ${section.duration} minutes | **Format:** ${section.actionType.toUpperCase()} | **Difficulty:** ${section.difficulty} | **Teaching Style:** ${section.teachingStyle} | **Expertise:** ${section.expertiseSubject}\n\n`;
       consolidatedPrompt += `${section.content || '[Content to be added]'}\n\n`;
     });
     
@@ -885,6 +886,33 @@ export default function GenerateLessons() {
                                 </SelectContent>
                               </Select>
                             </div>
+                          </div>
+                          
+                          {/* Expertise Subject */}
+                          <div className="space-y-2">
+                            <Label htmlFor={`expertise-${section.id}`}>Teacher Expertise Subject</Label>
+                            <Select
+                              value={section.expertiseSubject}
+                              onValueChange={(value) => {
+                                const newSections = [...teacherSections];
+                                newSections[index].expertiseSubject = value as any;
+                                setTeacherSections(newSections);
+                              }}
+                            >
+                              <SelectTrigger id={`expertise-${section.id}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="mathematics">Mathematics</SelectItem>
+                                <SelectItem value="science">Science (Physics, Chemistry, Biology)</SelectItem>
+                                <SelectItem value="language-arts">Language Arts (English, Literature)</SelectItem>
+                                <SelectItem value="social-studies">Social Studies (History, Geography)</SelectItem>
+                                <SelectItem value="computer-science">Computer Science & Technology</SelectItem>
+                                <SelectItem value="arts">Arts (Music, Visual Arts, Drama)</SelectItem>
+                                <SelectItem value="physical-education">Physical Education & Health</SelectItem>
+                                <SelectItem value="general">General Education</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
                       ))}
