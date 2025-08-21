@@ -842,7 +842,7 @@ export class DatabaseStorage implements IStorage {
     if (fileIds.length > 0) {
       await db
         .delete(fileMetadata)
-        .where(sql`${fileMetadata.fileId} IN (${sql.join(fileIds.map(id => sql.raw(`'${id}'`)), sql`, `)})`);
+        .where(inArray(fileMetadata.fileId, fileIds));
     }
     
     // Delete all files in this folder from database
