@@ -1230,13 +1230,13 @@ Please provide content for each section in the following format:
       let folderContent = "";
       
       if (fileIds.length > 0 || folderIds.length > 0) {
-        const user = await req.storage.getUserByUsername("demo-user");
+        const userId = "demo-user"; // Use hardcoded user ID like other routes
         
         // Get files content
         if (fileIds.length > 0) {
-          const selectedFiles = await req.storage.getFilesByIds(fileIds, user.id);
+          const selectedFiles = await storage.getFilesByIds(fileIds, userId);
           for (const file of selectedFiles) {
-            const metadata = await req.storage.getFileMetadata(file.id);
+            const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
               fileContent += `\n\nFile: ${file.originalName}\nContent:\n${metadata.extractedText.substring(0, 2000)}\n`;
             }
@@ -1246,9 +1246,9 @@ Please provide content for each section in the following format:
         // Get folder files content  
         if (folderIds.length > 0) {
           for (const folderId of folderIds) {
-            const folderFiles = await req.storage.getFilesByFolder(folderId, user.id);
+            const folderFiles = await storage.getFilesByFolder(folderId, userId);
             for (const file of folderFiles) {
-              const metadata = await req.storage.getFileMetadata(file.id);
+              const metadata = await storage.getFileMetadata(file.id, userId);
               if (metadata?.extractedText) {
                 folderContent += `\n\nFile in folder: ${file.originalName}\nContent:\n${metadata.extractedText.substring(0, 2000)}\n`;
               }
@@ -1357,7 +1357,7 @@ Remember:
   // Save teacher chat session
   app.post("/api/teacher-chat-sessions", async (req: any, res) => {
     try {
-      const user = await req.storage.getUserByUsername("demo-user");
+      const userId = "demo-user"; // Use hardcoded user ID like other routes
       const { 
         title, 
         courseTitle, 
@@ -1369,10 +1369,7 @@ Remember:
         selectedFolders 
       } = req.body;
       
-      // Generate unique share ID
-      const shareId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      
-      const session = await req.storage.saveTeacherChatSession({
+      const session = await storage.saveTeacherChatSession({
         title,
         courseTitle,
         targetAudience,
@@ -1381,9 +1378,8 @@ Remember:
         chatHistory,
         selectedFiles,
         selectedFolders,
-        shareId,
         isPublic: 0,
-        userId: user.id
+        userId
       });
       
       res.json(session);
@@ -1396,8 +1392,8 @@ Remember:
   // Get user's teacher chat sessions
   app.get("/api/teacher-chat-sessions", async (req: any, res) => {
     try {
-      const user = await req.storage.getUserByUsername("demo-user");
-      const sessions = await req.storage.getUserTeacherChatSessions(user.id);
+      const userId = "demo-user"; // Use hardcoded user ID like other routes
+      const sessions = await storage.getUserTeacherChatSessions(userId);
       res.json(sessions);
     } catch (error) {
       console.error("Error getting chat sessions:", error);
@@ -1409,7 +1405,7 @@ Remember:
   app.get("/api/teacher-chat-sessions/share/:shareId", async (req: any, res) => {
     try {
       const { shareId } = req.params;
-      const session = await req.storage.getTeacherChatSessionByShareId(shareId);
+      const session = await storage.getTeacherChatSessionByShareId(shareId);
       
       if (!session || session.isPublic !== 1) {
         return res.status(404).json({ error: "Session not found or not public" });
@@ -1425,13 +1421,13 @@ Remember:
   // Update session sharing status
   app.patch("/api/teacher-chat-sessions/:sessionId/share", async (req: any, res) => {
     try {
-      const user = await req.storage.getUserByUsername("demo-user");
+      const userId = "demo-user"; // Use hardcoded user ID like other routes
       const { sessionId } = req.params;
       const { isPublic } = req.body;
       
-      const session = await req.storage.updateTeacherChatSessionSharing(
+      const session = await storage.updateTeacherChatSessionSharing(
         sessionId, 
-        user.id, 
+        userId, 
         isPublic ? 1 : 0
       );
       
@@ -1445,10 +1441,10 @@ Remember:
   // Delete teacher chat session
   app.delete("/api/teacher-chat-sessions/:sessionId", async (req: any, res) => {
     try {
-      const user = await req.storage.getUserByUsername("demo-user");
+      const userId = "demo-user"; // Use hardcoded user ID like other routes
       const { sessionId } = req.params;
       
-      await req.storage.deleteTeacherChatSession(sessionId, user.id);
+      await storage.deleteTeacherChatSession(sessionId, userId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting session:", error);
