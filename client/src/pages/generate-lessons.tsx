@@ -76,6 +76,11 @@ export default function GenerateLessons() {
   const [sessionTitle, setSessionTitle] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   
+  // Validation Reports states
+  const [validationReports, setValidationReports] = useState<any[]>([]);
+  const [showValidationReports, setShowValidationReports] = useState(false);
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
+  
   // Teacher sections for structured prompt
   const [teacherSections, setTeacherSections] = useState<TeacherSection[]>([
     { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5, difficulty: 'beginner', teachingStyle: 'visual' },
@@ -1240,6 +1245,158 @@ export default function GenerateLessons() {
                       </CardContent>
                     </Card>
                   )}
+                  
+                  {/* Validation Reports Section */}
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle>Validation Reports</CardTitle>
+                      <CardDescription>Compare teacher chat sessions with original lesson parameters</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={async () => {
+                            // Load validation reports
+                            try {
+                              const response = await apiRequest("GET", "/api/validation-reports");
+                              const reports = await response.json();
+                              setValidationReports(reports);
+                              setShowValidationReports(true);
+                            } catch (error) {
+                              console.error("Error loading validation reports:", error);
+                            }
+                          }}
+                          variant="outline"
+                        >
+                          <History className="h-4 w-4 mr-2" />
+                          View Reports
+                        </Button>
+                        
+                        <Button
+                          onClick={async () => {
+                            if (chatMessages.length === 0) {
+                              alert("No chat messages to validate");
+                              return;
+                            }
+                            
+                            setIsCreatingReport(true);
+                            try {
+                              // Create validation report
+                              const response = await apiRequest("POST", "/api/validation-reports/validate", {
+                                reportTitle: `Validation - ${courseTitle || "Lesson"} - ${new Date().toLocaleDateString()}`,
+                                originalParameters: {
+                                  courseTitle,
+                                  targetAudience,
+                                  teachingStyle: globalTeachingStyle,
+                                  expertiseSubject: teacherExpertiseSubject,
+                                  actionTypes: teacherSections.map(s => s.actionType),
+                                  durations: teacherSections.map(s => s.duration),
+                                  difficultyLevels: teacherSections.map(s => s.difficulty)
+                                },
+                                chatHistory: chatMessages
+                              });
+                              
+                              const report = await response.json();
+                              alert(`Validation report created! Compliance Score: ${report.complianceScore.toFixed(1)}%`);
+                              
+                              // Reload reports
+                              const reportsResponse = await apiRequest("GET", "/api/validation-reports");
+                              const reports = await reportsResponse.json();
+                              setValidationReports(reports);
+                              setShowValidationReports(true);
+                            } catch (error) {
+                              console.error("Error creating validation report:", error);
+                              alert("Failed to create validation report");
+                            } finally {
+                              setIsCreatingReport(false);
+                            }
+                          }}
+                          disabled={isCreatingReport || chatMessages.length === 0}
+                        >
+                          {isCreatingReport ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <FileText className="h-4 w-4 mr-2" />
+                          )}
+                          Create Validation Report
+                        </Button>
+                      </div>
+                      
+                      {showValidationReports && (
+                        <div className="space-y-2">
+                          {validationReports.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No validation reports yet</p>
+                          ) : (
+                            validationReports.map((report: any) => (
+                              <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex-1">
+                                  <h4 className="font-medium">{report.reportTitle}</h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(report.createdAt).toLocaleDateString()} - 
+                                    Compliance: <span className={
+                                      report.complianceScore > 80 ? "text-green-600" :
+                                      report.complianceScore > 60 ? "text-yellow-600" :
+                                      "text-red-600"
+                                    }>
+                                      {report.complianceScore.toFixed(1)}%
+                                    </span>
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      // Download PDF
+                                      try {
+                                        const response = await fetch(`/api/validation-reports/${report.id}/pdf`);
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `validation-report-${report.id}.pdf`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                        window.URL.revokeObjectURL(url);
+                                      } catch (error) {
+                                        console.error("Error downloading PDF:", error);
+                                        alert("Failed to download PDF report");
+                                      }
+                                    }}
+                                  >
+                                    Download PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      // View details
+                                      try {
+                                        const response = await apiRequest("GET", `/api/validation-reports/${report.id}`);
+                                        const details = await response.json();
+                                        
+                                        let deviationsText = "Deviations:\n";
+                                        details.deviations.forEach((d: any) => {
+                                          deviationsText += `- ${d.parameter}: ${d.severity} (Impact: ${d.impact})\n`;
+                                        });
+                                        
+                                        alert(`${details.reportTitle}\n\nCompliance Score: ${details.complianceScore.toFixed(1)}%\n\n${deviationsText}`);
+                                      } catch (error) {
+                                        console.error("Error loading report details:", error);
+                                      }
+                                    }}
+                                  >
+                                    View Details
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </>
               )}
             </div>

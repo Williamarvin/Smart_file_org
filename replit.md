@@ -3,6 +3,13 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 21, 2025)
+- **✅ Validation Report System**: Complete validation system to compare teacher chat session parameters with original request parameters
+  - PDF report generation using pdfkit library for downloadable validation reports
+  - Comprehensive validation logic that analyzes deviations in teaching style, difficulty levels, action types, and durations
+  - Database table for storing validation results with compliance scores (0-100%)
+  - REST API endpoints for creating, retrieving, and downloading validation reports
+  - Frontend UI integration in generate-lessons page with report creation, viewing, and PDF download capabilities
+  - Automatic parameter extraction from chat sessions to detect actual vs expected behavior
 - **✅ Teacher Agent Global Configuration**: Added teaching style and expertise subject to main teacher configuration
 - **✅ Teaching Style Selection**: Global teaching approach (Visual, Storytelling, Hands-on, Discussion, Analytical) for entire course
 - **✅ Teacher Expertise Subject**: Specialized subject area selection (Mathematics, Science, Language Arts, Social Studies, Computer Science, Arts, Physical Education, General)

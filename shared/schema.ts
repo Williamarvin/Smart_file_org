@@ -135,6 +135,21 @@ export const teacherChatSessions = pgTable("teacher_chat_sessions", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 });
 
+// Validation Reports table for comparing chat sessions with original parameters
+export const validationReports = pgTable("validation_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => teacherChatSessions.id, { onDelete: "set null" }),
+  originalParameters: jsonb("original_parameters").notNull(), // Original request params
+  actualParameters: jsonb("actual_parameters").notNull(), // Parameters from chat session
+  deviations: jsonb("deviations").notNull(), // List of deviations found
+  complianceScore: real("compliance_score").notNull(), // 0-100 compliance percentage
+  reportPdfPath: text("report_pdf_path"), // Path to generated PDF
+  reportTitle: text("report_title").notNull(),
+  reportData: jsonb("report_data").notNull(), // Full report data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+});
+
 export const insertFileSchema = createInsertSchema(files).omit({
   id: true,
   uploadedAt: true,
@@ -164,6 +179,11 @@ export const insertTeacherChatSessionSchema = createInsertSchema(teacherChatSess
   shareId: true,
 });
 
+export const insertValidationReportSchema = createInsertSchema(validationReports).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Relations
 import { relations } from "drizzle-orm";
 
@@ -172,6 +192,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   folders: many(folders),
   searchHistory: many(searchHistory),
   teacherChatSessions: many(teacherChatSessions),
+  validationReports: many(validationReports),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -195,8 +216,14 @@ export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   user: one(users, { fields: [searchHistory.userId], references: [users.id] }),
 }));
 
-export const teacherChatSessionsRelations = relations(teacherChatSessions, ({ one }) => ({
+export const teacherChatSessionsRelations = relations(teacherChatSessions, ({ one, many }) => ({
   user: one(users, { fields: [teacherChatSessions.userId], references: [users.id] }),
+  validationReports: many(validationReports),
+}));
+
+export const validationReportsRelations = relations(validationReports, ({ one }) => ({
+  user: one(users, { fields: [validationReports.userId], references: [users.id] }),
+  session: one(teacherChatSessions, { fields: [validationReports.sessionId], references: [teacherChatSessions.id] }),
 }));
 
 export type UpsertUser = typeof users.$inferInsert;
@@ -212,6 +239,8 @@ export type InsertFolder = z.infer<typeof insertFolderSchema>;
 export type Folder = typeof folders.$inferSelect;
 export type InsertTeacherChatSession = z.infer<typeof insertTeacherChatSessionSchema>;
 export type TeacherChatSession = typeof teacherChatSessions.$inferSelect;
+export type InsertValidationReport = z.infer<typeof insertValidationReportSchema>;
+export type ValidationReport = typeof validationReports.$inferSelect;
 
 export type FileWithMetadata = File & {
   metadata?: FileMetadata;

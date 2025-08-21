@@ -323,6 +323,89 @@ curl -X POST https://smart-file-organiser.replit.app/api/chat-teacher-agent \
   }'
 ```
 
+### Validation Reports
+
+#### Create Validation Report
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/validation-reports/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reportTitle": "Mathematics Course Validation",
+    "sessionId": "optional-session-id",
+    "originalParameters": {
+      "courseTitle": "Introduction to Algebra",
+      "targetAudience": "High school students",
+      "teachingStyle": "visual",
+      "expertiseSubject": "mathematics",
+      "actionTypes": ["lecture", "discussion", "activity"],
+      "durations": [15, 20, 25],
+      "difficultyLevels": ["beginner", "intermediate"]
+    },
+    "chatHistory": [
+      {"role": "user", "content": "Can you explain algebra?"},
+      {"role": "assistant", "content": "Let me provide a visual explanation..."}
+    ]
+  }'
+```
+
+Response:
+```json
+{
+  "id": "33c4f29e-9556-4677-b3dd-30cbdcbc50b0",
+  "reportTitle": "Mathematics Course Validation",
+  "complianceScore": 75.5,
+  "deviations": [
+    {
+      "parameter": "teaching_style",
+      "expected": "visual",
+      "actual": "analytical",
+      "severity": "medium",
+      "impact": "Style mismatch"
+    }
+  ]
+}
+```
+
+#### Get All Validation Reports
+```bash
+curl https://smart-file-organiser.replit.app/api/validation-reports
+```
+
+Response:
+```json
+[
+  {
+    "id": "33c4f29e-9556-4677-b3dd-30cbdcbc50b0",
+    "reportTitle": "Mathematics Course Validation",
+    "complianceScore": 75.5,
+    "createdAt": "2025-08-21T08:00:00Z"
+  }
+]
+```
+
+#### Get Single Validation Report
+```bash
+curl https://smart-file-organiser.replit.app/api/validation-reports/REPORT_ID
+```
+
+#### Download Validation Report as PDF
+```bash
+curl https://smart-file-organiser.replit.app/api/validation-reports/REPORT_ID/pdf \
+  -o validation-report.pdf
+```
+
+#### Delete Validation Report
+```bash
+curl -X DELETE https://smart-file-organiser.replit.app/api/validation-reports/REPORT_ID
+```
+
+#### Test Validation (Development Only)
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/validation-reports/test
+```
+
+Response includes sample validation with test data for development testing.
+
 ### Analytics
 
 #### Get File Statistics

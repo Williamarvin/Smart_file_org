@@ -1577,6 +1577,198 @@ Remember:
     }
   });
 
+  // Validation Reports API endpoints
+  
+  // Create validation report from chat session
+  app.post("/api/validation-reports/validate", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { PDFGenerator } = await import("./pdfGenerator");
+      const { ValidationService } = await import("./validationService");
+      
+      const {
+        sessionId,
+        originalParameters,
+        chatHistory,
+        reportTitle
+      } = req.body;
+      
+      if (!originalParameters || !chatHistory) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+      
+      // Extract parameters from chat session
+      const actualParameters = ValidationService.extractParametersFromChatSession(chatHistory);
+      
+      // If sessionId provided, also get session data
+      if (sessionId) {
+        const sessions = await storage.getUserTeacherChatSessions(userId);
+        const session = sessions.find(s => s.id === sessionId);
+        if (session) {
+          // Override with session data if available
+          if (session.courseTitle) actualParameters.courseTitle = session.courseTitle;
+          if (session.targetAudience) actualParameters.targetAudience = session.targetAudience;
+          if (session.teachingStyle) actualParameters.teachingStyle = session.teachingStyle;
+          if (session.expertiseSubject) actualParameters.expertiseSubject = session.expertiseSubject;
+        }
+      }
+      
+      // Compare parameters
+      const { deviations, complianceScore } = ValidationService.compareParameters(
+        originalParameters,
+        actualParameters
+      );
+      
+      // Create validation report
+      const report = await storage.createValidationReport({
+        userId,
+        sessionId: sessionId || null,
+        originalParameters,
+        actualParameters,
+        deviations,
+        complianceScore,
+        reportTitle: reportTitle || `Validation Report - ${new Date().toLocaleDateString()}`,
+        reportData: {
+          reportTitle: reportTitle || `Validation Report - ${new Date().toLocaleDateString()}`,
+          sessionId,
+          originalParameters,
+          actualParameters,
+          deviations,
+          complianceScore,
+          createdAt: new Date()
+        },
+        reportPdfPath: null // Will be generated on demand
+      });
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error creating validation report:", error);
+      res.status(500).json({ 
+        error: "Failed to create validation report",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Get all validation reports for user
+  app.get("/api/validation-reports", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const reports = await storage.getValidationReports(userId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error getting validation reports:", error);
+      res.status(500).json({ error: "Failed to get validation reports" });
+    }
+  });
+  
+  // Get single validation report
+  app.get("/api/validation-reports/:reportId", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { reportId } = req.params;
+      
+      const report = await storage.getValidationReport(reportId, userId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error getting validation report:", error);
+      res.status(500).json({ error: "Failed to get validation report" });
+    }
+  });
+  
+  // Download validation report as PDF
+  app.get("/api/validation-reports/:reportId/pdf", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { reportId } = req.params;
+      
+      const report = await storage.getValidationReport(reportId, userId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      const { PDFGenerator } = await import("./pdfGenerator");
+      
+      // Generate PDF from report data
+      const pdfBuffer = await PDFGenerator.generateValidationReport(report.reportData as any);
+      
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="validation-report-${reportId}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString()
+      });
+      
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF report:", error);
+      res.status(500).json({ error: "Failed to generate PDF report" });
+    }
+  });
+  
+  // Delete validation report
+  app.delete("/api/validation-reports/:reportId", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { reportId } = req.params;
+      
+      await storage.deleteValidationReport(reportId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting validation report:", error);
+      res.status(500).json({ error: "Failed to delete validation report" });
+    }
+  });
+  
+  // Test endpoint to validate a sample session
+  app.post("/api/validation-reports/test", async (req: any, res) => {
+    try {
+      const { ValidationService } = await import("./validationService");
+      
+      // Sample original parameters
+      const originalParameters = {
+        courseTitle: "Introduction to Algebra",
+        targetAudience: "High school students",
+        teachingStyle: "visual",
+        expertiseSubject: "mathematics",
+        actionTypes: ["lecture", "discussion", "activity"],
+        durations: [15, 20, 25],
+        difficultyLevels: ["beginner", "intermediate"]
+      };
+      
+      // Sample chat history (simulating actual usage)
+      const chatHistory = [
+        { role: "user", content: "Can you explain this concept?" },
+        { role: "assistant", content: "Let me provide a visual explanation of algebra concepts. For beginners, we'll start with basic equations. This will involve some hands-on activities and discussion." },
+        { role: "user", content: "Can we make it more advanced?" },
+        { role: "assistant", content: "Sure! Let's move to intermediate level concepts. We'll include more analytical problems and advanced exercises." }
+      ];
+      
+      // Extract and compare
+      const actualParameters = ValidationService.extractParametersFromChatSession(chatHistory);
+      const { deviations, complianceScore } = ValidationService.compareParameters(
+        originalParameters,
+        actualParameters
+      );
+      
+      res.json({
+        originalParameters,
+        actualParameters,
+        deviations,
+        complianceScore,
+        message: "Test validation completed successfully"
+      });
+    } catch (error) {
+      console.error("Error in test validation:", error);
+      res.status(500).json({ error: "Test validation failed" });
+    }
+  });
+
   // Execute individual lesson prompt against database
   app.post("/api/execute-lesson-prompt", async (req: any, res) => {
     try {

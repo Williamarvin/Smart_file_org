@@ -5,6 +5,7 @@ import {
   searchHistory,
   folders,
   teacherChatSessions,
+  validationReports,
   type User,
   type UpsertUser,
   type File, 
@@ -24,7 +25,7 @@ import { cache } from "./cache";
 
 // Storage interface for cloud-only file management
 
-import type { InsertTeacherChatSession, TeacherChatSession } from "@shared/schema";
+import type { InsertTeacherChatSession, TeacherChatSession, InsertValidationReport, ValidationReport } from "@shared/schema";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -86,6 +87,12 @@ export interface IStorage {
   getTeacherChatSessionByShareId(shareId: string): Promise<TeacherChatSession | null>;
   updateTeacherChatSessionSharing(sessionId: string, userId: string, isPublic: number): Promise<TeacherChatSession>;
   deleteTeacherChatSession(sessionId: string, userId: string): Promise<void>;
+  
+  // Validation reports
+  createValidationReport(report: InsertValidationReport): Promise<ValidationReport>;
+  getValidationReports(userId: string): Promise<ValidationReport[]>;
+  getValidationReport(reportId: string, userId: string): Promise<ValidationReport | undefined>;
+  deleteValidationReport(reportId: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -980,6 +987,43 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(teacherChatSessions.id, sessionId),
         eq(teacherChatSessions.userId, userId)
+      ));
+  }
+  
+  // Validation report methods
+  async createValidationReport(report: InsertValidationReport): Promise<ValidationReport> {
+    const [created] = await db
+      .insert(validationReports)
+      .values(report)
+      .returning();
+    return created;
+  }
+  
+  async getValidationReports(userId: string): Promise<ValidationReport[]> {
+    return await db
+      .select()
+      .from(validationReports)
+      .where(eq(validationReports.userId, userId))
+      .orderBy(desc(validationReports.createdAt));
+  }
+  
+  async getValidationReport(reportId: string, userId: string): Promise<ValidationReport | undefined> {
+    const [report] = await db
+      .select()
+      .from(validationReports)
+      .where(and(
+        eq(validationReports.id, reportId),
+        eq(validationReports.userId, userId)
+      ));
+    return report;
+  }
+  
+  async deleteValidationReport(reportId: string, userId: string): Promise<void> {
+    await db
+      .delete(validationReports)
+      .where(and(
+        eq(validationReports.id, reportId),
+        eq(validationReports.userId, userId)
       ));
   }
 }
