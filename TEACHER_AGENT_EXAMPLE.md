@@ -17,7 +17,7 @@ This guide demonstrates the complete process of using the Master Teacher Agent s
 
 ### List all files
 ```bash
-curl -X GET http://localhost:5000/api/files \
+curl -X GET https://smart-file-organiser.replit.app/api/files \
   -H "Accept: application/json"
 ```
 
@@ -43,7 +43,7 @@ Response example:
 
 ### List all folders
 ```bash
-curl -X GET http://localhost:5000/api/folders \
+curl -X GET https://smart-file-organiser.replit.app/api/folders \
   -H "Accept: application/json"
 ```
 
@@ -64,7 +64,7 @@ Response example:
 This is the main endpoint that generates the structured 5-section teacher prompt based on your configuration.
 
 ```bash
-curl -X POST http://localhost:5000/api/generate-teacher-prompt \
+curl -X POST https://smart-file-organiser.replit.app/api/generate-teacher-prompt \
   -H "Content-Type: application/json" \
   -d '{
     "fileIds": ["4d0f1605-e103-4eca-8ecf-6415ef4a6f8b", "5e1f2716-f214-5fdb-9fde-7526fg5b7c9c"],
@@ -87,7 +87,7 @@ Response - Generated Teacher Prompt with 5 Sections:
 After reviewing and potentially editing the sections, execute the consolidated prompt:
 
 ```bash
-curl -X POST http://localhost:5000/api/execute-teacher-prompt \
+curl -X POST https://smart-file-organiser.replit.app/api/execute-teacher-prompt \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "[THE COMPLETE CONSOLIDATED PROMPT FROM STEP 2]",
@@ -113,7 +113,7 @@ Response:
 Continue the conversation with context:
 
 ```bash
-curl -X POST http://localhost:5000/api/chat-teacher-agent \
+curl -X POST https://smart-file-organiser.replit.app/api/chat-teacher-agent \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Can you explain the distributive property again with more examples?",
@@ -146,7 +146,7 @@ Response:
 Save the entire session for later use:
 
 ```bash
-curl -X POST http://localhost:5000/api/teacher-chat-sessions \
+curl -X POST https://smart-file-organiser.replit.app/api/teacher-chat-sessions \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Algebra Basics - First Lesson",
@@ -182,7 +182,7 @@ Response:
 Compare the actual chat session with the original parameters:
 
 ```bash
-curl -X POST http://localhost:5000/api/validation-reports/validate \
+curl -X POST https://smart-file-organiser.replit.app/api/validation-reports/validate \
   -H "Content-Type: application/json" \
   -d '{
     "reportTitle": "Algebra Lesson Validation - Aug 21",
@@ -233,7 +233,7 @@ Response:
 ## Step 7: Download Validation Report as PDF
 
 ```bash
-curl -X GET http://localhost:5000/api/validation-reports/report-456-def/pdf \
+curl -X GET https://smart-file-organiser.replit.app/api/validation-reports/report-456-def/pdf \
   -o "algebra-validation-report.pdf"
 ```
 
@@ -298,12 +298,12 @@ You can test the entire workflow with this script:
 
 # 1. Get files
 echo "Getting available files..."
-FILES=$(curl -s http://localhost:5000/api/files)
+FILES=$(curl -s https://smart-file-organiser.replit.app/api/files)
 echo "Files retrieved"
 
 # 2. Generate teacher prompt
 echo "Generating teacher prompt..."
-PROMPT_RESPONSE=$(curl -s -X POST http://localhost:5000/api/generate-teacher-prompt \
+PROMPT_RESPONSE=$(curl -s -X POST https://smart-file-organiser.replit.app/api/generate-teacher-prompt \
   -H "Content-Type: application/json" \
   -d '{
     "fileIds": [],
@@ -316,7 +316,7 @@ echo "Prompt generated"
 
 # 3. Execute teacher
 echo "Executing teacher agent..."
-TEACHER_RESPONSE=$(curl -s -X POST http://localhost:5000/api/execute-teacher-prompt \
+TEACHER_RESPONSE=$(curl -s -X POST https://smart-file-organiser.replit.app/api/execute-teacher-prompt \
   -H "Content-Type: application/json" \
   -d "{
     \"prompt\": \"Test prompt\",
@@ -327,7 +327,7 @@ echo "Teacher executed"
 
 # 4. Create validation report
 echo "Creating validation report..."
-VALIDATION=$(curl -s -X POST http://localhost:5000/api/validation-reports/validate \
+VALIDATION=$(curl -s -X POST https://smart-file-organiser.replit.app/api/validation-reports/validate \
   -H "Content-Type: application/json" \
   -d '{
     "reportTitle": "Test Validation",
