@@ -1041,6 +1041,8 @@ export default function GenerateLessons() {
                                     title,
                                     courseTitle,
                                     targetAudience,
+                                    teachingStyle: globalTeachingStyle,
+                                    expertiseSubject: teacherExpertiseSubject,
                                     teacherPrompt,
                                     teacherContent,
                                     chatHistory: chatMessages,

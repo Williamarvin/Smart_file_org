@@ -251,6 +251,78 @@ curl -X POST https://smart-file-organiser.replit.app/api/execute-lesson-prompt \
   }'
 ```
 
+### Teacher Chat Sessions
+
+#### Save Teacher Chat Session
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/teacher-chat-sessions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Mathematics Course - Session 1",
+    "courseTitle": "Introduction to Algebra",
+    "targetAudience": "High school students",
+    "teachingStyle": "analytical",
+    "expertiseSubject": "mathematics",
+    "teacherPrompt": "Course prompt content",
+    "teacherContent": "Generated course content",
+    "chatHistory": [],
+    "selectedFiles": ["file-123"],
+    "selectedFolders": ["folder-456"]
+  }'
+```
+
+#### Get Teacher Chat Sessions
+```bash
+curl https://smart-file-organiser.replit.app/api/teacher-chat-sessions
+```
+
+#### Share Teacher Chat Session
+```bash
+curl -X PATCH https://smart-file-organiser.replit.app/api/teacher-chat-sessions/SESSION_ID/share \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isPublic": 1
+  }'
+```
+
+### Teacher Agent Endpoints
+
+#### Generate Teacher Prompt
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/generate-teacher-prompt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fileIds": ["file-123"],
+    "folderIds": ["folder-456"],
+    "courseTitle": "Introduction to Machine Learning",
+    "targetAudience": "College students",
+    "additionalContext": "Focus on practical applications"
+  }'
+```
+
+#### Execute Teacher Prompt
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/execute-teacher-prompt \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Complete teacher prompt content",
+    "selectedFiles": ["file-123"],
+    "selectedFolders": ["folder-456"]
+  }'
+```
+
+#### Chat with Teacher Agent
+```bash
+curl -X POST https://smart-file-organiser.replit.app/api/chat-teacher-agent \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Can you explain this concept in more detail?",
+    "courseTitle": "Introduction to Algebra",
+    "targetAudience": "High school students",
+    "conversationHistory": []
+  }'
+```
+
 ### Analytics
 
 #### Get File Statistics

@@ -910,6 +910,241 @@ paths:
                     description: Generated lesson content in the appropriate format
         '500':
           $ref: '#/components/responses/ServerError'
+  /teacher-chat-sessions:
+    get:
+      tags:
+        - Teacher Sessions
+      summary: Get teacher chat sessions
+      description: Retrieves all teacher chat sessions for the current user
+      responses:
+        '200':
+          description: Teacher chat sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeacherChatSession'
+    post:
+      tags:
+        - Teacher Sessions
+      summary: Save teacher chat session
+      description: Saves a new teacher chat session with configuration and chat history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - chatHistory
+              properties:
+                title:
+                  type: string
+                  description: Session title
+                courseTitle:
+                  type: string
+                  description: Course title
+                targetAudience:
+                  type: string
+                  description: Target audience for the course
+                teachingStyle:
+                  type: string
+                  enum:
+                    - visual
+                    - storytelling
+                    - hands-on
+                    - discussion
+                    - analytical
+                  description: Global teaching style for the course
+                expertiseSubject:
+                  type: string
+                  enum:
+                    - mathematics
+                    - science
+                    - language-arts
+                    - social-studies
+                    - computer-science
+                    - arts
+                    - physical-education
+                    - general
+                  description: Teacher's expertise subject area
+                teacherPrompt:
+                  type: string
+                  description: Original teacher prompt
+                teacherContent:
+                  type: string
+                  description: Generated teacher content
+                chatHistory:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+                selectedFiles:
+                  type: array
+                  items:
+                    type: string
+                selectedFolders:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Session saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeacherChatSession'
+  /teacher-chat-sessions/{sessionId}/share:
+    patch:
+      tags:
+        - Teacher Sessions
+      summary: Update teacher chat session sharing
+      description: Updates the sharing status of a teacher chat session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isPublic:
+                  type: integer
+                  enum:
+                    - 0
+                    - 1
+                  description: 0 = private, 1 = public
+      responses:
+        '200':
+          description: Sharing status updated successfully
+  /generate-teacher-prompt:
+    post:
+      tags:
+        - Teacher Agent
+      summary: Generate teacher prompt
+      description: Generates a consolidated teacher agent prompt based on selected files and folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileIds:
+                  type: array
+                  items:
+                    type: string
+                folderIds:
+                  type: array
+                  items:
+                    type: string
+                courseTitle:
+                  type: string
+                  description: Course title
+                targetAudience:
+                  type: string
+                  description: Target audience
+                additionalContext:
+                  type: string
+                  description: Additional context for generation
+      responses:
+        '200':
+          description: Teacher prompt generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  teacherPrompt:
+                    type: string
+  /execute-teacher-prompt:
+    post:
+      tags:
+        - Teacher Agent
+      summary: Execute teacher prompt
+      description: Executes a teacher prompt to generate course content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  description: Teacher prompt to execute
+                selectedFiles:
+                  type: array
+                  items:
+                    type: string
+                selectedFolders:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Teacher content generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+  /chat-teacher-agent:
+    post:
+      tags:
+        - Teacher Agent
+      summary: Chat with teacher agent
+      description: Chat with the teacher agent for course refinement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: User message
+                courseTitle:
+                  type: string
+                targetAudience:
+                  type: string
+                conversationHistory:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+      responses:
+        '200':
+          description: Teacher response generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
 components:
   schemas:
     User:
@@ -1030,6 +1265,73 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+    TeacherChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        courseTitle:
+          type: string
+          nullable: true
+        targetAudience:
+          type: string
+          nullable: true
+        teachingStyle:
+          type: string
+          enum:
+            - visual
+            - storytelling
+            - hands-on
+            - discussion
+            - analytical
+          nullable: true
+          description: Global teaching style for the course
+        expertiseSubject:
+          type: string
+          enum:
+            - mathematics
+            - science
+            - language-arts
+            - social-studies
+            - computer-science
+            - arts
+            - physical-education
+            - general
+          nullable: true
+          description: Teacher's expertise subject area
+        teacherPrompt:
+          type: string
+          nullable: true
+        teacherContent:
+          type: string
+          nullable: true
+        chatHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+              content:
+                type: string
+        selectedFiles:
+          type: array
+          items:
+            type: string
+        selectedFolders:
+          type: array
+          items:
+            type: string
+        isPublic:
+          type: integer
+          description: 0 = private, 1 = public
+        createdAt:
           type: string
           format: date-time
   responses:

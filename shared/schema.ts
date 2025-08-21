@@ -121,6 +121,8 @@ export const teacherChatSessions = pgTable("teacher_chat_sessions", {
   title: text("title").notNull(), // Session title/name
   courseTitle: text("course_title"), // Associated course title
   targetAudience: text("target_audience"), // Associated target audience
+  teachingStyle: text("teaching_style"), // Global teaching style for the course
+  expertiseSubject: text("expertise_subject"), // Teacher's expertise subject area
   teacherPrompt: text("teacher_prompt"), // The original teacher prompt used
   teacherContent: text("teacher_content"), // The generated teacher content
   chatHistory: jsonb("chat_history").notNull(), // Array of chat messages
