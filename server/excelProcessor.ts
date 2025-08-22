@@ -146,8 +146,20 @@ export class ExcelProcessor {
       const filesWithUrls = processedData.flatMap(r => r.files.filter(f => f.url));
       console.log(`Found ${filesWithUrls.length} files with URLs/hyperlinks`);
       
+      // IMPORTANT: Add the subject folder itself to be created
+      if (shouldCreateSubjectFolder && processedData.length > 0) {
+        // Ensure subject folder is in the processed data
+        const subjectFolderEntry = {
+          folderName: subjectFolderName,
+          files: [],
+          metadata: { isSubjectFolder: true }
+        };
+        // Add at the beginning to ensure it's created first
+        processedData.unshift(subjectFolderEntry);
+      }
+      
       // Create folder structure
-      const createdFolders = await this.createHierarchicalFolders(processedData, parentFolderName);
+      const createdFolders = await this.createHierarchicalFolders(processedData, mainParentFolder);
       console.log(`Created ${createdFolders.length} folders`);
       
       // Create files with Google Drive metadata extraction

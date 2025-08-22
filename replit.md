@@ -3,11 +3,18 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 22, 2025)
+- **✅ COMPLETED: Hierarchical Excel Import with Folder Structure**: Full three-level folder hierarchy from Excel spreadsheets
+  - **Parent Folder**: Created from Excel filename (e.g., "Video Production Status")
+  - **Subject Folders**: Created from sheet names (e.g., "LV1(UP)", "LV2(LS)", "Public Speaking LV1")
+  - **Lesson Folders**: Created from first column values (e.g., "LV1-Lesson1", "LV1-Lesson2")
+  - **File Organization**: Files placed in correct lesson folders within subject folders
+  - **Performance**: Excel upload returns in ~40 seconds, Google Drive processing runs in background
+  - **Scale**: Successfully processed 167 files across 77 folders from single Excel upload
 - **✅ COMPLETED: Google Drive File Download System**: Full infrastructure for downloading and processing actual files from Google Drive
   - **Automatic Processing**: Files from Excel imports are automatically processed - no manual batch processing needed
   - **Google Cloud Integration**: Successfully integrated GOOGLE_CLOUD_CREDENTIALS for API authentication  
   - **DriveFileProcessor Service**: Downloads and extracts content from DOCX, PDF, and other file types
-  - **326 Files Ready**: System identified 326 Google Drive files ready for processing
+  - **Large Scale Processing**: Successfully processed 1,056 files (35.6 GB) from Google Drive
   - **Permission Required**: Files need to be shared with service account (client_email from credentials) to enable downloads
   - **Content Extraction**: Supports text extraction from DOCX/PDF, metadata for videos, and file type detection
 - **✅ FIXED: Complete File Processing System**: All automatic processing and status tracking issues resolved
