@@ -238,25 +238,57 @@ export class DriveFileProcessor {
           processedAt: new Date()
         });
         
-        // Also update or create file metadata with the extracted content
-        const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
-        if (existingMetadata) {
-          // Update existing metadata with transcribed content
-          await storage.updateFileMetadata(file.id, file.userId, {
-            extractedText: extractedContent,
-            summary: extractedContent.substring(0, 500) // First 500 chars as summary
-          });
-        } else {
-          // Create new metadata with transcribed content
-          await storage.createFileMetadata({
-            fileId: file.id,
-            extractedText: extractedContent,
-            summary: extractedContent.substring(0, 500), // First 500 chars as summary
-            keywords: [],
-            topics: [],
-            categories: ['Education'],
-            confidence: 1.0
-          }, file.userId);
+        // Generate AI metadata from the transcribed content
+        try {
+          console.log('🤖 Generating AI metadata from transcribed content...');
+          const { extractFileMetadata } = await import('./openai');
+          const aiMetadata = await extractFileMetadata(extractedContent, file.filename);
+          
+          // Update or create file metadata with AI-generated content
+          const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
+          if (existingMetadata) {
+            // Update existing metadata with AI-generated content
+            await storage.updateFileMetadata(file.id, file.userId, {
+              extractedText: extractedContent,
+              summary: aiMetadata.summary || extractedContent.substring(0, 500),
+              keywords: aiMetadata.keywords || [],
+              topics: aiMetadata.topics || [],
+              categories: aiMetadata.categories || ['Education']
+            });
+          } else {
+            // Create new metadata with AI-generated content
+            await storage.createFileMetadata({
+              fileId: file.id,
+              extractedText: extractedContent,
+              summary: aiMetadata.summary || extractedContent.substring(0, 500),
+              keywords: aiMetadata.keywords || [],
+              topics: aiMetadata.topics || [],
+              categories: aiMetadata.categories || ['Education'],
+              confidence: aiMetadata.confidence || 1.0
+            }, file.userId);
+          }
+          
+          console.log(`✅ Generated AI metadata: ${aiMetadata.summary?.substring(0, 100)}...`);
+        } catch (error) {
+          console.error('Error generating AI metadata:', error);
+          // Fallback to basic metadata if AI fails
+          const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
+          if (existingMetadata) {
+            await storage.updateFileMetadata(file.id, file.userId, {
+              extractedText: extractedContent,
+              summary: extractedContent.substring(0, 500)
+            });
+          } else {
+            await storage.createFileMetadata({
+              fileId: file.id,
+              extractedText: extractedContent,
+              summary: extractedContent.substring(0, 500),
+              keywords: [],
+              topics: [],
+              categories: ['Education'],
+              confidence: 1.0
+            }, file.userId);
+          }
         }
         
         console.log(`✅ Updated ${file.filename} with ${extractedContent.length} characters of content`);
