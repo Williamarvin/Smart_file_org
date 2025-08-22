@@ -66,11 +66,19 @@ export default function ProcessingStatus() {
   const { data: files = [], isLoading } = useQuery<ProcessingFile[]>({
     queryKey: ['/api/files/processing-status', selectedStatus],
     queryFn: async () => {
-      const response = await fetch(`/api/files/processing-status?status=${selectedStatus}`);
+      const response = await fetch(`/api/files/processing-status?status=${selectedStatus}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch processing status');
       return response.json();
     },
-    refetchInterval: autoRefresh ? 5000 : false
+    refetchInterval: autoRefresh ? 5000 : false,
+    staleTime: 0,
+    gcTime: 0
   });
 
   const retryFile = async (fileId: string) => {
@@ -157,12 +165,15 @@ export default function ProcessingStatus() {
   };
 
   // Categorize files
+  const pendingFiles = files.filter(f => f.processingStatus === 'pending');
   const processingFiles = files.filter(f => f.processingStatus === 'processing');
   const stuckFiles = files.filter(f => {
-    if (f.processingStatus !== 'processing' || !f.processingStartedAt) return false;
-    const startTime = new Date(f.processingStartedAt).getTime();
-    const now = Date.now();
-    return (now - startTime) > 2 * 60 * 60 * 1000; // 2 hours
+    if ((f.processingStatus === 'processing' || f.processingStatus === 'pending') && f.processingStartedAt) {
+      const startTime = new Date(f.processingStartedAt).getTime();
+      const now = Date.now();
+      return (now - startTime) > 2 * 60 * 60 * 1000; // 2 hours
+    }
+    return false;
   });
   const failedFiles = files.filter(f => f.processingStatus === 'failed');
   const completedFiles = files.filter(f => f.processingStatus === 'completed');
@@ -184,7 +195,7 @@ export default function ProcessingStatus() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Files</CardTitle>
@@ -208,6 +219,17 @@ export default function ProcessingStatus() {
                 className="mt-2 h-2"
               />
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-600">
+              {pendingFiles.length}
+            </div>
           </CardContent>
         </Card>
 
@@ -249,8 +271,8 @@ export default function ProcessingStatus() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2">
-        {['all', 'processing', 'stuck', 'failed', 'completed'].map(status => (
+      <div className="flex gap-2 flex-wrap">
+        {['all', 'pending', 'processing', 'stuck', 'failed', 'completed'].map(status => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
@@ -258,9 +280,11 @@ export default function ProcessingStatus() {
             onClick={() => setSelectedStatus(status)}
           >
             {status.charAt(0).toUpperCase() + status.slice(1)}
+            {status === 'pending' && ` (${pendingFiles.length})`}
             {status === 'processing' && ` (${processingFiles.length})`}
             {status === 'stuck' && ` (${stuckFiles.length})`}
             {status === 'failed' && ` (${failedFiles.length})`}
+            {status === 'completed' && ` (${completedFiles.length})`}
           </Button>
         ))}
       </div>
