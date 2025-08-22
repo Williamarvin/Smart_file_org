@@ -431,6 +431,44 @@ export function Browse() {
               </>
             )}
             
+            {/* Clean Orphaned Files Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const confirm = window.confirm(
+                  "Delete all orphaned files (files without folders)?\n\n" +
+                  "This will permanently remove files that aren't in any folder."
+                );
+                
+                if (confirm) {
+                  try {
+                    const res = await apiRequest("DELETE", "/api/files/orphaned");
+                    const result = await res.json();
+                    
+                    toast({
+                      title: "Success",
+                      description: result.message,
+                    });
+                    
+                    // Refresh the file lists
+                    queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+                    queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "Failed to delete orphaned files",
+                      variant: "destructive",
+                    });
+                  }
+                }
+              }}
+              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border-yellow-300"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clean Orphaned Files
+            </Button>
+            
             {/* Create Folder Button */}
             <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
               <DialogTrigger asChild>

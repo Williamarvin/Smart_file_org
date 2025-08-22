@@ -895,6 +895,69 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getOrphanedFilesCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(files)
+      .where(and(
+        eq(files.userId, userId),
+        isNull(files.folderId)
+      ));
+    
+    return result[0]?.count || 0;
+  }
+
+  async deleteOrphanedFiles(userId: string): Promise<number> {
+    console.log(`Deleting orphaned files for user ${userId}`);
+    
+    // Get all orphaned files (files without folder IDs)
+    const orphanedFiles = await db
+      .select()
+      .from(files)
+      .where(and(
+        eq(files.userId, userId),
+        isNull(files.folderId)
+      ));
+    
+    console.log(`Found ${orphanedFiles.length} orphaned files to delete`);
+    
+    // Delete files from cloud storage
+    for (const file of orphanedFiles) {
+      try {
+        if (file.objectPath && !file.objectPath.startsWith('http')) {
+          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          await objectStorageService.deleteObject(file.objectPath);
+        }
+      } catch (error) {
+        console.error(`Failed to delete orphaned file ${file.id} from cloud storage:`, error);
+        // Continue with database deletion even if cloud storage fails
+      }
+    }
+    
+    // Delete file metadata for orphaned files
+    const fileIds = orphanedFiles.map(file => file.id);
+    if (fileIds.length > 0) {
+      await db
+        .delete(fileMetadata)
+        .where(inArray(fileMetadata.fileId, fileIds));
+    }
+    
+    // Delete orphaned files from database
+    const deleteResult = await db
+      .delete(files)
+      .where(and(
+        eq(files.userId, userId),
+        isNull(files.folderId)
+      ))
+      .returning({ id: files.id });
+    
+    // Invalidate caches
+    cache.invalidatePattern(`files:${userId}:`);
+    console.log(`Deleted ${deleteResult.length} orphaned files for user ${userId}`);
+    
+    return deleteResult.length;
+  }
+
   async moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void> {
     console.log(`Storage: moving contents from folder ${fromFolderId} to ${toFolderId} for user ${userId}`);
     

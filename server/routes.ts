@@ -553,6 +553,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete orphaned files (files without folder IDs)
+  app.delete('/api/files/orphaned', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('Deleting orphaned files for user:', userId);
+      
+      // Get count of orphaned files first
+      const orphanedCount = await storage.getOrphanedFilesCount(userId);
+      
+      // Delete all orphaned files
+      const deletedCount = await storage.deleteOrphanedFiles(userId);
+      
+      res.json({
+        success: true,
+        message: `Deleted ${deletedCount} orphaned files`,
+        orphanedCount,
+        deletedCount
+      });
+    } catch (error) {
+      console.error('Error deleting orphaned files:', error);
+      res.status(500).json({ 
+        error: 'Failed to delete orphaned files',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.post('/api/files/process-drive-files', async (req: any, res) => {
     try {
       const userId = "demo-user";
