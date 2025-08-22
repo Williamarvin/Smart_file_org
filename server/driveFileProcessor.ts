@@ -115,9 +115,91 @@ export class DriveFileProcessor {
         extractedContent = fileBuffer.toString('utf-8');
         console.log(`✅ Read ${extractedContent.length} characters from text file`);
       } else if (['.mp4', '.avi', '.mov', '.mkv'].includes(fileExt)) {
-        // For videos, we can't extract content directly but we can update metadata
-        extractedContent = `Video file: ${file.filename}\nSize: ${fileBuffer.length} bytes\nNote: Video transcription requires additional processing`;
-        console.log(`✅ Updated video file metadata`);
+        // Extract video metadata using ffmpeg
+        try {
+          const { spawn } = require('child_process');
+          const ffmpeg = require('ffmpeg-static');
+          
+          // Get video metadata using ffprobe
+          const metadata = await new Promise<any>((resolve, reject) => {
+            const ffprobe = spawn('ffprobe', [
+              '-v', 'error',
+              '-print_format', 'json',
+              '-show_format',
+              '-show_streams',
+              tempFilePath
+            ]);
+            
+            let output = '';
+            let error = '';
+            
+            ffprobe.stdout.on('data', (data: Buffer) => {
+              output += data.toString();
+            });
+            
+            ffprobe.stderr.on('data', (data: Buffer) => {
+              error += data.toString();
+            });
+            
+            ffprobe.on('close', (code: number) => {
+              if (code === 0) {
+                try {
+                  resolve(JSON.parse(output));
+                } catch (e) {
+                  resolve(null);
+                }
+              } else {
+                resolve(null);
+              }
+            });
+          });
+          
+          // Extract key metadata
+          let duration = 'Unknown';
+          let resolution = 'Unknown';
+          let codec = 'Unknown';
+          let fps = 'Unknown';
+          let bitrate = 'Unknown';
+          
+          if (metadata) {
+            // Get duration
+            if (metadata.format?.duration) {
+              const seconds = parseFloat(metadata.format.duration);
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = Math.floor(seconds % 60);
+              duration = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Get video stream info
+            const videoStream = metadata.streams?.find((s: any) => s.codec_type === 'video');
+            if (videoStream) {
+              resolution = `${videoStream.width}x${videoStream.height}`;
+              codec = videoStream.codec_name || 'Unknown';
+              if (videoStream.r_frame_rate) {
+                const [num, den] = videoStream.r_frame_rate.split('/');
+                fps = `${Math.round(parseInt(num) / parseInt(den))} fps`;
+              }
+            }
+            
+            // Get bitrate
+            if (metadata.format?.bit_rate) {
+              bitrate = `${Math.round(parseInt(metadata.format.bit_rate) / 1000)} kbps`;
+            }
+          }
+          
+          // Get Google Drive metadata if available
+          const driveInfo = file.googleDriveUrl ? 
+            `\nGoogle Drive file: ${file.filename}\n${file.googleDriveUrl}` : '';
+          
+          extractedContent = `File reference: ${file.filename}${driveInfo}\n\nVideo Metadata:\nDuration: ${duration}\nResolution: ${resolution}\nCodec: ${codec}\nFrame Rate: ${fps}\nBitrate: ${bitrate}\nFile Size: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB`;
+          
+          console.log(`✅ Extracted video metadata - Duration: ${duration}, Resolution: ${resolution}`);
+        } catch (error) {
+          // Fallback if ffprobe fails
+          console.error('FFprobe error:', error);
+          extractedContent = `Video file: ${file.filename}\nSize: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB\nNote: Could not extract detailed metadata`;
+          console.log(`✅ Updated video file with basic metadata`);
+        }
       } else if (['.pptx', '.ppt'].includes(fileExt)) {
         // PowerPoint files need special handling - for now, mark as binary
         extractedContent = `PowerPoint presentation: ${file.filename}\nSize: ${fileBuffer.length} bytes`;
