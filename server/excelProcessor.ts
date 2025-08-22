@@ -27,20 +27,26 @@ export class ExcelProcessor {
   /**
    * Process an Excel file and create folder/file structure
    */
-  async processExcelFile(filePath: string): Promise<{
+  async processExcelFile(filePath: string, originalFilename?: string): Promise<{
     folders: any[];
     files: any[];
     summary: string;
     foldersCreated: number;
     filesCreated: number;
   }> {
-    console.log('Processing Excel file:', filePath);
+    console.log('Processing Excel file:', filePath, 'Original name:', originalFilename);
     
     // Read the Excel file
     const workbook = XLSX.readFile(filePath);
     let allFolders: any[] = [];
     let allFiles: any[] = [];
     let totalRows = 0;
+    
+    // Create one main parent folder for the entire Excel file using original filename
+    const excelFileName = originalFilename 
+      ? path.basename(originalFilename, path.extname(originalFilename))
+      : path.basename(filePath, path.extname(filePath));
+    const mainParentFolder = excelFileName;
     
     // Process each sheet
     for (const sheetName of workbook.SheetNames) {
@@ -76,15 +82,9 @@ export class ExcelProcessor {
 
       totalRows += data.length;
 
-      // Create one parent folder per Excel sheet
-      // This ensures each sheet has its own organized structure
-      let parentFolderName = sheetName;
-      
-      // Clean up sheet name for folder creation
-      if (sheetName.includes('LV') || sheetName.includes('Public Speaking') || sheetName.includes('Writing')) {
-        // Use a clean parent name for lesson sheets
-        parentFolderName = `Curriculum - ${sheetName}`;
-      }
+      // Use the main parent folder for all sheets
+      // Subfolders will be created based on row data
+      const parentFolderName = mainParentFolder;
       
       // Analyze columns to detect patterns
       const columns = Object.keys(data[0] as any);
@@ -168,17 +168,32 @@ export class ExcelProcessor {
         }
       }
       
-      // Skip empty folder names or use parent folder
+      // If no folder name found, try to generate one based on row data
       if (!folderName || folderName === '') {
-        // Don't create a folder, just add files to parent
-        folderName = parentFolderName;
+        // Look for lesson number in various columns
+        const lessonNumber = row['Lesson Number'] || row['Lesson'] || row['Level'];
+        
+        // Generate a folder name based on available data
+        if (lessonNumber) {
+          folderName = `Lesson-${lessonNumber}`;
+        } else if (sheetName.includes('LV1')) {
+          // For LV1 sheets, use row index to create sequential lesson folders
+          const rowNum = data.indexOf(row) + 1;
+          folderName = `LV1-Lesson${rowNum}`;
+        } else if (sheetName.includes('LV2')) {
+          // For LV2 sheets, use row index to create sequential lesson folders
+          const rowNum = data.indexOf(row) + 1;
+          folderName = `LV2-Lesson${rowNum}`;
+        } else {
+          // Default: use sheet name and row number
+          const rowNum = data.indexOf(row) + 1;
+          folderName = `${sheetName}-Row${rowNum}`;
+        }
       }
       
-      // Create hierarchical folder path only if not the same as parent
-      if (folderName !== parentFolderName) {
-        // Create child folder under parent
-        folderName = `${parentFolderName}/${folderName}`;
-      }
+      // Always create subfolders under the main parent folder
+      // This ensures all lesson folders are subfolders of the main Excel folder
+      folderName = `${parentFolderName}/${folderName}`;
       
       const fileList: any[] = [];
       

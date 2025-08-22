@@ -1964,8 +1964,8 @@ Remember:
       const { ExcelProcessor } = await import("./excelProcessor");
       const processor = new ExcelProcessor(userId);
       
-      // Process the Excel file
-      const result = await processor.processExcelFile(req.file.path);
+      // Process the Excel file with original filename
+      const result = await processor.processExcelFile(req.file.path, req.file.originalname);
       
       // Clean up the uploaded file
       if (req.file.path) {
