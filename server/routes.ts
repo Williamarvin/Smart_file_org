@@ -7,7 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 import { db } from "./db";
 import { files, folders } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -194,33 +194,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = "demo-user";
       const status = req.query.status as string || 'all';
       
-      // Get files first
-      const fileResults = await db
-        .select()
+      // Get ALL files directly from database (including failed, pending, etc)
+      const allFiles = await db
+        .select({
+          id: files.id,
+          filename: files.filename,
+          originalName: files.originalName,
+          mimeType: files.mimeType,
+          size: files.size,
+          objectPath: files.objectPath,
+          folderId: files.folderId,
+          uploadedAt: files.uploadedAt,
+          processedAt: files.processedAt,
+          processingStatus: files.processingStatus,
+          processingError: files.processingError,
+          userId: files.userId
+        })
         .from(files)
         .where(eq(files.userId, userId));
       
-      // Get folders for mapping
-      const folderResults = await db
-        .select()
+      // Get folder names for mapping
+      const folderList = await db
+        .select({
+          id: folders.id,
+          name: folders.name
+        })
         .from(folders)
         .where(eq(folders.userId, userId));
       
-      const folderMap = new Map(folderResults.map(f => [f.id, f.name]));
+      const folderMap = new Map(folderList.map(f => [f.id, f.name]));
       
-      // Format results with folder names and processing duration
-      const results = fileResults.map(file => ({
+      // Format results with proper processing info
+      const results = allFiles.map(file => ({
         id: file.id,
-        filename: file.filename,
-        processingStatus: file.processingStatus,
+        filename: file.filename || file.originalName,
+        processingStatus: file.processingStatus || 'pending',
         processingStartedAt: file.uploadedAt,
         processingError: file.processingError,
         processingDuration: file.processedAt && file.uploadedAt 
           ? new Date(file.processedAt).getTime() - new Date(file.uploadedAt).getTime()
           : 0,
-        fileType: file.mimeType,
-        fileSize: file.size,
-        folderId: file.folderId,
+        fileType: file.mimeType || 'unknown',
+        fileSize: file.size || 0,
+        folderId: file.folderId || null,
         folderName: file.folderId ? folderMap.get(file.folderId) : null
       }));
       
@@ -228,12 +244,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let filteredResults = results;
       if (status !== 'all') {
         if (status === 'stuck') {
-          // Files processing for over 2 hours
+          // Files that have been processing or pending for over 2 hours
           filteredResults = results.filter(f => {
-            if (f.processingStatus !== 'processing' || !f.processingStartedAt) return false;
+            if (!f.processingStartedAt) return false;
             const startTime = new Date(f.processingStartedAt).getTime();
             const now = Date.now();
-            return (now - startTime) > 2 * 60 * 60 * 1000;
+            const isStuck = (now - startTime) > 2 * 60 * 60 * 1000;
+            return isStuck && (f.processingStatus === 'processing' || f.processingStatus === 'pending');
           });
         } else {
           filteredResults = results.filter(f => f.processingStatus === status);

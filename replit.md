@@ -3,11 +3,19 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 22, 2025)
+- **✅ Processing Status Monitoring**: Complete visibility into file processing pipeline
+  - Dedicated page at `/processing-status` showing all 665 files with real-time status
+  - Filter tabs for All, Processing, Stuck, Failed, and Completed files
+  - Auto-refresh every 5 seconds to track progress
+  - Action buttons for stuck files (retry processing, mark as failed)
+  - Shows processing duration, file types, and error messages
+  - Direct database queries to include all files (pending, processing, completed, failed)
 - **✅ Excel Import System**: Automatic folder/file structure creation from curriculum spreadsheets
+  - Hierarchical folder structure: Video Production parent → lesson child folders
   - Intelligent column detection for subjects/folders and file references
   - Flexible Excel parsing handling different column formats (.xlsx, .xls, .csv)
   - Automatic folder creation based on subject/category columns
-  - File extraction from cell content and URLs
+  - File extraction from "Video Link" and "Harry Trimmed" columns
   - Integration with existing AI processing pipeline for imported files
   - Frontend UI with dedicated Excel upload section in upload page
   - Progress tracking and result display showing folders/files created
