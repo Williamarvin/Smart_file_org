@@ -725,6 +725,74 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Regenerate metadata for files that have content but bad metadata
+  app.post('/api/files/regenerate-metadata', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('Regenerating metadata for all files with content...');
+      
+      // Get all files that have content stored
+      const query = sql`
+        SELECT f.id, f.filename, f.original_name, f.file_content, fm.extracted_text, fm.summary
+        FROM files f
+        LEFT JOIN file_metadata fm ON f.id = fm.file_id
+        WHERE f.user_id = ${userId}
+        AND f.file_content IS NOT NULL
+        AND LENGTH(f.file_content::text) > 100
+        LIMIT 200
+      `;
+      
+      const result = await db.execute(query);
+      const filesToUpdate = result.rows;
+      
+      console.log(`Found ${filesToUpdate.length} files needing metadata regeneration`);
+      
+      const { extractFileMetadata } = await import('./openai');
+      
+      let updated = 0;
+      let failed = 0;
+      
+      for (const file of filesToUpdate) {
+        try {
+          const content = file.file_content?.toString() || '';
+          if (content && content.length > 0 && !content.startsWith('File reference:')) {
+            // Generate AI metadata from the content
+            const aiMetadata = await extractFileMetadata(content, file.original_name as string);
+            
+            // Update the metadata
+            await storage.updateFileMetadata(file.id as string, userId, {
+              extractedText: content,
+              summary: aiMetadata.summary || content.substring(0, 500),
+              keywords: aiMetadata.keywords || [],
+              topics: aiMetadata.topics || [],
+              categories: aiMetadata.categories || ['Education']
+            });
+            
+            console.log(`✅ Updated metadata for ${file.original_name}`);
+            updated++;
+          }
+        } catch (error) {
+          console.error(`Failed to update metadata for ${file.original_name}:`, error);
+          failed++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Updated metadata for ${updated} files, ${failed} failed`,
+        totalFiles: filesToUpdate.length,
+        updated,
+        failed
+      });
+    } catch (error) {
+      console.error('Error regenerating metadata:', error);
+      res.status(500).json({ 
+        error: 'Failed to regenerate metadata',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Process a single Google Drive file
   app.post('/api/files/:id/process-drive', async (req: any, res) => {
     try {
