@@ -100,7 +100,7 @@ export function Browse() {
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
     queryKey: ["/api/search", searchQuery],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/search?query=${encodeURIComponent(searchQuery)}`);
+      const res = await apiRequest("GET", `/api/search/${encodeURIComponent(searchQuery)}`);
       return res.json();
     },
     enabled: !!searchQuery,
