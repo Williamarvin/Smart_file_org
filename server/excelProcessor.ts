@@ -619,8 +619,8 @@ export class ExcelProcessor {
   }
 
   /**
-   * Create files in the database
-   * Only creates reference records for tracking, not actual file entries that need processing
+   * Create files in the database from Excel data
+   * Creates file entries with metadata extracted from Excel rows
    */
   private async createFiles(processedData: ProcessedRow[], createdFolders: any[]): Promise<any[]> {
     const createdFiles: any[] = [];
@@ -642,13 +642,97 @@ export class ExcelProcessor {
       folderMap.set(folder.path.replace(/^\//, ''), folder.id);
     }
     
-    // NOTE: We're not creating file entries anymore for Excel imports
-    // Excel imports only create folder structures and metadata references
-    // Actual video/document files should be uploaded separately through the normal upload flow
+    // Create file entries from Excel data
+    for (const row of processedData) {
+      // Get the folder ID
+      const folderPath = row.folderName;
+      const folderId = folderMap.get(folderPath) || folderMap.get(folderPath.split('/').pop() || '');
+      
+      for (const fileData of row.files) {
+        if (!fileData.filename || fileData.filename.trim() === '') {
+          continue; // Skip empty filenames
+        }
+        
+        // Check if file already exists with same name in same folder
+        const existingFile = await db
+          .select()
+          .from(files)
+          .where(
+            and(
+              eq(files.filename, fileData.filename),
+              folderId ? eq(files.folderId, folderId) : isNull(files.folderId),
+              eq(files.userId, this.userId)
+            )
+          )
+          .limit(1);
+        
+        if (existingFile.length > 0) {
+          console.log(`File already exists: ${fileData.filename} in folder ${row.folderName}`);
+          continue;
+        }
+        
+        // Determine file type based on extension or content
+        let mimeType = 'text/plain';
+        if (fileData.type === 'video' || fileData.filename.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
+          mimeType = 'video/mp4';
+        } else if (fileData.filename.match(/\.pdf$/i)) {
+          mimeType = 'application/pdf';
+        } else if (fileData.filename.match(/\.(doc|docx)$/i)) {
+          mimeType = 'application/msword';
+        } else if (fileData.filename.match(/\.(ppt|pptx)$/i)) {
+          mimeType = 'application/vnd.ms-powerpoint';
+        }
+        
+        const [newFile] = await db
+          .insert(files)
+          .values({
+            filename: fileData.filename,
+            originalName: fileData.filename, // Use same as filename for Excel imports
+            folderId: folderId || null,
+            size: fileData.content ? Buffer.from(fileData.content).length : 100, // Default size if no content
+            mimeType: mimeType,
+            objectPath: `/excel-import/${row.folderName}/${fileData.filename}`, // Virtual path for Excel imports
+            uploadedAt: new Date(),
+            userId: this.userId,
+            processingStatus: 'completed', // Mark as completed since metadata is extracted
+            processingError: null,
+            fileContent: null, // No actual file content stored
+            storageType: 'excel-metadata' // Special type for Excel imports
+          })
+          .returning();
+        
+        // Add metadata
+        if (row.metadata && Object.keys(row.metadata).length > 0) {
+          const metadataObj: Record<string, any> = {
+            ...row.metadata,
+            source: 'excel-import',
+            importedAt: new Date().toISOString()
+          };
+          
+          // Store basic content info if available
+          if (fileData.content) {
+            metadataObj.originalContent = fileData.content.substring(0, 500); // Store first 500 chars
+          }
+          
+          await db
+            .insert(fileMetadata)
+            .values({
+              fileId: newFile.id,
+              summary: `Imported from Excel: ${row.folderName}`,
+              keywords: ['excel-import', row.folderName],
+              topics: [row.folderName],
+              categories: ['Education'],
+              extractedText: fileData.content || null,
+              createdAt: new Date()
+            });
+        }
+        
+        createdFiles.push(newFile);
+        console.log(`Created file: ${fileData.filename} in folder ${row.folderName}`);
+      }
+    }
     
-    console.log(`Skipped creating ${processedData.reduce((sum, row) => sum + row.files.length, 0)} file references from Excel import`);
-    console.log('Excel import now only creates folder structures. Upload actual files through the upload interface.');
-    
+    console.log(`Created ${createdFiles.length} file entries from Excel import`);
     return createdFiles;
   }
 
