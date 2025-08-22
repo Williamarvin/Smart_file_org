@@ -5,6 +5,9 @@ import { storage } from "./storage";
 // Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
+import { db } from "./db";
+import { files, folders } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -182,6 +185,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching files:", error);
       res.status(500).json({ error: "Failed to fetch files" });
+    }
+  });
+
+  // Get files with detailed processing status
+  app.get("/api/files/processing-status", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const status = req.query.status as string || 'all';
+      
+      // Get files first
+      const fileResults = await db
+        .select()
+        .from(files)
+        .where(eq(files.userId, userId));
+      
+      // Get folders for mapping
+      const folderResults = await db
+        .select()
+        .from(folders)
+        .where(eq(folders.userId, userId));
+      
+      const folderMap = new Map(folderResults.map(f => [f.id, f.name]));
+      
+      // Format results with folder names and processing duration
+      const results = fileResults.map(file => ({
+        id: file.id,
+        filename: file.filename,
+        processingStatus: file.processingStatus,
+        processingStartedAt: file.uploadedAt,
+        processingError: file.processingError,
+        processingDuration: file.processedAt && file.uploadedAt 
+          ? new Date(file.processedAt).getTime() - new Date(file.uploadedAt).getTime()
+          : 0,
+        fileType: file.mimeType,
+        fileSize: file.size,
+        folderId: file.folderId,
+        folderName: file.folderId ? folderMap.get(file.folderId) : null
+      }));
+      
+      // Filter based on status
+      let filteredResults = results;
+      if (status !== 'all') {
+        if (status === 'stuck') {
+          // Files processing for over 2 hours
+          filteredResults = results.filter(f => {
+            if (f.processingStatus !== 'processing' || !f.processingStartedAt) return false;
+            const startTime = new Date(f.processingStartedAt).getTime();
+            const now = Date.now();
+            return (now - startTime) > 2 * 60 * 60 * 1000;
+          });
+        } else {
+          filteredResults = results.filter(f => f.processingStatus === status);
+        }
+      }
+      
+      res.json(filteredResults);
+    } catch (error) {
+      console.error("Error fetching processing status:", error);
+      res.status(500).json({ error: "Failed to fetch processing status" });
     }
   });
 
