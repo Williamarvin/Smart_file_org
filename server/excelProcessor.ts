@@ -76,12 +76,14 @@ export class ExcelProcessor {
 
       totalRows += data.length;
 
-      // Determine parent folder based on sheet name
+      // Create one parent folder per Excel sheet
+      // This ensures each sheet has its own organized structure
       let parentFolderName = sheetName;
       
-      // Special handling for Video Production sheets
-      if (sheetName.includes('LV') || sheetName.includes('Public Speaking')) {
-        parentFolderName = 'Video Production';
+      // Clean up sheet name for folder creation
+      if (sheetName.includes('LV') || sheetName.includes('Public Speaking') || sheetName.includes('Writing')) {
+        // Use a clean parent name for lesson sheets
+        parentFolderName = `Curriculum - ${sheetName}`;
       }
       
       // Analyze columns to detect patterns
@@ -716,23 +718,8 @@ export class ExcelProcessor {
           continue; // Skip empty filenames
         }
         
-        // Check if file already exists with same name in same folder
-        const existingFile = await db
-          .select()
-          .from(files)
-          .where(
-            and(
-              eq(files.filename, fileData.filename),
-              folderId ? eq(files.folderId, folderId) : isNull(files.folderId),
-              eq(files.userId, this.userId)
-            )
-          )
-          .limit(1);
-        
-        if (existingFile.length > 0) {
-          console.log(`File already exists: ${fileData.filename} in folder ${row.folderName}`);
-          continue;
-        }
+        // For Excel imports, always create new files (don't check for duplicates)
+        // This allows re-importing Excel files with updated data
         
         // Determine file type based on extension or content
         let mimeType = 'text/plain';
