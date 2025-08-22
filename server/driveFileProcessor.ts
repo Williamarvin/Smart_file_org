@@ -6,6 +6,9 @@ import * as os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
+import { getOpenAIClient } from './openai';
+import { spawn } from 'child_process';
+import ffmpeg from 'ffmpeg-static';
 
 /**
  * Service to download and process files from Google Drive
@@ -115,90 +118,106 @@ export class DriveFileProcessor {
         extractedContent = fileBuffer.toString('utf-8');
         console.log(`✅ Read ${extractedContent.length} characters from text file`);
       } else if (['.mp4', '.avi', '.mov', '.mkv'].includes(fileExt)) {
-        // Extract video metadata using ffmpeg
+        // Transcribe video content using OpenAI Whisper
         try {
-          const { spawn } = require('child_process');
-          const ffmpeg = require('ffmpeg-static');
+          console.log(`📹 Processing video for transcription: ${file.filename}`);
           
-          // Get video metadata using ffprobe
-          const metadata = await new Promise<any>((resolve, reject) => {
-            const ffprobe = spawn('ffprobe', [
-              '-v', 'error',
-              '-print_format', 'json',
-              '-show_format',
-              '-show_streams',
-              tempFilePath
+          // Extract audio from video using ffmpeg
+          const audioPath = path.join(this.tempDir, `${uuidv4()}.mp3`);
+          
+          await new Promise<void>((resolve, reject) => {
+            const ffmpegPath = ffmpeg || 'ffmpeg';
+            const ffmpegProcess = spawn(ffmpegPath, [
+              '-i', tempFilePath,
+              '-vn', // no video
+              '-acodec', 'mp3',
+              '-ab', '128k',
+              '-ar', '44100',
+              '-y', // overwrite output
+              audioPath
             ]);
             
-            let output = '';
-            let error = '';
-            
-            ffprobe.stdout.on('data', (data: Buffer) => {
-              output += data.toString();
-            });
-            
-            ffprobe.stderr.on('data', (data: Buffer) => {
-              error += data.toString();
-            });
-            
-            ffprobe.on('close', (code: number) => {
+            ffmpegProcess.on('close', (code) => {
               if (code === 0) {
+                resolve();
+              } else {
+                reject(new Error(`FFmpeg exited with code ${code}`));
+              }
+            });
+            
+            ffmpegProcess.on('error', reject);
+          });
+          
+          console.log(`🎵 Audio extracted, transcribing with Whisper...`);
+          
+          // Read audio file for Whisper
+          const audioBuffer = await fs.readFile(audioPath);
+          
+          // Create a File object for OpenAI
+          const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mp3' });
+          
+          // Get OpenAI client and transcribe using Whisper
+          const openai = getOpenAIClient();
+          const transcription = await openai.audio.transcriptions.create({
+            file: audioFile,
+            model: "whisper-1",
+            language: "en" // You can make this dynamic based on content
+          });
+          
+          // Get video metadata for context
+          let metadataInfo = '';
+          try {
+            const metadata = await new Promise<any>((resolve) => {
+              const ffprobeProcess = spawn('ffprobe', [
+                '-v', 'error',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                tempFilePath
+              ]);
+              
+              let output = '';
+              ffprobeProcess.stdout.on('data', (data: Buffer) => {
+                output += data.toString();
+              });
+              
+              ffprobeProcess.on('close', () => {
                 try {
                   resolve(JSON.parse(output));
                 } catch (e) {
                   resolve(null);
                 }
-              } else {
-                resolve(null);
-              }
+              });
             });
-          });
-          
-          // Extract key metadata
-          let duration = 'Unknown';
-          let resolution = 'Unknown';
-          let codec = 'Unknown';
-          let fps = 'Unknown';
-          let bitrate = 'Unknown';
-          
-          if (metadata) {
-            // Get duration
-            if (metadata.format?.duration) {
+            
+            if (metadata?.format?.duration) {
               const seconds = parseFloat(metadata.format.duration);
               const minutes = Math.floor(seconds / 60);
               const remainingSeconds = Math.floor(seconds % 60);
-              duration = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+              metadataInfo = `Duration: ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
             }
-            
-            // Get video stream info
-            const videoStream = metadata.streams?.find((s: any) => s.codec_type === 'video');
-            if (videoStream) {
-              resolution = `${videoStream.width}x${videoStream.height}`;
-              codec = videoStream.codec_name || 'Unknown';
-              if (videoStream.r_frame_rate) {
-                const [num, den] = videoStream.r_frame_rate.split('/');
-                fps = `${Math.round(parseInt(num) / parseInt(den))} fps`;
-              }
-            }
-            
-            // Get bitrate
-            if (metadata.format?.bit_rate) {
-              bitrate = `${Math.round(parseInt(metadata.format.bit_rate) / 1000)} kbps`;
-            }
+          } catch (e) {
+            // Ignore metadata errors
           }
           
-          // Get Google Drive metadata if available
-          const driveInfo = file.googleDriveUrl ? 
-            `\nGoogle Drive file: ${file.filename}\n${file.googleDriveUrl}` : '';
+          // Build content with transcript
+          extractedContent = `Video Title: ${file.filename}\n` +
+            (metadataInfo ? `${metadataInfo}\n` : '') +
+            `\n--- Transcript ---\n\n${transcription.text}`;
           
-          extractedContent = `File reference: ${file.filename}${driveInfo}\n\nVideo Metadata:\nDuration: ${duration}\nResolution: ${resolution}\nCodec: ${codec}\nFrame Rate: ${fps}\nBitrate: ${bitrate}\nFile Size: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB`;
+          console.log(`✅ Transcribed video - ${transcription.text.length} characters`);
           
-          console.log(`✅ Extracted video metadata - Duration: ${duration}, Resolution: ${resolution}`);
+          // Clean up audio file
+          try {
+            await fs.unlink(audioPath);
+          } catch (error) {
+            console.error('Error deleting audio file:', error);
+          }
         } catch (error) {
-          // Fallback if ffprobe fails
-          console.error('FFprobe error:', error);
-          extractedContent = `Video file: ${file.filename}\nSize: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB\nNote: Could not extract detailed metadata`;
-          console.log(`✅ Updated video file with basic metadata`);
+          // Fallback if transcription fails
+          console.error('Video transcription error:', error);
+          extractedContent = `Video file: ${file.filename}\nSize: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB\n\nNote: Transcription failed. The video may not contain clear audio or the service may be temporarily unavailable.`;
+          console.log(`⚠️ Could not transcribe video, stored basic metadata`);
         }
       } else if (['.pptx', '.ppt'].includes(fileExt)) {
         // PowerPoint files need special handling - for now, mark as binary
