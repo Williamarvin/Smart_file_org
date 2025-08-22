@@ -208,6 +208,7 @@ export default function ProcessingStatus() {
   });
   const failedFiles = files.filter(f => f.processingStatus === 'failed');
   const completedFiles = files.filter(f => f.processingStatus === 'completed');
+  const skippedFiles = files.filter(f => f.processingStatus === 'skipped');
 
   return (
     <div className="container mx-auto p-6 space-y-6">

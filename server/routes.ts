@@ -162,9 +162,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Invalidate caches when new files are created
       // Cache invalidation handled in storage layer
 
-      // Start processing in the background with raw file data for dual storage
-      const rawFileData = req.file?.buffer;
-      processFileAsync(file.id, userId, rawFileData);
+      // Start processing in the background
+      // Files are uploaded directly to cloud storage, so we process from there
+      processFileAsync(file.id, userId);
 
       res.json(file);
     } catch (error) {

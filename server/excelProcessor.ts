@@ -595,6 +595,7 @@ export class ExcelProcessor {
 
   /**
    * Create files in the database
+   * Only creates reference records for tracking, not actual file entries that need processing
    */
   private async createFiles(processedData: ProcessedRow[], createdFolders: any[]): Promise<any[]> {
     const createdFiles: any[] = [];
@@ -616,60 +617,12 @@ export class ExcelProcessor {
       folderMap.set(folder.path.replace(/^\//, ''), folder.id);
     }
     
-    for (const row of processedData) {
-      const folderId = folderMap.get(row.folderName);
-      
-      for (const file of row.files) {
-        // Generate unique filename
-        const fileId = nanoid();
-        const extension = path.extname(file.filename) || '.txt';
-        const storedFilename = `excel-import-${fileId}${extension}`;
-        const objectPath = `/objects/excel-imports/${storedFilename}`;
-        
-        // Create file record
-        const newFile = await db
-          .insert(files)
-          .values({
-            filename: storedFilename,
-            originalName: file.filename,
-            mimeType: this.getMimeType(extension),
-            size: file.content ? Buffer.from(file.content).length : 0,
-            objectPath: objectPath,
-            fileContent: file.content ? Buffer.from(file.content) : null,
-            folderId: folderId || null,
-            userId: this.userId,
-            processingStatus: 'pending',
-            storageType: 'hybrid'
-          })
-          .returning();
-        
-        // If it has content, save it to a temporary file for processing
-        if (file.content) {
-          const tempPath = path.join('/tmp', storedFilename);
-          fs.writeFileSync(tempPath, file.content);
-        }
-        
-        // Create metadata record if we have additional metadata
-        if (Object.keys(row.metadata).length > 0 || file.url) {
-          await db
-            .insert(fileMetadata)
-            .values({
-              fileId: newFile[0].id,
-              summary: `Imported from Excel: ${row.folderName}`,
-              keywords: Object.keys(row.metadata),
-              topics: [row.folderName],
-              categories: ['excel-import'],
-              extractedText: JSON.stringify({
-                source: 'excel-import',
-                ...row.metadata,
-                url: file.url || null
-              })
-            });
-        }
-        
-        createdFiles.push(newFile[0]);
-      }
-    }
+    // NOTE: We're not creating file entries anymore for Excel imports
+    // Excel imports only create folder structures and metadata references
+    // Actual video/document files should be uploaded separately through the normal upload flow
+    
+    console.log(`Skipped creating ${processedData.reduce((sum, row) => sum + row.files.length, 0)} file references from Excel import`);
+    console.log('Excel import now only creates folder structures. Upload actual files through the upload interface.');
     
     return createdFiles;
   }
