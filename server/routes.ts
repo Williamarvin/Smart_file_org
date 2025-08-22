@@ -4,6 +4,7 @@ import { storage } from "./storage";
 // Removed fastStorage imports - using existing cache system
 // Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { GoogleDriveService } from "./googleDriveService";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 import { db } from "./db";
 import { files, folders } from "@shared/schema";
@@ -494,6 +495,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Process Google Drive files - download actual content
+  // Test Google Drive access for a single file
+  app.post('/api/test-drive-access', async (req: any, res) => {
+    const { fileUrl } = req.body;
+    
+    if (!fileUrl) {
+      return res.status(400).json({ error: 'fileUrl is required' });
+    }
+    
+    try {
+      const driveService = new GoogleDriveService();
+      await driveService.waitForInit();
+      
+      const fileId = driveService.extractFileId(fileUrl);
+      
+      if (!fileId) {
+        return res.status(400).json({ error: 'Invalid Google Drive URL' });
+      }
+      
+      console.log(`Testing access to file ID: ${fileId} from URL: ${fileUrl}`);
+      
+      // Try to get metadata first
+      const metadata = await driveService.getFileMetadata(fileUrl);
+      
+      if (metadata) {
+        console.log('Successfully retrieved metadata:', metadata);
+        
+        // Now try to download
+        const content = await driveService.downloadFile(fileUrl);
+        
+        if (content) {
+          return res.json({
+            success: true,
+            message: 'File is accessible',
+            metadata,
+            contentSize: content.length
+          });
+        } else {
+          return res.json({
+            success: false,
+            message: 'Could not download file content',
+            metadata
+          });
+        }
+      } else {
+        return res.json({
+          success: false,
+          message: 'Could not retrieve file metadata'
+        });
+      }
+    } catch (error: any) {
+      console.error('Test failed:', error);
+      return res.status(500).json({
+        error: 'Failed to test file access',
+        details: error.message
+      });
+    }
+  });
+  
   app.post('/api/files/process-drive-files', async (req: any, res) => {
     try {
       const userId = "demo-user";

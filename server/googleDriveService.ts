@@ -11,9 +11,14 @@ export class GoogleDriveService {
   private drive: drive_v3.Drive | null = null;
   private auth: OAuth2Client | null = null;
   private initialized = false;
+  private initPromise: Promise<void>;
 
   constructor() {
-    this.initialize();
+    this.initPromise = this.initialize();
+  }
+  
+  public async waitForInit(): Promise<void> {
+    await this.initPromise;
   }
 
   /**
@@ -87,8 +92,26 @@ export class GoogleDriveService {
         return null;
       }
 
+      // First, try to get file metadata to check permissions
+      const metadataResponse = await this.drive.files.get({
+        fileId,
+        fields: 'id, name, capabilities, shared, ownedByMe, permissions',
+        supportsAllDrives: true
+      });
+      
+      console.log(`File metadata:`, {
+        name: metadataResponse.data.name,
+        shared: metadataResponse.data.shared,
+        ownedByMe: metadataResponse.data.ownedByMe,
+        capabilities: metadataResponse.data.capabilities
+      });
+      
       const response = await this.drive.files.get(
-        { fileId, alt: 'media' },
+        { 
+          fileId, 
+          alt: 'media',
+          supportsAllDrives: true // Support shared drives
+        },
         { responseType: 'arraybuffer' }
       );
       
@@ -96,6 +119,13 @@ export class GoogleDriveService {
       return Buffer.from(response.data as ArrayBuffer);
     } catch (error: any) {
       console.error(`Failed to download file:`, error.message);
+      if (error.response) {
+        console.error('Error details:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+      }
       return null;
     }
   }
@@ -142,6 +172,7 @@ export class GoogleDriveService {
       // Fetch comprehensive metadata from Google Drive API
       const response = await this.drive.files.get({
         fileId: fileId,
+        supportsAllDrives: true, // Support shared drives
         fields: 'id, name, mimeType, size, createdTime, modifiedTime, ' +
                 'owners, description, thumbnailLink, webViewLink, ' +
                 'webContentLink, iconLink, hasThumbnail, imageMediaMetadata, ' +
