@@ -164,47 +164,50 @@ export class ExcelProcessor {
     const summary = `Processed ${workbook.SheetNames.length} sheets with ${totalRows} total rows, created ${allFolders.length} folders and ${allFiles.length} files`;
     
     // Automatically process Google Drive files if any were imported
-    let driveProcessingResult = null;
+    // Run this asynchronously to avoid blocking the response
+    let driveProcessingStarted = false;
     if (allFiles.length > 0) {
-      console.log(`📥 Starting automatic Google Drive file processing...`);
+      console.log(`📥 Starting automatic Google Drive file processing in background...`);
       
-      try {
-        // Import storage to check for Google Drive files
-        const { storage } = await import('./storage');
-        const driveFiles = await storage.getFilesByStorageType('google-drive', this.userId);
-        
-        if (driveFiles.length > 0) {
-          console.log(`Found ${driveFiles.length} Google Drive files to process`);
-          
-          // Import and use the drive file processor
-          const { driveFileProcessor } = await import('./driveFileProcessor');
-          const driveResult = await driveFileProcessor.processAllDriveFiles(this.userId);
-          
-          console.log(`✅ Google Drive processing complete: ${driveResult.processed} processed, ${driveResult.failed} failed, ${driveResult.skipped} skipped`);
-          
-          driveProcessingResult = {
-            processed: driveResult.processed,
-            failed: driveResult.failed,
-            skipped: driveResult.skipped,
-            total: driveFiles.length
-          };
-        }
-      } catch (driveError) {
-        console.error('Error processing Google Drive files:', driveError);
-        // Don't fail the whole import if Drive processing fails
-      }
+      // Start Google Drive processing in the background (don't await)
+      this.startBackgroundDriveProcessing().catch(error => {
+        console.error('Background Drive processing error:', error);
+      });
+      
+      driveProcessingStarted = true;
     }
     
     return {
       folders: allFolders,
       files: allFiles,
-      summary: driveProcessingResult 
-        ? `${summary}. Processed ${driveProcessingResult.processed} Google Drive files.`
+      summary: driveProcessingStarted 
+        ? `${summary}. Google Drive file processing started in background.`
         : summary,
       foldersCreated: allFolders.length,
       filesCreated: allFiles.length,
-      ...(driveProcessingResult ? { driveProcessing: driveProcessingResult } : {})
+      driveProcessingStarted
     };
+  }
+
+  /**
+   * Start background processing of Google Drive files
+   */
+  private async startBackgroundDriveProcessing(): Promise<void> {
+    try {
+      const { storage } = await import('./storage');
+      const driveFiles = await storage.getFilesByStorageType('google-drive', this.userId);
+      
+      if (driveFiles.length > 0) {
+        console.log(`Found ${driveFiles.length} Google Drive files to process in background`);
+        
+        const { driveFileProcessor } = await import('./driveFileProcessor');
+        const driveResult = await driveFileProcessor.processAllDriveFiles(this.userId);
+        
+        console.log(`✅ Background Drive processing complete: ${driveResult.processed} processed, ${driveResult.failed} failed, ${driveResult.skipped} skipped`);
+      }
+    } catch (error) {
+      console.error('Error in background Drive processing:', error);
+    }
   }
 
   /**
