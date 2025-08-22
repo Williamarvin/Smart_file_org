@@ -91,6 +91,12 @@ export const files = pgTable("files", {
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
   processingError: text("processing_error"),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Google Drive specific fields
+  googleDriveId: varchar("google_drive_id"), // Google Drive file ID
+  googleDriveUrl: text("google_drive_url"), // Original Google Drive URL
+  googleDriveMetadata: jsonb("google_drive_metadata"), // Full metadata from API
+  lastMetadataSync: timestamp("last_metadata_sync"), // When metadata was last fetched
 });
 
 export const fileMetadata = pgTable("file_metadata", {

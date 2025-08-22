@@ -5,6 +5,8 @@ import { files, folders, fileMetadata } from '@shared/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import * as path from 'path';
 import * as fs from 'fs';
+import { googleDriveService, type GoogleDriveMetadata } from './googleDriveService';
+import { ExcelWithDriveMetadataService } from './excelWithDriveMetadata';
 
 interface ProcessedRow {
   folderName: string;
@@ -36,8 +38,14 @@ export class ExcelProcessor {
   }> {
     console.log('Processing Excel file:', filePath, 'Original name:', originalFilename);
     
-    // Read the Excel file
-    const workbook = XLSX.readFile(filePath);
+    // Read the Excel file with options to preserve hyperlinks
+    const workbook = XLSX.readFile(filePath, { 
+      cellHTML: true,
+      cellStyles: true,
+      cellFormula: true,
+      cellDates: true,
+      WTF: true  // Preserve all features including hyperlinks
+    });
     let allFolders: any[] = [];
     let allFiles: any[] = [];
     let totalRows = 0;
@@ -60,14 +68,42 @@ export class ExcelProcessor {
       const worksheet = workbook.Sheets[sheetName];
       
       // Extract hyperlinks from worksheet
+      // Note: hyperlinks can be in .l property or in worksheet['!links']
       const hyperlinks: any = {};
+      let hyperlinkCount = 0;
+      
+      // Method 1: Check .l property on cells
       Object.keys(worksheet).forEach((cell: string) => {
-        if (worksheet[cell].l) { // .l property contains hyperlink info
-          const coords = XLSX.utils.decode_cell(cell);
-          if (!hyperlinks[coords.r]) hyperlinks[coords.r] = {};
-          hyperlinks[coords.r][coords.c] = worksheet[cell].l.Target || worksheet[cell].l.href;
+        if (cell[0] !== '!') { // Skip special properties
+          const cellObj = worksheet[cell];
+          if (cellObj && cellObj.l) { // .l property contains hyperlink info
+            const coords = XLSX.utils.decode_cell(cell);
+            if (!hyperlinks[coords.r]) hyperlinks[coords.r] = {};
+            const url = cellObj.l.Target || cellObj.l.href || cellObj.l.Rel;
+            hyperlinks[coords.r][coords.c] = url;
+            hyperlinkCount++;
+            console.log(`Found hyperlink in cell ${cell}: ${url}`);
+          }
         }
       });
+      
+      // Method 2: Check worksheet['!links'] array if it exists
+      if (worksheet['!links']) {
+        worksheet['!links'].forEach((link: any) => {
+          if (link && link.Target) {
+            const ref = link.Ref || link.ref;
+            if (ref) {
+              const coords = XLSX.utils.decode_cell(ref);
+              if (!hyperlinks[coords.r]) hyperlinks[coords.r] = {};
+              hyperlinks[coords.r][coords.c] = link.Target;
+              hyperlinkCount++;
+              console.log(`Found hyperlink via !links in cell ${ref}: ${link.Target}`);
+            }
+          }
+        });
+      }
+      
+      console.log(`Sheet ${sheetName}: Found ${hyperlinkCount} hyperlinks total`);
       
       // Convert to JSON
       const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
@@ -97,13 +133,29 @@ export class ExcelProcessor {
       const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName, sheetHyperlinks);
       console.log(`Processed ${processedData.length} rows with folders:`, processedData.map(r => r.folderName));
       
+      // Debug: Check if we have any URLs in the processed data
+      const filesWithUrls = processedData.flatMap(r => r.files.filter(f => f.url));
+      console.log(`Found ${filesWithUrls.length} files with URLs/hyperlinks`);
+      
       // Create folder structure
       const createdFolders = await this.createHierarchicalFolders(processedData, parentFolderName);
       console.log(`Created ${createdFolders.length} folders`);
       
-      // Create files
-      const createdFiles = await this.createFiles(processedData, createdFolders);
+      // Create files with Google Drive metadata extraction
+      const { files: createdFiles, filesWithDriveMetadata, filesWithoutDriveMetadata } = 
+        await ExcelWithDriveMetadataService.processExcelWithDriveMetadata(
+          processedData,
+          createdFolders,
+          this.userId
+        );
+      
       console.log(`Created ${createdFiles.length} files`);
+      if (filesWithDriveMetadata > 0) {
+        console.log(`✓ Fetched Google Drive metadata for ${filesWithDriveMetadata} files`);
+      }
+      if (filesWithoutDriveMetadata > 0) {
+        console.log(`ℹ ${filesWithoutDriveMetadata} files without Google Drive metadata`);
+      }
       
       allFolders.push(...createdFolders);
       allFiles.push(...createdFiles);
@@ -199,73 +251,51 @@ export class ExcelProcessor {
       
       // Get hyperlinks for this row if they exist
       const rowIndex = data.indexOf(row);
-      const rowHyperlinks = sheetHyperlinks && sheetHyperlinks[rowIndex + 1] ? sheetHyperlinks[rowIndex + 1] : {};
+      const rowHyperlinks = sheetHyperlinks && sheetHyperlinks[rowIndex] ? sheetHyperlinks[rowIndex] : {};
       
-      // Extract files from Video Link column
-      if (row['Video Link']) {
-        const videoLink = row['Video Link'].toString().trim();
-        if (videoLink && videoLink !== '') {
-          // Find the column index for Video Link to get its hyperlink
-          const colIndex = Object.keys(row).indexOf('Video Link');
-          const hyperlink = rowHyperlinks[colIndex];
-          
-          fileList.push({
-            filename: videoLink,
-            content: `Video file: ${videoLink}`,
-            type: 'video',
-            url: hyperlink || null // Include the Google Drive link if it exists
-          });
-          
-          if (hyperlink) {
-            console.log(`Found hyperlink for ${videoLink}: ${hyperlink}`);
-          }
-        }
+      // Debug: Show available hyperlinks for this row
+      if (Object.keys(rowHyperlinks).length > 0) {
+        console.log(`Row ${rowIndex} has hyperlinks in columns:`, Object.keys(rowHyperlinks));
       }
       
-      // Extract files from Harry Trimmed column
-      if (row['Harry Trimmed']) {
-        const harryFile = row['Harry Trimmed'].toString().trim();
-        if (harryFile && harryFile !== '') {
-          // Find the column index for Harry Trimmed to get its hyperlink
-          const colIndex = Object.keys(row).indexOf('Harry Trimmed');
-          const hyperlink = rowHyperlinks[colIndex];
+      // Process all columns looking for files and their hyperlinks
+      Object.keys(row).forEach((colName, jsIndex) => {
+        const cellValue = row[colName];
+        
+        // Check if this looks like a file reference (contains .mp4, .pdf, etc)
+        if (cellValue && typeof cellValue === 'string' && 
+            (cellValue.includes('.mp4') || cellValue.includes('.pdf') || 
+             cellValue.includes('.docx') || cellValue.includes('.pptx'))) {
           
-          fileList.push({
-            filename: harryFile,
-            content: `Trimmed video: ${harryFile}`,
-            type: 'video',
-            url: hyperlink || null // Include the Google Drive link if it exists
-          });
+          // Check all column indices for a matching hyperlink
+          // Hyperlinks are stored by Excel column index (0-based)
+          let hyperlink = null;
           
-          if (hyperlink) {
-            console.log(`Found hyperlink for ${harryFile}: ${hyperlink}`);
-          }
-        }
-      }
-      
-      // Extract files from other file columns
-      for (const fileCol of analysis.fileColumns) {
-        if (row[fileCol]) {
-          const fileValue = row[fileCol].toString().trim();
-          if (fileValue && fileValue !== '') {
-            // Check if it's a URL
-            if (fileValue.startsWith('http://') || fileValue.startsWith('https://')) {
-              fileList.push({
-                filename: path.basename(fileValue) || 'linked-file.txt',
-                url: fileValue,
-                type: 'link'
-              });
-            } else {
-              // It's a file name or content
-              fileList.push({
-                filename: fileValue,
-                content: `File: ${fileValue}`,
-                type: this.getFileType(fileValue)
-              });
+          // Try to find hyperlink in any column for this row
+          for (const colIdx in rowHyperlinks) {
+            // If we have a hyperlink and the cell value matches or is related
+            if (rowHyperlinks[colIdx]) {
+              hyperlink = rowHyperlinks[colIdx];
+              console.log(`Found hyperlink for ${cellValue} at column ${colIdx}: ${hyperlink}`);
+              break; // Use the first hyperlink found for this row
             }
           }
+          
+          fileList.push({
+            filename: cellValue.trim(),
+            content: `File reference: ${cellValue}`,
+            type: cellValue.includes('.mp4') ? 'video' : 'document',
+            url: hyperlink || null
+          });
+          
+          if (hyperlink) {
+            console.log(`✓ Mapped hyperlink for ${cellValue}`);
+          }
         }
-      }
+      });
+      
+      // Note: Harry Trimmed and other file columns are already processed in the forEach loop above
+      // which properly handles hyperlinks for all file references
       
       // Extract content from content columns
       for (const contentCol of analysis.contentColumns) {
