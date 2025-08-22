@@ -958,6 +958,64 @@ export class DatabaseStorage implements IStorage {
     return deleteResult.length;
   }
 
+  async deleteAllUserData(userId: string): Promise<{ filesDeleted: number; foldersDeleted: number }> {
+    console.log(`Deleting ALL data for user ${userId}`);
+    
+    // Get all files for this user
+    const allFiles = await db
+      .select()
+      .from(files)
+      .where(eq(files.userId, userId));
+    
+    console.log(`Found ${allFiles.length} files to delete`);
+    
+    // Delete files from cloud storage
+    for (const file of allFiles) {
+      try {
+        if (file.objectPath && !file.objectPath.startsWith('http')) {
+          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          await objectStorageService.deleteObject(file.objectPath);
+        }
+      } catch (error) {
+        console.error(`Failed to delete file ${file.id} from cloud storage:`, error);
+        // Continue with database deletion even if cloud storage fails
+      }
+    }
+    
+    // Delete all file metadata
+    const fileIds = allFiles.map(file => file.id);
+    if (fileIds.length > 0) {
+      await db
+        .delete(fileMetadata)
+        .where(inArray(fileMetadata.fileId, fileIds));
+    }
+    
+    // Delete all files
+    const filesDeleted = await db
+      .delete(files)
+      .where(eq(files.userId, userId))
+      .returning({ id: files.id });
+    
+    // Delete all folders
+    const foldersDeleted = await db
+      .delete(folders)
+      .where(eq(folders.userId, userId))
+      .returning({ id: folders.id });
+    
+    // Clear all caches
+    cache.invalidatePattern(`files:${userId}:`);
+    cache.invalidatePattern(`folders:${userId}:`);
+    cache.invalidatePattern(`stats:${userId}`);
+    cache.invalidatePattern(`categories:${userId}`);
+    
+    console.log(`Deleted ${filesDeleted.length} files and ${foldersDeleted.length} folders for user ${userId}`);
+    
+    return {
+      filesDeleted: filesDeleted.length,
+      foldersDeleted: foldersDeleted.length
+    };
+  }
+
   async moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void> {
     console.log(`Storage: moving contents from folder ${fromFolderId} to ${toFolderId} for user ${userId}`);
     

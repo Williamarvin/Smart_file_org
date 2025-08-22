@@ -580,6 +580,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete ALL files and folders - complete reset
+  app.delete('/api/reset-all', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('Resetting all data for user:', userId);
+      
+      // Delete everything
+      const result = await storage.deleteAllUserData(userId);
+      
+      res.json({
+        success: true,
+        message: 'All files and folders have been deleted',
+        ...result
+      });
+    } catch (error) {
+      console.error('Error resetting all data:', error);
+      res.status(500).json({ 
+        error: 'Failed to reset all data',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.post('/api/files/process-drive-files', async (req: any, res) => {
     try {
       const userId = "demo-user";
