@@ -858,11 +858,12 @@ export class DatabaseStorage implements IStorage {
     // Delete files from cloud storage and database
     for (const file of folderFiles) {
       try {
-        // Delete from cloud storage if objectPath exists
-        if (file.objectPath) {
+        // Delete from cloud storage if objectPath exists and is not a Google Drive URL
+        if (file.objectPath && !file.objectPath.startsWith('http')) {
           const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
           await objectStorageService.deleteObject(file.objectPath);
         }
+        // Skip cloud storage deletion for Google Drive files (they start with http/https)
       } catch (error) {
         console.error(`Failed to delete file ${file.id} from cloud storage:`, error);
         // Continue with database deletion even if cloud storage fails

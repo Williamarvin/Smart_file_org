@@ -2477,24 +2477,24 @@ Remember:
         const { driveFileProcessor } = await import('./driveFileProcessor');
         
         // Get all files that were just created from this Excel import
-        // Look for files with Excel import metadata
-        const recentFiles = await db
-          .select({
-            id: files.id,
-            originalName: files.originalName,
-            userId: files.userId
-          })
-          .from(files)
-          .innerJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
-          .where(
-            and(
-              eq(files.userId, userId),
-              sql`${fileMetadata.keywords}::text LIKE '%excel-import%'`,
-              sql`${fileMetadata.extractedText} LIKE 'File reference:%'`
-            )
+        // Look for files with placeholder metadata indicating Excel import
+        const query = sql`
+          SELECT f.id, f.original_name, f.user_id
+          FROM files f
+          INNER JOIN file_metadata fm ON f.id = fm.file_id
+          WHERE f.user_id = ${userId}
+          AND f.processing_status = 'pending'
+          AND (
+            fm.extracted_text LIKE 'File reference:%'
+            OR fm.summary LIKE 'Google Drive file:%'
+            OR fm.summary LIKE 'Imported from Excel:%'
           )
-          .orderBy(desc(files.uploadedAt))
-          .limit(result.filesCreated * 2); // Get more to ensure we catch all
+          ORDER BY f.uploaded_at DESC
+          LIMIT ${result.filesCreated * 2}
+        `;
+        
+        const queryResult = await db.execute(query);
+        const recentFiles = queryResult.rows;
         
         console.log(`Found ${recentFiles.length} Excel-imported files to process`);
         

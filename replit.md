@@ -3,13 +3,21 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 22, 2025)
+- **✅ COMPLETED: Auto-Processing Excel Files with Whisper AI**: Excel uploads now automatically trigger full content extraction
+  - **Automatic Processing**: Files from Excel imports are immediately processed with Whisper transcription
+  - **Batch Processing**: Processes files in batches of 3-5 for optimal performance
+  - **Full Pipeline**: Downloads from Google Drive → Transcribes with Whisper → Generates AI summaries
+  - **Scale**: Successfully processing 500+ files with automatic transcription and metadata
+- **✅ FIXED: Folder Deletion Performance**: Optimized deletion for Google Drive files
+  - **Smart Detection**: Skips cloud storage deletion for Google Drive URLs (http/https links)
+  - **Fast Deletion**: Folders with Google Drive files now delete instantly instead of timing out
 - **✅ COMPLETED: Hierarchical Excel Import with Folder Structure**: Full three-level folder hierarchy from Excel spreadsheets
   - **Parent Folder**: Created from Excel filename (e.g., "Video Production Status")
   - **Subject Folders**: Created from sheet names (e.g., "LV1(UP)", "LV2(LS)", "Public Speaking LV1")
   - **Lesson Folders**: Created from first column values (e.g., "LV1-Lesson1", "LV1-Lesson2")
   - **File Organization**: Files placed in correct lesson folders within subject folders
-  - **Performance**: Excel upload returns in ~40 seconds, Google Drive processing runs in background
-  - **Scale**: Successfully processed 167 files across 77 folders from single Excel upload
+  - **Performance**: Excel upload triggers immediate processing with Whisper AI transcription
+  - **Scale**: Successfully processed 598 files across multiple folders from Excel uploads
 - **✅ COMPLETED: Google Drive File Download System**: Full infrastructure for downloading and processing actual files from Google Drive
   - **Automatic Processing**: Files from Excel imports are automatically processed - no manual batch processing needed
   - **Google Cloud Integration**: Successfully integrated GOOGLE_CLOUD_CREDENTIALS for API authentication  
