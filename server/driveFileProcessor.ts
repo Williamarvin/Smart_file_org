@@ -244,51 +244,32 @@ export class DriveFileProcessor {
           const { extractFileMetadata } = await import('./openai');
           const aiMetadata = await extractFileMetadata(extractedContent, file.filename);
           
-          // Update or create file metadata with AI-generated content
-          const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
-          if (existingMetadata) {
-            // Update existing metadata with AI-generated content
-            await storage.updateFileMetadata(file.id, file.userId, {
-              extractedText: extractedContent,
-              summary: aiMetadata.summary || extractedContent.substring(0, 500),
-              keywords: aiMetadata.keywords || [],
-              topics: aiMetadata.topics || [],
-              categories: aiMetadata.categories || ['Education']
-            });
-          } else {
-            // Create new metadata with AI-generated content
-            await storage.createFileMetadata({
-              fileId: file.id,
-              extractedText: extractedContent,
-              summary: aiMetadata.summary || extractedContent.substring(0, 500),
-              keywords: aiMetadata.keywords || [],
-              topics: aiMetadata.topics || [],
-              categories: aiMetadata.categories || ['Education'],
-              confidence: aiMetadata.confidence || 1.0
-            }, file.userId);
+          // Check if metadata already exists and update it
+          try {
+            const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
+            if (existingMetadata) {
+              // Update existing metadata with AI-generated content
+              await storage.updateFileMetadata(file.id, file.userId, {
+                extractedText: extractedContent,
+                summary: aiMetadata.summary || extractedContent.substring(0, 500),
+                keywords: aiMetadata.keywords || [],
+                topics: aiMetadata.topics || [],
+                categories: aiMetadata.categories || ['Education']
+              });
+              console.log(`✅ Updated existing metadata for ${file.filename}`);
+            } else {
+              // Only create if file actually exists in database
+              console.log(`⚠️ No existing metadata for ${file.filename}, skipping metadata creation`);
+            }
+          } catch (metadataError) {
+            console.error(`Metadata error for ${file.filename}:`, metadataError);
+            // Don't create new metadata if there's an error, just log it
           }
           
           console.log(`✅ Generated AI metadata: ${aiMetadata.summary?.substring(0, 100)}...`);
         } catch (error) {
           console.error('Error generating AI metadata:', error);
-          // Fallback to basic metadata if AI fails
-          const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
-          if (existingMetadata) {
-            await storage.updateFileMetadata(file.id, file.userId, {
-              extractedText: extractedContent,
-              summary: extractedContent.substring(0, 500)
-            });
-          } else {
-            await storage.createFileMetadata({
-              fileId: file.id,
-              extractedText: extractedContent,
-              summary: extractedContent.substring(0, 500),
-              keywords: [],
-              topics: [],
-              categories: ['Education'],
-              confidence: 1.0
-            }, file.userId);
-          }
+          // Don't try to create metadata on error
         }
         
         console.log(`✅ Updated ${file.filename} with ${extractedContent.length} characters of content`);

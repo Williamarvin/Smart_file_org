@@ -124,10 +124,13 @@ export class ExcelWithDriveMetadataService {
             objectPath: googleDriveUrl || `/excel-import/${row.folderName}/${filename}`,
             uploadedAt: new Date(),
             userId: userId,
-            processingStatus: 'completed',
+            // Mark as pending if it's a Google Drive file that needs content extraction
+            processingStatus: googleDriveUrl ? 'pending' : 'completed',
             processingError: null,
             fileContent: null,
             storageType: googleDriveUrl ? 'google-drive' : 'excel-metadata',
+            // Store placeholder content that will be replaced by actual content
+            content: fileData.content || `File reference: ${filename}`,
             
             // Google Drive specific fields
             googleDriveId: googleDriveId,
