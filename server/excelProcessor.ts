@@ -258,8 +258,24 @@ export class ExcelProcessor {
     
     console.log(`Creating folders for ${processedData.length} rows...`);
     
-    // First, create parent folder if needed
-    if (parentFolderName && parentFolderName !== '') {
+    // Filter out folders that don't have any files
+    const foldersWithFiles = new Set<string>();
+    for (const row of processedData) {
+      if (row.files && row.files.length > 0) {
+        // Only add folder if it has files
+        foldersWithFiles.add(row.folderName);
+        // Also add parent folders in the path
+        const parts = row.folderName.split('/');
+        let currentPath = '';
+        for (const part of parts) {
+          currentPath = currentPath ? `${currentPath}/${part}` : part;
+          foldersWithFiles.add(currentPath);
+        }
+      }
+    }
+    
+    // First, create parent folder if needed and it has files
+    if (parentFolderName && parentFolderName !== '' && foldersWithFiles.has(parentFolderName)) {
       const existingParent = await db
         .select()
         .from(folders)
@@ -288,14 +304,20 @@ export class ExcelProcessor {
       folderMap.set(parentFolderName, parentFolder);
     }
     
-    // Create child folders
-    const uniqueFolders = Array.from(new Set(processedData.map(row => row.folderName)));
-    console.log(`Unique folders to create: ${uniqueFolders.length}`, uniqueFolders.slice(0, 5));
+    // Create child folders only if they have files
+    const uniqueFolders = Array.from(foldersWithFiles);
+    console.log(`Folders with files to create: ${uniqueFolders.length}`, uniqueFolders.slice(0, 5));
     
     for (const folderPath of uniqueFolders) {
       if (folderMap.has(folderPath)) {
         console.log(`Folder already in map, skipping: ${folderPath}`);
         continue; // Already created
+      }
+      
+      // Skip if this folder doesn't have files
+      if (!foldersWithFiles.has(folderPath)) {
+        console.log(`Skipping empty folder: ${folderPath}`);
+        continue;
       }
       
       const parts = folderPath.split('/');
@@ -304,6 +326,11 @@ export class ExcelProcessor {
       
       for (const part of parts) {
         currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+        // Skip if this path level doesn't have files
+        if (!foldersWithFiles.has(currentPath)) {
+          continue;
+        }
         
         if (folderMap.has(currentPath)) {
           parentId = folderMap.get(currentPath).id;
