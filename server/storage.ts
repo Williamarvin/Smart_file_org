@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Exclude file_content BYTEA column AND large text fields from regular queries for performance
+    // Include partial extracted text for UI display
     const result = await db
       .select({
         id: files.id,
@@ -233,7 +233,7 @@ export class DatabaseStorage implements IStorage {
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
-        // Only fetch essential metadata fields (not extracted_text which can be huge)
+        // Include metadata with extracted text preview
         metadataId: fileMetadata.id,
         metadataSummary: fileMetadata.summary,
         metadataCategories: fileMetadata.categories,
@@ -241,6 +241,8 @@ export class DatabaseStorage implements IStorage {
         metadataTopics: fileMetadata.topics,
         metadataConfidence: fileMetadata.confidence,
         metadataCreatedAt: fileMetadata.createdAt,
+        // Include extracted text for UI display
+        metadataExtractedText: fileMetadata.extractedText,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -273,11 +275,11 @@ export class DatabaseStorage implements IStorage {
       googleDriveUrl: null,
       googleDriveMetadata: null,
       lastMetadataSync: null,
-      // Build lightweight metadata object (without heavy extracted_text field)
+      // Include metadata with extracted text for UI display
       metadata: row.metadataId ? {
         id: row.metadataId,
         fileId: row.id,
-        extractedText: null, // Excluded for performance - load separately when needed
+        extractedText: row.metadataExtractedText, // Include for UI display
         summary: row.metadataSummary,
         categories: row.metadataCategories,
         keywords: row.metadataKeywords,

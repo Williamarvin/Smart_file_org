@@ -57,6 +57,7 @@ interface FileItem {
     topics?: string[];
     categories?: string[];
     confidence?: number;
+    extractedText?: string; // Add actual transcribed content
   };
 }
 
@@ -357,9 +358,38 @@ export default function FileGrid({
                         {/* AI-Generated Metadata */}
                         {file.metadata && file.processingStatus === 'completed' && (
                           <div className="mt-2 space-y-2">
-                            <p className="text-sm text-slate-600 line-clamp-2">
-                              {file.metadata.summary}
-                            </p>
+                            {/* Show transcribed content if available, otherwise show summary */}
+                            {file.metadata.extractedText && !file.metadata.extractedText.startsWith('File reference:') ? (
+                              <>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="default" className="text-xs bg-green-600">
+                                    ✓ Transcribed
+                                  </Badge>
+                                  <span className="text-xs text-slate-500">
+                                    {file.metadata.extractedText.length} characters
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-700 font-medium line-clamp-3 bg-green-50 p-2 rounded">
+                                  {file.metadata.extractedText.substring(0, 200)}...
+                                </p>
+                                {file.metadata.summary && (
+                                  <p className="text-sm text-slate-600 line-clamp-2 italic">
+                                    Summary: {file.metadata.summary}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {file.metadata.extractedText?.startsWith('File reference:') && (
+                                  <Badge variant="outline" className="text-xs">
+                                    ⏳ Pending transcription
+                                  </Badge>
+                                )}
+                                <p className="text-sm text-slate-600 line-clamp-2">
+                                  {file.metadata.summary || file.metadata.extractedText}
+                                </p>
+                              </>
+                            )}
                             
                             {/* Keywords Tags */}
                             {file.metadata.keywords && file.metadata.keywords.length > 0 && (
