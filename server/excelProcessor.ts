@@ -2,7 +2,7 @@ import XLSX from 'xlsx';
 import { nanoid } from 'nanoid';
 import { db } from './db';
 import { files, folders, fileMetadata } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -80,12 +80,15 @@ export class ExcelProcessor {
       
       // Process each row with hierarchical structure support
       const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName);
+      console.log(`Processed ${processedData.length} rows with folders:`, processedData.map(r => r.folderName));
       
       // Create folder structure
       const createdFolders = await this.createHierarchicalFolders(processedData, parentFolderName);
+      console.log(`Created ${createdFolders.length} folders`);
       
       // Create files
       const createdFiles = await this.createFiles(processedData, createdFolders);
+      console.log(`Created ${createdFiles.length} files`);
       
       allFolders.push(...createdFolders);
       allFiles.push(...createdFiles);
@@ -117,17 +120,19 @@ export class ExcelProcessor {
       // Get the lesson/folder name from the first column or use fallback
       let folderName = '';
       
-      // Check for first column with lesson names (like "__EMPTY" column)
+      // Check for first column with lesson names (like "__EMPTY" or "Unnamed: 0" column)
       const columns = Object.keys(row);
       const firstCol = columns[0] || '__EMPTY';
       
-      // Special handling for __EMPTY column (first unnamed column in Excel)
-      if (row['__EMPTY'] && typeof row['__EMPTY'] === 'string') {
+      // Special handling for __EMPTY or Unnamed: 0 column (first unnamed column in Excel)
+      const lessonCol = row['__EMPTY'] || row['Unnamed: 0'] || row[firstCol];
+      if (lessonCol && typeof lessonCol === 'string') {
         // This is likely a lesson name like "LV1-Lesson1"
-        const lessonName = row['__EMPTY'].trim();
-        // Only use if it looks like a lesson name (contains LV, Lesson, etc)
+        const lessonName = lessonCol.trim();
+        // Only use if it looks like a lesson name (contains LV, Lesson, Roadmap, etc)
         if (lessonName && (lessonName.includes('LV') || lessonName.includes('Lesson') || 
-            lessonName.includes('lesson') || lessonName.includes('Level'))) {
+            lessonName.includes('lesson') || lessonName.includes('Level') ||
+            lessonName.includes('Roadmap'))) {
           folderName = lessonName;
         }
       } 
@@ -251,16 +256,19 @@ export class ExcelProcessor {
     const createdFolders: any[] = [];
     const folderMap = new Map<string, any>();
     
+    console.log(`Creating folders for ${processedData.length} rows...`);
+    
     // First, create parent folder if needed
     if (parentFolderName && parentFolderName !== '') {
       const existingParent = await db
         .select()
         .from(folders)
-        .where(eq(folders.name, parentFolderName))
+        .where(and(eq(folders.name, parentFolderName), isNull(folders.parentId)))
         .limit(1);
       
       let parentFolder;
       if (existingParent.length === 0) {
+        console.log(`Creating parent folder: ${parentFolderName}`);
         const newParent = await db
           .insert(folders)
           .values({
@@ -273,6 +281,7 @@ export class ExcelProcessor {
         parentFolder = newParent[0];
         createdFolders.push(parentFolder);
       } else {
+        console.log(`Parent folder already exists: ${parentFolderName}`);
         parentFolder = existingParent[0];
       }
       
@@ -281,9 +290,11 @@ export class ExcelProcessor {
     
     // Create child folders
     const uniqueFolders = Array.from(new Set(processedData.map(row => row.folderName)));
+    console.log(`Unique folders to create: ${uniqueFolders.length}`, uniqueFolders.slice(0, 5));
     
     for (const folderPath of uniqueFolders) {
       if (folderMap.has(folderPath)) {
+        console.log(`Folder already in map, skipping: ${folderPath}`);
         continue; // Already created
       }
       
@@ -299,17 +310,23 @@ export class ExcelProcessor {
           continue;
         }
         
-        // Check if folder exists
+        // Check if folder exists with this name and parent
         const existing = await db
           .select()
           .from(folders)
-          .where(eq(folders.name, part))
+          .where(
+            parentId 
+              ? and(eq(folders.name, part), eq(folders.parentId, parentId))
+              : and(eq(folders.name, part), isNull(folders.parentId))
+          )
           .limit(1);
         
         if (existing.length > 0) {
+          console.log(`Folder exists in DB: ${currentPath}`);
           folderMap.set(currentPath, existing[0]);
           parentId = existing[0].id;
         } else {
+          console.log(`Creating new folder: ${currentPath} with parent ${parentId}`);
           // Create new folder
           const [newFolder] = await db
             .insert(folders)
@@ -376,12 +393,17 @@ export class ExcelProcessor {
     ];
 
     // Special handling for Video Production files - use first column for lesson names
-    if (columns.includes('__EMPTY') || columns[0] === '__EMPTY') {
+    // Don't use "Production Status" as folder column, skip it
+    if (columns.includes('__EMPTY') || columns[0] === '__EMPTY' || columns[0] === 'Unnamed: 0') {
       // Don't set folderColumn for Video Production files, we'll use __EMPTY column directly
       analysis.folderColumn = null;
     } else {
-      // Check for folder column
+      // Check for folder column, but exclude "Production Status" and "Produciton Status" (typo)
       for (const column of columns) {
+        // Skip "Production Status" column and its typo variant - it's not a folder column
+        if (column.toLowerCase().includes('produc') || column.toLowerCase().includes('status')) {
+          continue;
+        }
         if (!analysis.folderColumn && folderPatterns.some(p => p.test(column))) {
           analysis.folderColumn = column;
           break;
@@ -409,8 +431,11 @@ export class ExcelProcessor {
     ];
 
     for (const column of columns) {
-      // Check for folder column
-      if (!analysis.folderColumn && folderPatterns.some(p => p.test(column))) {
+      // Check for folder column, but skip "Production Status" and its typo variant
+      if (!analysis.folderColumn && 
+          !column.toLowerCase().includes('produc') && 
+          !column.toLowerCase().includes('status') &&
+          folderPatterns.some(p => p.test(column))) {
         analysis.folderColumn = column;
       }
       
