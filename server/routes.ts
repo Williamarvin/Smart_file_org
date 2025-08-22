@@ -2473,52 +2473,54 @@ Remember:
       if (result.filesCreated && result.filesCreated > 0) {
         console.log(`🚀 Auto-processing ${result.filesCreated} imported files from Excel...`);
         
-        // Import the drive processor
-        const { driveFileProcessor } = await import('./driveFileProcessor');
+        // Import the drive processor properly
+        const driveProcessor = await import('./driveFileProcessor');
         
-        // Get all files that were just created from this Excel import
-        // Look for files with placeholder metadata indicating Excel import
-        const query = sql`
-          SELECT f.id, f.original_name, f.user_id
-          FROM files f
-          INNER JOIN file_metadata fm ON f.id = fm.file_id
-          WHERE f.user_id = ${userId}
-          AND f.processing_status = 'pending'
-          AND (
-            fm.extracted_text LIKE 'File reference:%'
-            OR fm.summary LIKE 'Google Drive file:%'
-            OR fm.summary LIKE 'Imported from Excel:%'
+        // Get ALL recently created files (not just ones with metadata)
+        const recentFiles = await db
+          .select({
+            id: files.id,
+            originalName: files.originalName,
+            userId: files.userId,
+            objectPath: files.objectPath
+          })
+          .from(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              eq(files.processingStatus, 'pending')
+            )
           )
-          ORDER BY f.uploaded_at DESC
-          LIMIT ${result.filesCreated * 2}
-        `;
-        
-        const queryResult = await db.execute(query);
-        const recentFiles = queryResult.rows;
+          .orderBy(desc(files.uploadedAt))
+          .limit(result.filesCreated);
         
         console.log(`Found ${recentFiles.length} Excel-imported files to process`);
         
-        // Start processing immediately (not in setTimeout)
-        // Process in batches for better performance
-        const batchSize = 5;
+        // Process files immediately
         let processedCount = 0;
         let failedCount = 0;
         
-        // Process first batch synchronously, rest in background
-        const firstBatch = recentFiles.slice(0, batchSize);
-        const remainingFiles = recentFiles.slice(batchSize);
-        
-        // Process first batch immediately
-        for (const file of firstBatch) {
+        // Process all files using driveFileProcessor for Google Drive files
+        for (const file of recentFiles) {
           try {
-            console.log(`🔄 Processing (immediate): ${file.originalName}`);
-            const success = await driveFileProcessor.processFileById(file.id, file.userId);
-            if (success) {
-              processedCount++;
-              console.log(`✅ Processed: ${file.originalName}`);
+            console.log(`🔄 Processing: ${file.originalName}`);
+            
+            // Check if it's a Google Drive file
+            if (file.objectPath && file.objectPath.includes('drive.google.com')) {
+              // Use driveFileProcessor for Google Drive files
+              const success = await driveProcessor.driveFileProcessor.processFileById(file.id, file.userId);
+              if (success) {
+                processedCount++;
+                console.log(`✅ Processed Google Drive file: ${file.originalName}`);
+              } else {
+                failedCount++;
+                console.log(`❌ Failed to process: ${file.originalName}`);
+              }
             } else {
-              failedCount++;
-              console.log(`❌ Failed: ${file.originalName}`);
+              // Use regular processFileAsync for other files
+              await processFileAsync(file.id, file.userId);
+              processedCount++;
+              console.log(`✅ Processed regular file: ${file.originalName}`);
             }
           } catch (error) {
             console.error(`Failed to process ${file.originalName}:`, error);
@@ -2526,45 +2528,7 @@ Remember:
           }
         }
         
-        // Process remaining files in background
-        if (remainingFiles.length > 0) {
-          setTimeout(async () => {
-            console.log(`📦 Processing ${remainingFiles.length} remaining files in background...`);
-            
-            for (let i = 0; i < remainingFiles.length; i += batchSize) {
-              const batch = remainingFiles.slice(i, i + batchSize);
-              
-              // Process batch in parallel
-              const promises = batch.map(async (file) => {
-                try {
-                  console.log(`🔄 Processing (batch ${Math.floor(i/batchSize) + 1}): ${file.originalName}`);
-                  const success = await driveFileProcessor.processFileById(file.id, file.userId);
-                  if (success) {
-                    console.log(`✅ Processed: ${file.originalName}`);
-                    return true;
-                  } else {
-                    console.log(`❌ Failed: ${file.originalName}`);
-                    return false;
-                  }
-                } catch (error) {
-                  console.error(`Failed to process ${file.originalName}:`, error);
-                  return false;
-                }
-              });
-              
-              const results = await Promise.all(promises);
-              processedCount += results.filter(r => r).length;
-              failedCount += results.filter(r => !r).length;
-              
-              // Small delay between batches to avoid overload
-              if (i + batchSize < remainingFiles.length) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-              }
-            }
-            
-            console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
-          }, 100);
-        }
+        console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
         
         res.json({
           success: true,
