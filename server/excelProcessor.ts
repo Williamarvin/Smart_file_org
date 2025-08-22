@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx';
 import { nanoid } from 'nanoid';
 import { db } from './db';
 import { files, folders, fileMetadata } from '@shared/schema';
@@ -31,43 +31,323 @@ export class ExcelProcessor {
     folders: any[];
     files: any[];
     summary: string;
+    foldersCreated: number;
+    filesCreated: number;
   }> {
     console.log('Processing Excel file:', filePath);
     
     // Read the Excel file
     const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    let allFolders: any[] = [];
+    let allFiles: any[] = [];
+    let totalRows = 0;
     
-    // Convert to JSON
-    const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
-    
-    if (!data || data.length === 0) {
-      throw new Error('Excel file is empty or could not be parsed');
-    }
+    // Process each sheet
+    for (const sheetName of workbook.SheetNames) {
+      // Skip certain sheets
+      if (sheetName.includes('Data') || sheetName.includes('temp') || 
+          sheetName.includes('Estimation') || sheetName.includes('Schedule')) {
+        console.log(`Skipping sheet: ${sheetName}`);
+        continue;
+      }
+      
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON
+      const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+      
+      if (!data || data.length === 0) {
+        console.log(`Skipping empty sheet: ${sheetName}`);
+        continue;
+      }
 
-    // Analyze columns to detect patterns
-    const columns = Object.keys(data[0] as any);
-    const analysis = this.analyzeColumns(columns, data);
+      totalRows += data.length;
+
+      // Determine parent folder based on sheet name
+      let parentFolderName = sheetName;
+      
+      // Special handling for Video Production sheets
+      if (sheetName.includes('LV') || sheetName.includes('Public Speaking')) {
+        parentFolderName = 'Video Production';
+      }
+      
+      // Analyze columns to detect patterns
+      const columns = Object.keys(data[0] as any);
+      const analysis = this.analyzeColumns(columns, data);
+      
+      console.log(`Processing sheet: ${sheetName}, Parent folder: ${parentFolderName}`);
+      console.log('Column analysis:', analysis);
+      
+      // Process each row with hierarchical structure support
+      const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName);
+      
+      // Create folder structure
+      const createdFolders = await this.createHierarchicalFolders(processedData, parentFolderName);
+      
+      // Create files
+      const createdFiles = await this.createFiles(processedData, createdFolders);
+      
+      allFolders.push(...createdFolders);
+      allFiles.push(...createdFiles);
+    }
     
-    console.log('Column analysis:', analysis);
-    
-    // Process each row
-    const processedData = await this.processRows(data, analysis);
-    
-    // Create folder structure
-    const createdFolders = await this.createFolders(processedData);
-    
-    // Create files
-    const createdFiles = await this.createFiles(processedData, createdFolders);
-    
-    const summary = `Processed ${data.length} rows, created ${createdFolders.length} folders and ${createdFiles.length} files`;
+    const summary = `Processed ${workbook.SheetNames.length} sheets with ${totalRows} total rows, created ${allFolders.length} folders and ${allFiles.length} files`;
     
     return {
-      folders: createdFolders,
-      files: createdFiles,
-      summary
+      folders: allFolders,
+      files: allFiles,
+      summary,
+      foldersCreated: allFolders.length,
+      filesCreated: allFiles.length
     };
+  }
+
+  /**
+   * Process rows with hierarchical folder support
+   */
+  private async processRowsWithHierarchy(
+    data: any[], 
+    analysis: any, 
+    parentFolderName: string, 
+    sheetName: string
+  ): Promise<ProcessedRow[]> {
+    const processedRows: ProcessedRow[] = [];
+    
+    for (const row of data) {
+      // Get the lesson/folder name from the first column or use fallback
+      let folderName = '';
+      
+      // Check for first column with lesson names (like "__EMPTY" column)
+      const columns = Object.keys(row);
+      const firstCol = columns[0] || '__EMPTY';
+      
+      // Special handling for __EMPTY column (first unnamed column in Excel)
+      if (row['__EMPTY'] && typeof row['__EMPTY'] === 'string') {
+        // This is likely a lesson name like "LV1-Lesson1"
+        const lessonName = row['__EMPTY'].trim();
+        // Only use if it looks like a lesson name (contains LV, Lesson, etc)
+        if (lessonName && (lessonName.includes('LV') || lessonName.includes('Lesson') || 
+            lessonName.includes('lesson') || lessonName.includes('Level'))) {
+          folderName = lessonName;
+        }
+      } 
+      
+      // If no folder name yet, try other approaches
+      if (!folderName) {
+        if (row[firstCol] && typeof row[firstCol] === 'string' && 
+            firstCol !== 'Program' && firstCol !== 'Level' && 
+            firstCol !== 'Lesson Number' && firstCol !== 'Think and Speak (Debate level 2)') {
+          // Use first column if it's not a header-like column
+          const val = row[firstCol].trim();
+          if (val && val.length < 50) { // Avoid using long text as folder names
+            folderName = val;
+          }
+        } else if (analysis.folderColumn && row[analysis.folderColumn]) {
+          folderName = row[analysis.folderColumn];
+        }
+      }
+      
+      // Skip empty folder names or use parent folder
+      if (!folderName || folderName === '') {
+        // Don't create a folder, just add files to parent
+        folderName = parentFolderName;
+      }
+      
+      // Create hierarchical folder path only if not the same as parent
+      if (folderName !== parentFolderName) {
+        // Create child folder under parent
+        folderName = `${parentFolderName}/${folderName}`;
+      }
+      
+      const fileList: any[] = [];
+      
+      // Extract files from Video Link column
+      if (row['Video Link']) {
+        const videoLink = row['Video Link'].toString().trim();
+        if (videoLink && videoLink !== '') {
+          fileList.push({
+            filename: videoLink,
+            content: `Video file: ${videoLink}`,
+            type: 'video'
+          });
+        }
+      }
+      
+      // Extract files from Harry Trimmed column
+      if (row['Harry Trimmed']) {
+        const harryFile = row['Harry Trimmed'].toString().trim();
+        if (harryFile && harryFile !== '') {
+          fileList.push({
+            filename: harryFile,
+            content: `Trimmed video: ${harryFile}`,
+            type: 'video'
+          });
+        }
+      }
+      
+      // Extract files from other file columns
+      for (const fileCol of analysis.fileColumns) {
+        if (row[fileCol]) {
+          const fileValue = row[fileCol].toString().trim();
+          if (fileValue && fileValue !== '') {
+            // Check if it's a URL
+            if (fileValue.startsWith('http://') || fileValue.startsWith('https://')) {
+              fileList.push({
+                filename: path.basename(fileValue) || 'linked-file.txt',
+                url: fileValue,
+                type: 'link'
+              });
+            } else {
+              // It's a file name or content
+              fileList.push({
+                filename: fileValue,
+                content: `File: ${fileValue}`,
+                type: this.getFileType(fileValue)
+              });
+            }
+          }
+        }
+      }
+      
+      // Extract content from content columns
+      for (const contentCol of analysis.contentColumns) {
+        if (row[contentCol]) {
+          const content = row[contentCol].toString().trim();
+          if (content && content !== '') {
+            fileList.push({
+              filename: `${contentCol.replace(/\s+/g, '-').toLowerCase()}-content.txt`,
+              content: content,
+              type: 'text'
+            });
+          }
+        }
+      }
+      
+      // If we have files or need to create the folder
+      if (fileList.length > 0 || folderName !== parentFolderName) {
+        // Collect metadata
+        const metadata: Record<string, any> = {};
+        for (const metaCol of analysis.metadataColumns) {
+          if (row[metaCol]) {
+            metadata[metaCol] = row[metaCol];
+          }
+        }
+        
+        processedRows.push({
+          folderName,
+          files: fileList,
+          metadata
+        });
+      }
+    }
+    
+    return processedRows;
+  }
+  
+  /**
+   * Create hierarchical folders
+   */
+  private async createHierarchicalFolders(processedData: ProcessedRow[], parentFolderName: string): Promise<any[]> {
+    const createdFolders: any[] = [];
+    const folderMap = new Map<string, any>();
+    
+    // First, create parent folder if needed
+    if (parentFolderName && parentFolderName !== '') {
+      const existingParent = await db
+        .select()
+        .from(folders)
+        .where(eq(folders.name, parentFolderName))
+        .limit(1);
+      
+      let parentFolder;
+      if (existingParent.length === 0) {
+        const newParent = await db
+          .insert(folders)
+          .values({
+            name: parentFolderName,
+            path: `/${parentFolderName}`,
+            parentId: null,
+            userId: this.userId
+          })
+          .returning();
+        parentFolder = newParent[0];
+        createdFolders.push(parentFolder);
+      } else {
+        parentFolder = existingParent[0];
+      }
+      
+      folderMap.set(parentFolderName, parentFolder);
+    }
+    
+    // Create child folders
+    const uniqueFolders = Array.from(new Set(processedData.map(row => row.folderName)));
+    
+    for (const folderPath of uniqueFolders) {
+      if (folderMap.has(folderPath)) {
+        continue; // Already created
+      }
+      
+      const parts = folderPath.split('/');
+      let currentPath = '';
+      let parentId = null;
+      
+      for (const part of parts) {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        
+        if (folderMap.has(currentPath)) {
+          parentId = folderMap.get(currentPath).id;
+          continue;
+        }
+        
+        // Check if folder exists
+        const existing = await db
+          .select()
+          .from(folders)
+          .where(eq(folders.name, part))
+          .limit(1);
+        
+        if (existing.length > 0) {
+          folderMap.set(currentPath, existing[0]);
+          parentId = existing[0].id;
+        } else {
+          // Create new folder
+          const [newFolder] = await db
+            .insert(folders)
+            .values({
+              name: part,
+              path: `/${currentPath}`,
+              parentId: parentId,
+              userId: this.userId
+            })
+            .returning();
+          folderMap.set(currentPath, newFolder);
+          createdFolders.push(newFolder);
+          parentId = newFolder.id;
+        }
+      }
+    }
+    
+    return createdFolders;
+  }
+  
+  /**
+   * Get file type based on extension
+   */
+  private getFileType(filename: string): string {
+    const ext = path.extname(filename).toLowerCase();
+    if (['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv'].includes(ext)) {
+      return 'video';
+    } else if (['.pdf'].includes(ext)) {
+      return 'pdf';
+    } else if (['.doc', '.docx'].includes(ext)) {
+      return 'document';
+    } else if (['.ppt', '.pptx'].includes(ext)) {
+      return 'presentation';
+    } else if (['.xls', '.xlsx'].includes(ext)) {
+      return 'spreadsheet';
+    } else {
+      return 'text';
+    }
   }
 
   /**
@@ -88,18 +368,33 @@ export class ExcelProcessor {
       contentColumns: [] as string[]
     };
 
-    // Common patterns for folder columns
-    const folderPatterns = [
-      /subject/i, /category/i, /folder/i, /topic/i, /module/i, 
-      /unit/i, /chapter/i, /section/i, /course/i, /department/i,
-      /area/i, /domain/i, /group/i, /type/i
-    ];
+    // Special handling for Video Production files - use first column for lesson names
+    if (columns.includes('__EMPTY') || columns[0] === '__EMPTY') {
+      // Don't set folderColumn for Video Production files, we'll use __EMPTY column directly
+      analysis.folderColumn = null;
+    } else {
+      // Common patterns for folder columns
+      const folderPatterns = [
+        /subject/i, /category/i, /folder/i, /topic/i, /module/i, 
+        /unit/i, /chapter/i, /section/i, /course/i, /department/i,
+        /area/i, /domain/i, /group/i, /type/i, /theme/i, /program/i
+      ];
+      
+      // Check for folder column
+      for (const column of columns) {
+        if (!analysis.folderColumn && folderPatterns.some(p => p.test(column))) {
+          analysis.folderColumn = column;
+          break;
+        }
+      }
+    }
 
     // Common patterns for file/document columns
     const filePatterns = [
       /file/i, /document/i, /attachment/i, /resource/i, /material/i,
       /pdf/i, /link/i, /url/i, /video/i, /presentation/i, /slide/i,
-      /worksheet/i, /assignment/i, /assessment/i, /reading/i
+      /worksheet/i, /assignment/i, /assessment/i, /reading/i, /ppt/i,
+      /lesson\s*plan/i, /harry/i  // Added Harry for "Harry Trimmed" column
     ];
 
     // Common patterns for title columns
@@ -304,8 +599,22 @@ export class ExcelProcessor {
   private async createFiles(processedData: ProcessedRow[], createdFolders: any[]): Promise<any[]> {
     const createdFiles: any[] = [];
     
-    // Create a map of folder names to IDs
-    const folderMap = new Map(createdFolders.map(f => [f.name, f.id]));
+    // Create a map of folder paths to IDs
+    const folderMap = new Map<string, string>();
+    
+    // Map all folders by their full path
+    for (const folder of createdFolders) {
+      // Map by name and by path
+      folderMap.set(folder.name, folder.id);
+      folderMap.set(folder.path.replace(/^\//, ''), folder.id);
+    }
+    
+    // Also get existing folders from DB to map them
+    const allFolders = await db.select().from(folders).where(eq(folders.userId, this.userId));
+    for (const folder of allFolders) {
+      folderMap.set(folder.name, folder.id);
+      folderMap.set(folder.path.replace(/^\//, ''), folder.id);
+    }
     
     for (const row of processedData) {
       const folderId = folderMap.get(row.folderName);
