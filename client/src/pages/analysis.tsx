@@ -134,7 +134,7 @@ export function Analysis() {
                   <p className="text-xs text-slate-600">Completed</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-600">{totalFiles - processedFiles}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{(stats as any)?.processingFiles || 0}</p>
                   <p className="text-xs text-slate-600">Remaining</p>
                 </div>
               </div>

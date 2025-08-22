@@ -368,18 +368,18 @@ export class ExcelProcessor {
       contentColumns: [] as string[]
     };
 
+    // Common patterns for folder columns - define outside if block
+    const folderPatterns = [
+      /subject/i, /category/i, /folder/i, /topic/i, /module/i, 
+      /unit/i, /chapter/i, /section/i, /course/i, /department/i,
+      /area/i, /domain/i, /group/i, /type/i, /theme/i, /program/i
+    ];
+
     // Special handling for Video Production files - use first column for lesson names
     if (columns.includes('__EMPTY') || columns[0] === '__EMPTY') {
       // Don't set folderColumn for Video Production files, we'll use __EMPTY column directly
       analysis.folderColumn = null;
     } else {
-      // Common patterns for folder columns
-      const folderPatterns = [
-        /subject/i, /category/i, /folder/i, /topic/i, /module/i, 
-        /unit/i, /chapter/i, /section/i, /course/i, /department/i,
-        /area/i, /domain/i, /group/i, /type/i, /theme/i, /program/i
-      ];
-      
       // Check for folder column
       for (const column of columns) {
         if (!analysis.folderColumn && folderPatterns.some(p => p.test(column))) {
