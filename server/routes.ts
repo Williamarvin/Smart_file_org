@@ -803,7 +803,7 @@ ${file.fileContent.toString()}`;
       const { driveFileProcessor } = await import('./driveFileProcessor');
       
       // Process the specific file
-      const success = await driveFileProcessor.processFileById(fileId);
+      const success = await driveFileProcessor.processFileById(fileId, userId);
       
       if (success) {
         res.json({
@@ -820,6 +820,63 @@ ${file.fileContent.toString()}`;
       console.error('Error processing Google Drive file:', error);
       res.status(500).json({ 
         error: 'Failed to process Google Drive file',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Process specific file by name (priority processing)
+  app.post('/api/files/process-by-name', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { filename } = req.body;
+      
+      if (!filename) {
+        return res.status(400).json({ error: 'Filename is required' });
+      }
+      
+      // Find the file by name
+      const [file] = await db
+        .select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.originalName, filename)
+          )
+        )
+        .limit(1);
+      
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      
+      // Import the processor
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      console.log(`Priority processing requested for: ${filename}`);
+      
+      // Process the specific file
+      const success = await driveFileProcessor.processFileById(file.id, userId);
+      
+      if (success) {
+        // Get updated metadata
+        const metadata = await storage.getFileMetadata(file.id, userId);
+        res.json({
+          success: true,
+          message: 'File processed successfully',
+          file: { ...file, metadata }
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Failed to process file'
+        });
+      }
+    } catch (error) {
+      console.error('Error processing file by name:', error);
+      res.status(500).json({ 
+        error: 'Failed to process file',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
