@@ -1054,34 +1054,118 @@ ${file.fileContent.toString()}`;
       
       console.log(`Searching for: "${query}"`);
 
-      // Use pgvector semantic similarity search with text fallback
-      let files: any[] = [];
+      // Perform both title/text search AND semantic search, then combine results
+      let titleMatches: any[] = [];
+      let semanticMatches: any[] = [];
       
+      // 1. First, get exact and partial title matches
+      try {
+        console.log("Searching for title/text matches...");
+        titleMatches = await storage.searchFiles(query, userId, 30);
+        console.log(`Found ${titleMatches.length} title/text matches`);
+        
+        // Score title matches based on how well they match
+        titleMatches = titleMatches.map(file => {
+          const filename = (file.originalName || file.filename || '').toLowerCase();
+          const searchTerm = query.toLowerCase();
+          
+          // Calculate match score
+          let matchScore = 0;
+          if (filename === searchTerm) {
+            matchScore = 1.0; // Exact match
+          } else if (filename.includes(searchTerm)) {
+            // Higher score if match is at the beginning
+            const position = filename.indexOf(searchTerm);
+            matchScore = 0.8 - (position * 0.01); // Score decreases with position
+          } else if (file.metadata?.extractedText?.toLowerCase().includes(searchTerm) || 
+                     file.metadata?.summary?.toLowerCase().includes(searchTerm)) {
+            matchScore = 0.3; // Content match
+          } else {
+            matchScore = 0.1; // Keyword/topic match
+          }
+          
+          return {
+            ...file,
+            matchType: 'title',
+            matchScore,
+            similarity: matchScore // Use matchScore as similarity for sorting
+          };
+        });
+      } catch (error) {
+        console.error("Title search failed:", error);
+      }
+      
+      // 2. Then, get semantic similarity matches
       try {
         console.log("Attempting pgvector semantic similarity search...");
         const queryEmbedding = await generateSearchEmbedding(query);
-        files = await storage.searchFilesBySimilarity(queryEmbedding, userId);
-        console.log(`Pgvector semantic search found ${files.length} files`);
+        semanticMatches = await storage.searchFilesBySimilarity(queryEmbedding, userId);
+        console.log(`Pgvector semantic search found ${semanticMatches.length} files`);
         
-        // If semantic search found no relevant results, fallback to text search
-        if (files.length === 0) {
-          console.log("Semantic search returned no relevant results (similarity threshold not met), trying text search fallback...");
-          files = await storage.searchFiles(query, userId, 20);
-          console.log(`Text search fallback found ${files.length} files`);
-        }
+        // Mark these as semantic matches
+        semanticMatches = semanticMatches.map(file => ({
+          ...file,
+          matchType: 'semantic',
+          matchScore: file.similarity || 0
+        }));
       } catch (embeddingError) {
-        console.error("Semantic search failed, falling back to text search:", embeddingError);
-        // Fallback to text-based search
-        files = await storage.searchFiles(query, userId, 20);
-        console.log(`Text search found ${files.length} files`);
+        console.error("Semantic search failed:", embeddingError);
       }
 
-      console.log(`Found ${files.length} files matching "${query}"`);
-      console.log(`Files:`, files.map(f => ({ 
-        id: f.id, 
-        filename: f.filename, 
-        hasMetadata: !!f.metadata,
-        similarity: f.similarity ? (f.similarity * 100).toFixed(1) + '%' : 'N/A'
+      // 3. Combine and deduplicate results
+      const fileMap = new Map();
+      
+      // Add title matches first (they have priority)
+      titleMatches.forEach(file => {
+        fileMap.set(file.id, file);
+      });
+      
+      // Add semantic matches if not already present
+      semanticMatches.forEach(file => {
+        if (!fileMap.has(file.id)) {
+          fileMap.set(file.id, file);
+        } else {
+          // If file exists from title match, update similarity if semantic score is higher
+          const existing = fileMap.get(file.id);
+          if (file.similarity > existing.similarity) {
+            existing.semanticSimilarity = file.similarity;
+          }
+        }
+      });
+      
+      // Convert map back to array and sort
+      let files = Array.from(fileMap.values());
+      
+      // Sort by: exact title matches first, then partial title matches, then semantic matches
+      files.sort((a, b) => {
+        // First priority: exact matches in title
+        const aFilename = (a.originalName || a.filename || '').toLowerCase();
+        const bFilename = (b.originalName || b.filename || '').toLowerCase();
+        const searchTerm = query.toLowerCase();
+        
+        const aExact = aFilename === searchTerm;
+        const bExact = bFilename === searchTerm;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Second priority: title contains search term
+        const aContains = aFilename.includes(searchTerm);
+        const bContains = bFilename.includes(searchTerm);
+        if (aContains && !bContains) return -1;
+        if (!aContains && bContains) return 1;
+        
+        // Third priority: sort by match score/similarity
+        return (b.matchScore || b.similarity || 0) - (a.matchScore || a.similarity || 0);
+      });
+      
+      // Limit results
+      files = files.slice(0, 30);
+
+      console.log(`Found ${files.length} total unique files`);
+      console.log(`Top results:`, files.slice(0, 5).map(f => ({ 
+        filename: f.originalName || f.filename,
+        matchType: f.matchType,
+        score: (f.matchScore || f.similarity || 0).toFixed(3)
       })));
       
       // Store search history
@@ -1090,7 +1174,7 @@ ${file.fileContent.toString()}`;
           await storage.createSearchHistory({
             query,
             userId,
-            results: files.map(f => ({ id: f.id, similarity: 100 })),
+            results: files.map(f => ({ id: f.id, similarity: f.matchScore || f.similarity || 100 })),
           }, userId);
         } catch (error) {
           console.error("Error storing search history:", error);

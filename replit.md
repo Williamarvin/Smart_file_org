@@ -3,6 +3,11 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 23, 2025)
+- **✅ IMPROVED: Smart Search with Title Priority**: Search now intelligently prioritizes exact filename matches
+  - **Title Match Priority**: Files with search terms in their name appear first
+  - **Combined Search**: Uses both title matching AND semantic similarity
+  - **Smart Scoring**: Exact matches (1.0) > Partial title matches (0.7-0.8) > Content matches (0.3) > Semantic (0.1-0.2)
+  - **Better Relevance**: Searching "Lesson 23" now correctly shows all "Lesson 23" files at the top
 - **✅ REMOVED: Manual Processing Controls**: All file processing is now fully automatic
   - **Removed Manual UI**: Eliminated "Process 50/100 Files" buttons and manual batch processing
   - **Continuous Background Processing**: System automatically processes all files without user intervention
