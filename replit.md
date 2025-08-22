@@ -2,11 +2,15 @@
 
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
-## Recent Updates (August 22, 2025)
+## Recent Updates (August 23, 2025)
+- **✅ REMOVED: Manual Processing Controls**: All file processing is now fully automatic
+  - **Removed Manual UI**: Eliminated "Process 50/100 Files" buttons and manual batch processing
+  - **Continuous Background Processing**: System automatically processes all files without user intervention
+  - **Active Processing**: 441+ files being processed automatically in background
+  - **No User Action Required**: Files queue and process automatically after Excel upload
 - **✅ COMPLETED: Auto-Processing Excel Files with Whisper AI**: Excel uploads now automatically trigger full content extraction
   - **Automatic Processing**: Files from Excel imports are immediately processed with Whisper transcription
-  - **Batch Processing**: Processes files in batches of 3-5 for optimal performance
-  - **Full Pipeline**: Downloads from Google Drive → Transcribes with Whisper → Generates AI summaries
+  - **Continuous Pipeline**: Downloads from Google Drive → Transcribes with Whisper → Generates AI summaries
   - **Scale**: Successfully processing 500+ files with automatic transcription and metadata
 - **✅ FIXED: Folder Deletion Performance**: Optimized deletion for Google Drive files
   - **Smart Detection**: Skips cloud storage deletion for Google Drive URLs (http/https links)
