@@ -163,12 +163,47 @@ export class ExcelProcessor {
     
     const summary = `Processed ${workbook.SheetNames.length} sheets with ${totalRows} total rows, created ${allFolders.length} folders and ${allFiles.length} files`;
     
+    // Automatically process Google Drive files if any were imported
+    let driveProcessingResult = null;
+    if (allFiles.length > 0) {
+      console.log(`📥 Starting automatic Google Drive file processing...`);
+      
+      try {
+        // Import storage to check for Google Drive files
+        const { storage } = await import('./storage');
+        const driveFiles = await storage.getFilesByStorageType('google-drive', this.userId);
+        
+        if (driveFiles.length > 0) {
+          console.log(`Found ${driveFiles.length} Google Drive files to process`);
+          
+          // Import and use the drive file processor
+          const { driveFileProcessor } = await import('./driveFileProcessor');
+          const driveResult = await driveFileProcessor.processAllDriveFiles(this.userId);
+          
+          console.log(`✅ Google Drive processing complete: ${driveResult.processed} processed, ${driveResult.failed} failed, ${driveResult.skipped} skipped`);
+          
+          driveProcessingResult = {
+            processed: driveResult.processed,
+            failed: driveResult.failed,
+            skipped: driveResult.skipped,
+            total: driveFiles.length
+          };
+        }
+      } catch (driveError) {
+        console.error('Error processing Google Drive files:', driveError);
+        // Don't fail the whole import if Drive processing fails
+      }
+    }
+    
     return {
       folders: allFolders,
       files: allFiles,
-      summary,
+      summary: driveProcessingResult 
+        ? `${summary}. Processed ${driveProcessingResult.processed} Google Drive files.`
+        : summary,
       foldersCreated: allFolders.length,
-      filesCreated: allFiles.length
+      filesCreated: allFiles.length,
+      ...(driveProcessingResult ? { driveProcessing: driveProcessingResult } : {})
     };
   }
 

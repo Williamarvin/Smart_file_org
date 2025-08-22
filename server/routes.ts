@@ -493,6 +493,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process Google Drive files - download actual content
+  app.post('/api/files/process-drive-files', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('Starting Google Drive file processing for user:', userId);
+      
+      // Import the processor (lazy loading to avoid circular dependencies)
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      // Process all Google Drive files for the user
+      const result = await driveFileProcessor.processAllDriveFiles(userId);
+      
+      res.json({
+        success: true,
+        message: 'Google Drive file processing completed',
+        ...result
+      });
+    } catch (error) {
+      console.error('Error processing Google Drive files:', error);
+      res.status(500).json({ 
+        error: 'Failed to process Google Drive files',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Process a single Google Drive file
+  app.post('/api/files/:id/process-drive', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { id: fileId } = req.params;
+      
+      // Import the processor
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      // Process the specific file
+      const success = await driveFileProcessor.processFileById(fileId);
+      
+      if (success) {
+        res.json({
+          success: true,
+          message: 'File processed successfully'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Failed to process file'
+        });
+      }
+    } catch (error) {
+      console.error('Error processing Google Drive file:', error);
+      res.status(500).json({ 
+        error: 'Failed to process Google Drive file',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Process all pending files in batch
   app.post("/api/files/process-pending", async (req: any, res) => {
     try {

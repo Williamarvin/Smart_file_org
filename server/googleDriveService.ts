@@ -22,9 +22,11 @@ export class GoogleDriveService {
   private async initialize(): Promise<void> {
     try {
       // Check for service account credentials first
-      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      // Support both GOOGLE_CLOUD_CREDENTIALS and GOOGLE_SERVICE_ACCOUNT_KEY
+      const credentialsJson = process.env.GOOGLE_CLOUD_CREDENTIALS || process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+      if (credentialsJson) {
         console.log('Initializing Google Drive API with Service Account...');
-        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        const credentials = JSON.parse(credentialsJson);
         
         const auth = new google.auth.GoogleAuth({
           credentials,
@@ -62,6 +64,39 @@ export class GoogleDriveService {
     } catch (error) {
       console.error('Failed to initialize Google Drive API:', error);
       this.initialized = false;
+    }
+  }
+
+  /**
+   * Download file content from Google Drive
+   */
+  public async downloadFile(fileIdOrUrl: string): Promise<Buffer | null> {
+    if (!this.initialized || !this.drive) {
+      console.log('Cannot download file - Google Drive API not initialized');
+      return null;
+    }
+
+    try {
+      // Extract file ID if URL was provided
+      const fileId = fileIdOrUrl.includes('drive.google.com') 
+        ? this.extractFileId(fileIdOrUrl) 
+        : fileIdOrUrl;
+      
+      if (!fileId) {
+        console.error('Invalid Google Drive URL or file ID:', fileIdOrUrl);
+        return null;
+      }
+
+      const response = await this.drive.files.get(
+        { fileId, alt: 'media' },
+        { responseType: 'arraybuffer' }
+      );
+      
+      console.log(`✅ Downloaded file from Google Drive`);
+      return Buffer.from(response.data as ArrayBuffer);
+    } catch (error: any) {
+      console.error(`Failed to download file:`, error.message);
+      return null;
     }
   }
 

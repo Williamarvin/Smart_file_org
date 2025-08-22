@@ -269,6 +269,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
       // Build lightweight metadata object (without heavy extracted_text field)
       metadata: row.metadataId ? {
         id: row.metadataId,
@@ -447,6 +451,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
       metadata: row.metadata || undefined,
     }));
     
@@ -494,6 +502,10 @@ export class DatabaseStorage implements IStorage {
       processingError: row.processing_error,
       uploadedAt: row.uploaded_at,
       userId: row.user_id,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
       similarity: 1 - row.distance, // Convert distance to similarity score
       metadata: {
         id: row.id,
@@ -562,6 +574,10 @@ export class DatabaseStorage implements IStorage {
       processingError: row.processing_error,
       uploadedAt: row.uploaded_at,
       userId: row.user_id,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
       metadata: row.file_id ? {
         id: row.file_id,
         fileId: row.file_id,
@@ -670,6 +686,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
       metadata: row.metadata || undefined,
     }));
   }
@@ -769,6 +789,10 @@ export class DatabaseStorage implements IStorage {
       files: (filesByFolder.get(folder.id) || []).map(file => ({
         ...file,
         fileContent: null, // Exclude bytea data for performance
+        googleDriveId: null,
+        googleDriveUrl: null,
+        googleDriveMetadata: null,
+        lastMetadataSync: null,
       })),
     }));
     
@@ -937,6 +961,10 @@ export class DatabaseStorage implements IStorage {
       fileContent: null, // Not included in API responses
       storageType: row.storageType || null, // Use actual value or default
       metadata: row.metadata || undefined,
+      googleDriveId: null,
+      googleDriveUrl: null,
+      googleDriveMetadata: null,
+      lastMetadataSync: null,
     }));
   }
   
@@ -1025,6 +1053,32 @@ export class DatabaseStorage implements IStorage {
         eq(validationReports.id, reportId),
         eq(validationReports.userId, userId)
       ));
+  }
+
+  // Google Drive file processing methods
+  async getFilesByStorageType(storageType: string, userId: string): Promise<any[]> {
+    const results = await db
+      .select()
+      .from(files)
+      .where(
+        and(
+          eq(files.storageType, storageType),
+          eq(files.userId, userId)
+        )
+      );
+    return results;
+  }
+
+  async updateFileContent(fileId: string, updates: {
+    content?: string;
+    size?: number;
+    processingStatus?: string;
+    processedAt?: Date;
+  }): Promise<void> {
+    await db
+      .update(files)
+      .set(updates)
+      .where(eq(files.id, fileId));
   }
 }
 
