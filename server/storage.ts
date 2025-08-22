@@ -1210,9 +1210,16 @@ export class DatabaseStorage implements IStorage {
     processingStatus?: string;
     processedAt?: Date;
   }): Promise<void> {
+    // Map content to fileContent field
+    const dbUpdates: any = { ...updates };
+    if (updates.content) {
+      dbUpdates.fileContent = Buffer.from(updates.content);
+      delete dbUpdates.content;
+    }
+    
     await db
       .update(files)
-      .set(updates)
+      .set(dbUpdates)
       .where(eq(files.id, fileId));
   }
 }

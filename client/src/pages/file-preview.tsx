@@ -74,9 +74,17 @@ export function FilePreview() {
   };
 
   const handleDownload = () => {
-    const downloadLink = (file as any)?.objectPath;
-    if (downloadLink) {
-      window.open(downloadLink, '_blank');
+    // Use the API download endpoint to get the actual file content
+    const fileId = (file as any)?.id;
+    if (fileId) {
+      // Create a hidden link and trigger download
+      const downloadUrl = `/api/files/${fileId}/download`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = (file as any)?.originalName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 

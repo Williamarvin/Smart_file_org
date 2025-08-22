@@ -390,6 +390,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download file endpoint - serves the actual file content
+  app.get("/api/files/:id/download", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const file = await storage.getFile(req.params.id, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      // Check if we have content stored in the database
+      if (file.fileContent) {
+        // Set appropriate headers for download
+        res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+        
+        // For video files, create a simple text file with the transcript
+        if (file.mimeType?.startsWith('video/')) {
+          const transcriptContent = `Transcript of: ${file.originalName}
+Date: ${new Date(file.uploadedAt).toLocaleDateString()}
+Original Google Drive Link: ${file.objectPath}
+
+==========================================
+TRANSCRIBED CONTENT:
+==========================================
+
+${file.fileContent.toString()}`;
+          
+          res.setHeader('Content-Type', 'text/plain');
+          res.setHeader('Content-Disposition', `attachment; filename="${file.originalName.replace(/\.[^/.]+$/, '')}_transcript.txt"`);
+          res.send(transcriptContent);
+        } else {
+          // For other files, send the content directly
+          res.send(file.fileContent);
+        }
+      } else if (file.objectPath) {
+        // If no content stored but we have Google Drive link, try to download it
+        const googleDriveService = new GoogleDriveService();
+        const fileContent = await googleDriveService.downloadFile(file.objectPath);
+        
+        if (fileContent) {
+          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+          res.send(fileContent);
+        } else {
+          // Fallback: redirect to Google Drive link
+          res.redirect(file.objectPath);
+        }
+      } else {
+        res.status(404).json({ error: "File content not available" });
+      }
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      res.status(500).json({ error: "Failed to download file" });
+    }
+  });
+
   // Delete file (works for any status including processing)
   app.delete("/api/files/:id", async (req: any, res) => {
     try {
