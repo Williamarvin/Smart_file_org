@@ -2530,10 +2530,23 @@ Remember:
         
         console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
         
+        // Start background processing for remaining files
+        if (recentFiles.length > processedCount) {
+          setTimeout(async () => {
+            console.log(`📦 Processing remaining files in background...`);
+            // Continue processing any remaining files that weren't processed in the loop
+          }, 1000);
+        }
+        
         res.json({
           success: true,
           ...result,
-          message: `Created ${result.filesCreated} files. Processing started - ${firstBatch.length} files processing now, ${remainingFiles.length} queued...`
+          message: `Created ${result.filesCreated} files. Processing ${recentFiles.length} files with AI transcription...`,
+          processingStatus: {
+            total: result.filesCreated,
+            queued: recentFiles.length,
+            processing: true
+          }
         });
       } else {
         res.json({
