@@ -2363,10 +2363,60 @@ Remember:
       
       console.log('Excel processing complete:', result.summary);
       
-      res.json({
-        success: true,
-        ...result
-      });
+      // Automatically trigger processing of all imported files
+      if (result.filesCreated && result.filesCreated > 0) {
+        console.log(`🚀 Auto-processing ${result.filesCreated} imported files from Excel...`);
+        
+        // Import the drive processor
+        const { driveFileProcessor } = await import('./driveFileProcessor');
+        
+        // Get all files that were just created (with placeholder metadata)
+        const recentFiles = await db
+          .select()
+          .from(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              eq(files.processingStatus, 'pending')
+            )
+          )
+          .orderBy(desc(files.uploadedAt))
+          .limit(result.filesCreated);
+        
+        // Process all files asynchronously in the background
+        setTimeout(async () => {
+          let processedCount = 0;
+          let failedCount = 0;
+          
+          for (const file of recentFiles) {
+            try {
+              console.log(`Processing file ${processedCount + 1}/${recentFiles.length}: ${file.originalName}`);
+              const success = await driveFileProcessor.processFileById(file.id, userId);
+              if (success) {
+                processedCount++;
+              } else {
+                failedCount++;
+              }
+            } catch (error) {
+              console.error(`Failed to process ${file.originalName}:`, error);
+              failedCount++;
+            }
+          }
+          
+          console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
+        }, 1000); // Start processing after 1 second
+        
+        res.json({
+          success: true,
+          ...result,
+          message: `Created ${result.filesCreated} files. Processing content in background...`
+        });
+      } else {
+        res.json({
+          success: true,
+          ...result
+        });
+      }
       
     } catch (error) {
       console.error("Error processing Excel file:", error);
