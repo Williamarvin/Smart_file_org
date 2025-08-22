@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square } from "lucide-react";
+import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter } from "lucide-react";
 import SearchBar from "@/components/search-bar";
 import FileGrid from "@/components/file-grid";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +56,7 @@ export function Browse() {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedMoveFolder, setSelectedMoveFolder] = useState<string>("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -322,6 +323,7 @@ export function Browse() {
   const navigateToFolder = (folderId: string | null) => {
     setCurrentFolderId(folderId);
     setSearchQuery(""); // Clear search when navigating
+    setActiveFilter("all"); // Reset filter when navigating
   };
 
   // Build breadcrumb path
@@ -338,7 +340,32 @@ export function Browse() {
     ];
   };
 
-  const displayFiles = searchQuery ? searchResults : folderFiles;
+  // Apply filters to the files
+  const applyFilters = (files: any[]) => {
+    if (!files || !Array.isArray(files)) return [];
+    
+    switch (activeFilter) {
+      case "transcribed":
+        return files.filter(file => 
+          file.metadata?.extractedText && 
+          !file.metadata.extractedText.startsWith('File reference:') &&
+          file.metadata.extractedText.length > 100 &&
+          file.processingStatus === 'completed'
+        );
+      case "pending":
+        return files.filter(file => file.processingStatus === 'pending');
+      case "processing":
+        return files.filter(file => file.processingStatus === 'processing');
+      case "failed":
+        return files.filter(file => file.processingStatus === 'error' || file.processingStatus === 'failed');
+      case "all":
+      default:
+        return files;
+    }
+  };
+
+  const rawDisplayFiles = searchQuery ? searchResults : folderFiles;
+  const displayFiles = applyFilters(rawDisplayFiles);
   const isLoading = searchQuery ? searchLoading : (foldersLoading || filesLoading);
 
   return (
@@ -356,6 +383,59 @@ export function Browse() {
           hasResults={Array.isArray(displayFiles) && displayFiles.length > 0}
           query={searchQuery}
         />
+      </div>
+
+      {/* Filter Buttons */}
+      <div className="mb-6 flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-slate-600" />
+          <span className="text-sm text-slate-600 font-medium">Filter:</span>
+        </div>
+        <Button
+          variant={activeFilter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setActiveFilter("all")}
+        >
+          All Files
+        </Button>
+        <Button
+          variant={activeFilter === "transcribed" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setActiveFilter("transcribed")}
+          className="bg-green-50 hover:bg-green-100 text-green-800 border-green-300 data-[state=on]:bg-green-600 data-[state=on]:text-white"
+        >
+          ✓ Transcribed
+        </Button>
+        <Button
+          variant={activeFilter === "pending" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setActiveFilter("pending")}
+          className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border-yellow-300 data-[state=on]:bg-yellow-600 data-[state=on]:text-white"
+        >
+          ⏳ Pending
+        </Button>
+        <Button
+          variant={activeFilter === "processing" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setActiveFilter("processing")}
+          className="bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300 data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+        >
+          🔄 Processing
+        </Button>
+        <Button
+          variant={activeFilter === "failed" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setActiveFilter("failed")}
+          className="bg-red-50 hover:bg-red-100 text-red-800 border-red-300 data-[state=on]:bg-red-600 data-[state=on]:text-white"
+        >
+          ❌ Failed
+        </Button>
+        
+        {activeFilter !== "all" && (
+          <Badge variant="secondary" className="ml-2">
+            {Array.isArray(displayFiles) ? displayFiles.length : 0} files
+          </Badge>
+        )}
       </div>
 
       {/* Navigation and Actions */}
@@ -627,11 +707,19 @@ export function Browse() {
 
       {/* Files Grid */}
       <div>
-        {searchQuery && (
+        {searchQuery ? (
           <h3 className="text-lg font-semibold text-slate-800 mb-4">
-            Search Results {Array.isArray(searchResults) && searchResults.length > 0 && `(${searchResults.length})`}
+            Search Results {Array.isArray(displayFiles) && displayFiles.length > 0 && `(${displayFiles.length})`}
           </h3>
-        )}
+        ) : activeFilter !== "all" ? (
+          <h3 className="text-lg font-semibold text-slate-800 mb-4">
+            {activeFilter === "transcribed" && "Transcribed Files"}
+            {activeFilter === "pending" && "Pending Files"}
+            {activeFilter === "processing" && "Processing Files"}
+            {activeFilter === "failed" && "Failed Files"}
+            {Array.isArray(displayFiles) && displayFiles.length > 0 && ` (${displayFiles.length})`}
+          </h3>
+        ) : null}
         <FileGrid 
           files={Array.isArray(displayFiles) ? displayFiles : []}
           isLoading={isLoading}
