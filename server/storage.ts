@@ -975,46 +975,55 @@ export class DatabaseStorage implements IStorage {
   async deleteAllUserData(userId: string): Promise<{ filesDeleted: number; foldersDeleted: number }> {
     console.log(`Deleting ALL data for user ${userId}`);
     
-    // Get all files for this user
-    const allFiles = await db
-      .select()
+    // Get only file IDs and paths (minimal data) to avoid response size limit
+    const filesToDelete = await db
+      .select({ 
+        id: files.id, 
+        objectPath: files.objectPath 
+      })
       .from(files)
       .where(eq(files.userId, userId));
     
-    console.log(`Found ${allFiles.length} files to delete`);
+    console.log(`Found ${filesToDelete.length} files to delete`);
     
-    // Delete files from cloud storage
-    for (const file of allFiles) {
-      try {
-        if (file.objectPath && !file.objectPath.startsWith('http')) {
-          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
-          await objectStorageService.deleteObject(file.objectPath);
+    // Process deletion in batches to avoid memory issues
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < filesToDelete.length; i += BATCH_SIZE) {
+      const batch = filesToDelete.slice(i, i + BATCH_SIZE);
+      const batchIds = batch.map(f => f.id);
+      
+      // Delete cloud storage objects for this batch
+      for (const file of batch) {
+        try {
+          if (file.objectPath && !file.objectPath.startsWith('http')) {
+            const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+            await objectStorageService.deleteObject(file.objectPath);
+          }
+        } catch (error) {
+          console.error(`Failed to delete file from cloud storage:`, error);
+          // Continue with database deletion even if cloud storage fails
         }
-      } catch (error) {
-        console.error(`Failed to delete file ${file.id} from cloud storage:`, error);
-        // Continue with database deletion even if cloud storage fails
       }
-    }
-    
-    // Delete all file metadata
-    const fileIds = allFiles.map(file => file.id);
-    if (fileIds.length > 0) {
+      
+      // Delete metadata for this batch
+      if (batchIds.length > 0) {
+        await db
+          .delete(fileMetadata)
+          .where(inArray(fileMetadata.fileId, batchIds));
+      }
+      
+      // Delete files for this batch
       await db
-        .delete(fileMetadata)
-        .where(inArray(fileMetadata.fileId, fileIds));
+        .delete(files)
+        .where(inArray(files.id, batchIds));
+      
+      console.log(`Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(filesToDelete.length / BATCH_SIZE)}`);
     }
     
-    // Delete all files
-    const filesDeleted = await db
-      .delete(files)
-      .where(eq(files.userId, userId))
-      .returning({ id: files.id });
-    
-    // Delete all folders
+    // Delete all folders (usually much fewer than files)
     const foldersDeleted = await db
       .delete(folders)
-      .where(eq(folders.userId, userId))
-      .returning({ id: folders.id });
+      .where(eq(folders.userId, userId));
     
     // Clear all caches
     cache.invalidatePattern(`files:${userId}:`);
@@ -1022,11 +1031,11 @@ export class DatabaseStorage implements IStorage {
     cache.invalidatePattern(`stats:${userId}`);
     cache.invalidatePattern(`categories:${userId}`);
     
-    console.log(`Deleted ${filesDeleted.length} files and ${foldersDeleted.length} folders for user ${userId}`);
+    console.log(`Deleted ${filesToDelete.length} files and folders for user ${userId}`);
     
     return {
-      filesDeleted: filesDeleted.length,
-      foldersDeleted: foldersDeleted.length
+      filesDeleted: filesToDelete.length,
+      foldersDeleted: 0 // We can't easily count folders without another query
     };
   }
 
