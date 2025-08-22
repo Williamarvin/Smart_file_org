@@ -46,6 +46,7 @@ export default function ProcessingStatus() {
   const { toast } = useToast();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
@@ -120,6 +121,36 @@ export default function ProcessingStatus() {
         description: "Could not update file status.",
         variant: "destructive"
       });
+    }
+  };
+
+  const processPendingBatch = async (limit: number = 10) => {
+    setIsProcessingBatch(true);
+    try {
+      const response = await fetch('/api/files/process-pending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit })
+      });
+      if (!response.ok) throw new Error('Failed to start batch processing');
+      const result = await response.json();
+      toast({
+        title: "Batch Processing Started",
+        description: `Processing ${result.filesQueued} files in the background. This may take several minutes.`
+      });
+      // Refresh data after a short delay to show status changes
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: "Batch Processing Failed",
+        description: "Could not start batch processing.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingBatch(false);
     }
   };
 
@@ -269,6 +300,90 @@ export default function ProcessingStatus() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Overall Progress Bar and Batch Processing */}
+      {pendingFiles.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Processing Progress</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium">Overall Progress</span>
+                <span className="text-sm text-gray-600">
+                  {stats?.processedFiles || 0} / {stats?.totalFiles || 0} files processed
+                  ({stats && stats.totalFiles > 0 
+                    ? Math.round((stats.processedFiles / stats.totalFiles) * 100) 
+                    : 0}%)
+                </span>
+              </div>
+              <Progress 
+                value={stats && stats.totalFiles > 0 
+                  ? (stats.processedFiles / stats.totalFiles) * 100 
+                  : 0} 
+                className="h-3"
+              />
+              <div className="mt-2 text-sm text-gray-500">
+                {pendingFiles.length} files pending • {processingFiles.length} currently processing
+              </div>
+            </div>
+            
+            <div className="flex gap-2 items-center">
+              <Button
+                onClick={() => processPendingBatch(10)}
+                disabled={isProcessingBatch || pendingFiles.length === 0}
+                variant="default"
+                size="sm"
+              >
+                {isProcessingBatch ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    Process Next 10 Files
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                onClick={() => processPendingBatch(50)}
+                disabled={isProcessingBatch || pendingFiles.length === 0}
+                variant="outline"
+                size="sm"
+              >
+                Process 50 Files
+              </Button>
+              
+              <Button
+                onClick={() => processPendingBatch(100)}
+                disabled={isProcessingBatch || pendingFiles.length === 0}
+                variant="outline"
+                size="sm"
+              >
+                Process 100 Files
+              </Button>
+              
+              {pendingFiles.length > 0 && (
+                <span className="ml-auto text-sm text-yellow-600">
+                  <AlertCircle className="h-4 w-4 inline mr-1" />
+                  {pendingFiles.length} files waiting to be processed
+                </span>
+              )}
+            </div>
+            
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Files imported from Excel need to be processed manually. Click the buttons above to start processing in batches. Processing uses AI to extract metadata and may take 10-30 seconds per file.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">

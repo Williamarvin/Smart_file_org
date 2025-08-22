@@ -7,7 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
 import { db } from "./db";
 import { files, folders } from "@shared/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and } from "drizzle-orm";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -466,6 +466,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking file as failed:", error);
       res.status(500).json({ error: "Failed to mark file as failed" });
+    }
+  });
+
+  // Process all pending files in batch
+  app.post("/api/files/process-pending", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const limit = req.body.limit || 10; // Process in batches to avoid overload
+      
+      // Get all pending files
+      const pendingFiles = await db
+        .select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.processingStatus, "pending")
+          )
+        )
+        .limit(limit);
+      
+      console.log(`Starting batch processing for ${pendingFiles.length} pending files`);
+      
+      // Start processing each file asynchronously
+      const processingPromises = pendingFiles.map(file => {
+        console.log(`Triggering processing for: ${file.filename || file.originalName}`);
+        return processFileAsync(file.id, userId).catch(err => {
+          console.error(`Failed to process ${file.id}:`, err);
+          return { error: err.message, fileId: file.id };
+        });
+      });
+      
+      // Don't wait for completion, just trigger them
+      Promise.all(processingPromises).then(results => {
+        const failed = results.filter(r => r && r.error);
+        console.log(`Batch processing completed. Failed: ${failed.length}/${pendingFiles.length}`);
+      });
+      
+      res.json({ 
+        message: `Started processing ${pendingFiles.length} files`,
+        filesQueued: pendingFiles.length,
+        files: pendingFiles.map(f => ({
+          id: f.id,
+          filename: f.filename || f.originalName
+        }))
+      });
+    } catch (error) {
+      console.error("Error starting batch processing:", error);
+      res.status(500).json({ error: "Failed to start batch processing" });
     }
   });
 
