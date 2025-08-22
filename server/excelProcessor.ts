@@ -118,19 +118,28 @@ export class ExcelProcessor {
 
       totalRows += data.length;
 
-      // Use the main parent folder for all sheets
-      // Subfolders will be created based on row data
-      const parentFolderName = mainParentFolder;
+      // Create subject folder path: Parent/SheetName
+      // Skip certain sheets that aren't subject-based
+      const skipSheets = ['Overall Production Schedule', 'Data', 'Estimation', 'temp'];
+      const shouldCreateSubjectFolder = !skipSheets.some(skip => 
+        sheetName.toLowerCase().includes(skip.toLowerCase())
+      );
+      
+      // If this is a subject sheet, create a subject folder under parent
+      const subjectFolderName = shouldCreateSubjectFolder 
+        ? `${mainParentFolder}/${sheetName}`
+        : mainParentFolder;
       
       // Analyze columns to detect patterns
       const columns = Object.keys(data[0] as any);
       const analysis = this.analyzeColumns(columns, data);
       
-      console.log(`Processing sheet: ${sheetName}, Parent folder: ${parentFolderName}`);
+      console.log(`Processing sheet: ${sheetName}, Subject folder: ${subjectFolderName}`);
       console.log('Column analysis:', analysis);
       
       // Process each row with hierarchical structure support
-      const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName, sheetHyperlinks);
+      // Pass subject folder instead of parent folder
+      const processedData = await this.processRowsWithHierarchy(data, analysis, subjectFolderName, sheetName, sheetHyperlinks);
       console.log(`Processed ${processedData.length} rows with folders:`, processedData.map(r => r.folderName));
       
       // Debug: Check if we have any URLs in the processed data
