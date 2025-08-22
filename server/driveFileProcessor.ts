@@ -237,6 +237,28 @@ export class DriveFileProcessor {
           processingStatus: 'completed',
           processedAt: new Date()
         });
+        
+        // Also update or create file metadata with the extracted content
+        const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
+        if (existingMetadata) {
+          // Update existing metadata with transcribed content
+          await storage.updateFileMetadata(file.id, file.userId, {
+            extractedText: extractedContent,
+            summary: extractedContent.substring(0, 500) // First 500 chars as summary
+          });
+        } else {
+          // Create new metadata with transcribed content
+          await storage.createFileMetadata({
+            fileId: file.id,
+            extractedText: extractedContent,
+            summary: extractedContent.substring(0, 500), // First 500 chars as summary
+            keywords: [],
+            topics: [],
+            categories: ['Education'],
+            confidence: 1.0
+          }, file.userId);
+        }
+        
         console.log(`✅ Updated ${file.filename} with ${extractedContent.length} characters of content`);
       }
 
@@ -257,9 +279,9 @@ export class DriveFileProcessor {
   /**
    * Process a specific file by ID
    */
-  public async processFileById(fileId: string): Promise<boolean> {
+  public async processFileById(fileId: string, userId: string = "demo-user"): Promise<boolean> {
     try {
-      const file = await storage.getFile(fileId);
+      const file = await storage.getFile(fileId, userId);
       if (!file) {
         console.error(`File ${fileId} not found`);
         return false;

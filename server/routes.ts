@@ -628,6 +628,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Re-process files with placeholder content
+  app.post('/api/files/reprocess-placeholders', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('Re-processing files with placeholder content for user:', userId);
+      
+      // Import the processor
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      // Get all files with placeholder content
+      const filesWithPlaceholders = await storage.getFilesWithPlaceholderContent(userId);
+      console.log(`Found ${filesWithPlaceholders.length} files with placeholder content`);
+      
+      let processed = 0;
+      let failed = 0;
+      
+      for (const file of filesWithPlaceholders) {
+        const result = await driveFileProcessor.processFileById(file.id, userId);
+        if (result) {
+          processed++;
+        } else {
+          failed++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Re-processed ${processed} files, ${failed} failed`,
+        totalFiles: filesWithPlaceholders.length,
+        processed,
+        failed
+      });
+    } catch (error) {
+      console.error('Error re-processing placeholder files:', error);
+      res.status(500).json({ 
+        error: 'Failed to re-process placeholder files',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Process a single Google Drive file
   app.post('/api/files/:id/process-drive', async (req: any, res) => {
     try {

@@ -20,7 +20,7 @@ import {
   type FolderWithChildren,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray, ne, isNull, asc, lt } from "drizzle-orm";
+import { eq, desc, ilike, sql, and, inArray, ne, isNull, or, asc, lt } from "drizzle-orm";
 import { cache } from "./cache";
 
 // Storage interface for cloud-only file management
@@ -956,6 +956,20 @@ export class DatabaseStorage implements IStorage {
     console.log(`Deleted ${deleteResult.length} orphaned files for user ${userId}`);
     
     return deleteResult.length;
+  }
+
+  async getFilesWithPlaceholderContent(userId: string): Promise<any[]> {
+    // Find files where metadata has "File reference:" placeholder text
+    const result = await db.execute(sql`
+      SELECT DISTINCT f.id, f.filename, f.user_id as "userId", 
+             f.google_drive_id as "googleDriveId", f.google_drive_url as "googleDriveUrl"
+      FROM files f
+      LEFT JOIN file_metadata fm ON f.id = fm.file_id
+      WHERE f.user_id = ${userId}
+      AND fm.extracted_text LIKE 'File reference:%'
+    `);
+    
+    return result.rows;
   }
 
   async deleteAllUserData(userId: string): Promise<{ filesDeleted: number; foldersDeleted: number }> {

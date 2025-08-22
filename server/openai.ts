@@ -9,6 +9,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key" 
 });
 
+export function getOpenAIClient() {
+  return openai;
+}
+
 export interface FileMetadataResult {
   summary: string;
   keywords: string[];
