@@ -53,6 +53,16 @@ export class ExcelProcessor {
       
       const worksheet = workbook.Sheets[sheetName];
       
+      // Extract hyperlinks from worksheet
+      const hyperlinks: any = {};
+      Object.keys(worksheet).forEach((cell: string) => {
+        if (worksheet[cell].l) { // .l property contains hyperlink info
+          const coords = XLSX.utils.decode_cell(cell);
+          if (!hyperlinks[coords.r]) hyperlinks[coords.r] = {};
+          hyperlinks[coords.r][coords.c] = worksheet[cell].l.Target || worksheet[cell].l.href;
+        }
+      });
+      
       // Convert to JSON
       const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
       
@@ -60,6 +70,9 @@ export class ExcelProcessor {
         console.log(`Skipping empty sheet: ${sheetName}`);
         continue;
       }
+      
+      // Store hyperlinks separately for processing
+      const sheetHyperlinks = hyperlinks;
 
       totalRows += data.length;
 
@@ -79,7 +92,7 @@ export class ExcelProcessor {
       console.log('Column analysis:', analysis);
       
       // Process each row with hierarchical structure support
-      const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName);
+      const processedData = await this.processRowsWithHierarchy(data, analysis, parentFolderName, sheetName, sheetHyperlinks);
       console.log(`Processed ${processedData.length} rows with folders:`, processedData.map(r => r.folderName));
       
       // Create folder structure
@@ -112,7 +125,8 @@ export class ExcelProcessor {
     data: any[], 
     analysis: any, 
     parentFolderName: string, 
-    sheetName: string
+    sheetName: string,
+    sheetHyperlinks?: any
   ): Promise<ProcessedRow[]> {
     const processedRows: ProcessedRow[] = [];
     
@@ -166,15 +180,28 @@ export class ExcelProcessor {
       
       const fileList: any[] = [];
       
+      // Get hyperlinks for this row if they exist
+      const rowIndex = data.indexOf(row);
+      const rowHyperlinks = sheetHyperlinks && sheetHyperlinks[rowIndex + 1] ? sheetHyperlinks[rowIndex + 1] : {};
+      
       // Extract files from Video Link column
       if (row['Video Link']) {
         const videoLink = row['Video Link'].toString().trim();
         if (videoLink && videoLink !== '') {
+          // Find the column index for Video Link to get its hyperlink
+          const colIndex = Object.keys(row).indexOf('Video Link');
+          const hyperlink = rowHyperlinks[colIndex];
+          
           fileList.push({
             filename: videoLink,
             content: `Video file: ${videoLink}`,
-            type: 'video'
+            type: 'video',
+            url: hyperlink || null // Include the Google Drive link if it exists
           });
+          
+          if (hyperlink) {
+            console.log(`Found hyperlink for ${videoLink}: ${hyperlink}`);
+          }
         }
       }
       
@@ -182,11 +209,20 @@ export class ExcelProcessor {
       if (row['Harry Trimmed']) {
         const harryFile = row['Harry Trimmed'].toString().trim();
         if (harryFile && harryFile !== '') {
+          // Find the column index for Harry Trimmed to get its hyperlink
+          const colIndex = Object.keys(row).indexOf('Harry Trimmed');
+          const hyperlink = rowHyperlinks[colIndex];
+          
           fileList.push({
             filename: harryFile,
             content: `Trimmed video: ${harryFile}`,
-            type: 'video'
+            type: 'video',
+            url: hyperlink || null // Include the Google Drive link if it exists
           });
+          
+          if (hyperlink) {
+            console.log(`Found hyperlink for ${harryFile}: ${hyperlink}`);
+          }
         }
       }
       
@@ -718,13 +754,13 @@ export class ExcelProcessor {
             folderId: folderId || null,
             size: fileData.content ? Buffer.from(fileData.content).length : 100, // Default size if no content
             mimeType: mimeType,
-            objectPath: `/excel-import/${row.folderName}/${fileData.filename}`, // Virtual path for Excel imports
+            objectPath: fileData.url || `/excel-import/${row.folderName}/${fileData.filename}`, // Use Google Drive URL if available, otherwise virtual path
             uploadedAt: new Date(),
             userId: this.userId,
             processingStatus: 'completed', // Mark as completed since metadata is extracted
             processingError: null,
             fileContent: null, // No actual file content stored
-            storageType: 'excel-metadata' // Special type for Excel imports
+            storageType: fileData.url ? 'google-drive' : 'excel-metadata' // Mark as google-drive if we have a URL
           })
           .returning();
         

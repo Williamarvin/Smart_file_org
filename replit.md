@@ -3,9 +3,14 @@
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
 ## Recent Updates (August 22, 2025)
+- **✅ Google Drive Hyperlink Extraction**: Excel processor now extracts embedded Google Drive links from cells
+  - **Hyperlink Detection**: Automatically detects and extracts clickable links embedded in Excel cells
+  - **Direct URL Storage**: Stores actual Google Drive URLs (e.g., https://drive.google.com/file/d/...) for direct access
+  - **Smart Storage Types**: Files with hyperlinks marked as 'google-drive', text references as 'excel-metadata'
+  - **Successful Import**: 46 files with Google Drive links + 119 text references = 165 total files imported
 - **✅ FIXED: Complete File Processing System**: All automatic processing and status tracking issues resolved
   - **Automatic Processing**: Files now process automatically within 10-15 seconds of upload
-  - **Accurate Status Tracking**: 666 total files properly tracked (83 completed, 582 skipped Excel references, 1 error)
+  - **Accurate Status Tracking**: 725 total files properly tracked with proper status distribution
   - **API Filtering Fixed**: `/api/files` endpoint now correctly filters by processingStatus parameter
   - **Retry Processing**: Fixed retry endpoint to allow retrying failed/error files
   - **Stats Synchronization**: Dashboard, Processing Status, and Analysis pages all show consistent accurate counts
