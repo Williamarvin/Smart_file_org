@@ -173,15 +173,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all files
+  // Get all files with optional filtering by processing status
   app.get("/api/files", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
+      const processingStatus = req.query.processingStatus as string;
       
-      const files = await storage.getFiles(userId, limit, offset);
-      res.json(files);
+      let filesList;
+      if (processingStatus && processingStatus !== 'all') {
+        console.log(`Filtering files by processingStatus: ${processingStatus}`);
+        // Query database directly with processing status filter
+        const query = db
+          .select()
+          .from(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              eq(files.processingStatus, processingStatus)
+            )
+          )
+          .limit(limit)
+          .offset(offset);
+        
+        filesList = await query;
+        console.log(`Found ${filesList.length} files with status ${processingStatus}`);
+      } else {
+        filesList = await storage.getFiles(userId, limit, offset);
+      }
+      
+      res.json(filesList);
     } catch (error) {
       console.error("Error fetching files:", error);
       res.status(500).json({ error: "Failed to fetch files" });
@@ -406,8 +428,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
-      // Only retry if file is in processing or error status
-      if (file.processingStatus !== 'processing' && file.processingStatus !== 'error') {
+      // Only retry if file is in processing, error, or failed status (not completed or skipped)
+      if (file.processingStatus !== 'processing' && 
+          file.processingStatus !== 'error' && 
+          file.processingStatus !== 'failed') {
         return res.status(400).json({ 
           error: "File is not eligible for retry", 
           currentStatus: file.processingStatus 

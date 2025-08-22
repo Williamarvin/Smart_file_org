@@ -388,7 +388,7 @@ export default function ProcessingStatus() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {['all', 'pending', 'processing', 'stuck', 'failed', 'completed'].map(status => (
+        {['all', 'pending', 'processing', 'stuck', 'failed', 'skipped', 'completed'].map(status => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
@@ -400,6 +400,7 @@ export default function ProcessingStatus() {
             {status === 'processing' && ` (${processingFiles.length})`}
             {status === 'stuck' && ` (${stuckFiles.length})`}
             {status === 'failed' && ` (${failedFiles.length})`}
+            {status === 'skipped' && ` (${skippedFiles.length})`}
             {status === 'completed' && ` (${completedFiles.length})`}
           </Button>
         ))}
