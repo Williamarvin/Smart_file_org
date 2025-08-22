@@ -16,6 +16,18 @@ import { nanoid } from "nanoid";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Disk storage for Excel files
+const diskStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, '/tmp')
+  },
+  filename: function (req, file, cb) {
+    cb(null, `excel-${Date.now()}-${file.originalname}`)
+  }
+});
+
+const uploadDisk = multer({ storage: diskStorage });
+
 async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
   try {
     switch (mimeType) {
@@ -1766,6 +1778,136 @@ Remember:
     } catch (error) {
       console.error("Error in test validation:", error);
       res.status(500).json({ error: "Test validation failed" });
+    }
+  });
+
+  // Excel file processing endpoints
+  
+  // Process uploaded Excel file
+  app.post("/api/excel/process", uploadDisk.single('file'), async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Check if it's an Excel file
+      const validExtensions = ['.xlsx', '.xls', '.csv'];
+      const fileExtension = path.extname(req.file.originalname).toLowerCase();
+      
+      if (!validExtensions.includes(fileExtension)) {
+        // Clean up uploaded file
+        if (req.file.path) {
+          fs.unlinkSync(req.file.path);
+        }
+        return res.status(400).json({ 
+          error: "Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file" 
+        });
+      }
+
+      console.log('Processing Excel file:', req.file.originalname);
+      
+      // Import and use the Excel processor
+      const { ExcelProcessor } = await import("./excelProcessor");
+      const processor = new ExcelProcessor(userId);
+      
+      // Process the Excel file
+      const result = await processor.processExcelFile(req.file.path);
+      
+      // Clean up the uploaded file
+      if (req.file.path) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      console.log('Excel processing complete:', result.summary);
+      
+      res.json({
+        success: true,
+        ...result
+      });
+      
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (cleanupError) {
+          console.error("Error cleaning up file:", cleanupError);
+        }
+      }
+      
+      res.status(500).json({ 
+        error: "Failed to process Excel file",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get Excel upload URL for client-side upload
+  app.post("/api/excel/upload-url", async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting Excel upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Process Excel file from URL
+  app.post("/api/excel/process-url", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { fileUrl, fileName } = req.body;
+      
+      if (!fileUrl) {
+        return res.status(400).json({ error: "No file URL provided" });
+      }
+
+      // Download the file first
+      const tempPath = path.join('/tmp', `excel-${nanoid()}.xlsx`);
+      
+      // If it's an internal object storage URL, download it
+      // Otherwise, fetch from external URL
+      if (fileUrl.startsWith('/objects/')) {
+        // Internal object storage - need to download
+        const objectStorageService = new ObjectStorageService();
+        // TODO: Implement download method
+        return res.status(501).json({ error: "Internal object download not yet implemented" });
+      } else {
+        // External URL - fetch it
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to download file: ${response.statusText}`);
+        }
+        
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync(tempPath, Buffer.from(buffer));
+      }
+
+      // Process the Excel file
+      const { ExcelProcessor } = await import("./excelProcessor");
+      const processor = new ExcelProcessor(userId);
+      const result = await processor.processExcelFile(tempPath);
+      
+      // Clean up
+      fs.unlinkSync(tempPath);
+      
+      res.json({
+        success: true,
+        ...result
+      });
+      
+    } catch (error) {
+      console.error("Error processing Excel from URL:", error);
+      res.status(500).json({ 
+        error: "Failed to process Excel file from URL",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

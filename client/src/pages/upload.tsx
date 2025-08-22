@@ -1,12 +1,19 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import FileUploadZone from "@/components/file-upload-zone";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Upload as UploadIcon, CheckCircle, AlertCircle, Clock, Zap, Brain, FileCheck, FolderOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileText, Upload as UploadIcon, CheckCircle, AlertCircle, Clock, Zap, Brain, FileCheck, FolderOpen, FileSpreadsheet, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export function Upload() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelProcessingResult, setExcelProcessingResult] = useState<any>(null);
 
   // Fetch files to show recent uploads and processing status
   const { data: files = [] } = useQuery({
@@ -19,6 +26,59 @@ export function Upload() {
     queryKey: ["/api/categories"],
     refetchInterval: 10000,
   });
+
+  // Excel processing mutation
+  const processExcelMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/excel/process', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process Excel file');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExcelProcessingResult(data);
+      toast({
+        title: "Excel Processed Successfully",
+        description: `Created ${data.foldersCreated} folders and ${data.filesCreated} files`,
+      });
+      // Refresh files list
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/folders"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Excel Processing Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setExcelFile(file);
+      setExcelProcessingResult(null);
+    }
+  };
+
+  const handleProcessExcel = () => {
+    if (excelFile) {
+      processExcelMutation.mutate(excelFile);
+    }
+  };
 
   const handleFileUploadSuccess = () => {
     // Invalidate queries to refresh data
@@ -57,6 +117,92 @@ export function Upload() {
               <CardContent>
                 <div className="max-w-2xl mx-auto">
                   <FileUploadZone onUploadSuccess={handleFileUploadSuccess} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Excel Upload Zone */}
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileSpreadsheet className="text-green-600" />
+                  <span>Import from Excel</span>
+                </CardTitle>
+                <CardDescription>
+                  Upload an Excel file to automatically create folder structures and import content
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="excel-upload" className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Excel File (.xlsx, .xls, .csv)
+                    </label>
+                    <input
+                      id="excel-upload"
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleExcelFileChange}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-green-50 file:text-green-700
+                        hover:file:bg-green-100"
+                    />
+                  </div>
+                  
+                  {excelFile && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-sm text-green-700">
+                        Selected: <strong>{excelFile.name}</strong> ({(excelFile.size / 1024).toFixed(1)} KB)
+                      </p>
+                      <Button
+                        onClick={handleProcessExcel}
+                        disabled={processExcelMutation.isPending}
+                        className="mt-3"
+                      >
+                        {processExcelMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Process Excel File
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {excelProcessingResult && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <div className="font-semibold mb-2">Excel file processed successfully!</div>
+                        <div className="space-y-1 text-sm">
+                          <p>✓ Created {excelProcessingResult.foldersCreated} folders</p>
+                          <p>✓ Imported {excelProcessingResult.filesCreated} files</p>
+                          {excelProcessingResult.summary && (
+                            <p className="mt-2 text-gray-600">{excelProcessingResult.summary}</p>
+                          )}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
+                    <p className="font-medium mb-2">How it works:</p>
+                    <ul className="space-y-1 list-disc list-inside">
+                      <li>Upload an Excel file with curriculum or content structure</li>
+                      <li>System automatically detects subject/folder columns</li>
+                      <li>Creates folders based on subjects or categories</li>
+                      <li>Extracts file references and content from cells</li>
+                      <li>All imported files are processed with AI analysis</li>
+                    </ul>
+                  </div>
                 </div>
               </CardContent>
             </Card>

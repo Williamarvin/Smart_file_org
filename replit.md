@@ -2,7 +2,15 @@
 
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
-## Recent Updates (August 21, 2025)
+## Recent Updates (August 22, 2025)
+- **✅ Excel Import System**: Automatic folder/file structure creation from curriculum spreadsheets
+  - Intelligent column detection for subjects/folders and file references
+  - Flexible Excel parsing handling different column formats (.xlsx, .xls, .csv)
+  - Automatic folder creation based on subject/category columns
+  - File extraction from cell content and URLs
+  - Integration with existing AI processing pipeline for imported files
+  - Frontend UI with dedicated Excel upload section in upload page
+  - Progress tracking and result display showing folders/files created
 - **✅ Validation Report System**: Complete validation system to compare teacher chat session parameters with original request parameters
   - PDF report generation using pdfkit library for downloadable validation reports
   - Comprehensive validation logic that analyzes deviations in teaching style, difficulty levels, action types, and durations
