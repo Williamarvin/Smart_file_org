@@ -900,34 +900,140 @@ ${file.fileContent.toString()}`;
         )
         .limit(limit);
       
-      console.log(`Starting batch processing for ${pendingFiles.length} pending files`);
-      
-      // Start processing each file asynchronously
-      const processingPromises = pendingFiles.map(file => {
-        console.log(`Triggering processing for: ${file.filename || file.originalName}`);
-        return processFileAsync(file.id, userId).catch(err => {
-          console.error(`Failed to process ${file.id}:`, err);
-          return { error: err.message, fileId: file.id };
+      if (pendingFiles.length === 0) {
+        return res.json({
+          success: true,
+          message: "No pending files to process",
+          processedCount: 0
         });
-      });
+      }
       
-      // Don't wait for completion, just trigger them
-      Promise.all(processingPromises).then(results => {
-        const failed = results.filter(r => r && r.error);
-        console.log(`Batch processing completed. Failed: ${failed.length}/${pendingFiles.length}`);
-      });
+      console.log(`Found ${pendingFiles.length} pending files to process`);
       
-      res.json({ 
-        message: `Started processing ${pendingFiles.length} files`,
-        filesQueued: pendingFiles.length,
-        files: pendingFiles.map(f => ({
-          id: f.id,
-          filename: f.filename || f.originalName
-        }))
+      // Import the drive processor
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      let processedCount = 0;
+      let failedCount = 0;
+      
+      for (const file of pendingFiles) {
+        try {
+          console.log(`Processing: ${file.originalName}`);
+          const success = await driveFileProcessor.processFileById(file.id, userId);
+          if (success) {
+            processedCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to process ${file.originalName}:`, error);
+          failedCount++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Processed ${processedCount} files, ${failedCount} failed`,
+        processedCount,
+        failedCount
       });
     } catch (error) {
-      console.error("Error starting batch processing:", error);
-      res.status(500).json({ error: "Failed to start batch processing" });
+      console.error("Error processing pending files:", error);
+      res.status(500).json({ error: "Failed to process pending files" });
+    }
+  });
+  
+  // Process ALL Excel-imported files that still have placeholder metadata
+  app.post("/api/files/process-all-excel", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('🚀 Processing ALL Excel-imported files with placeholder metadata...');
+      
+      // Import the processor
+      const { driveFileProcessor } = await import('./driveFileProcessor');
+      
+      // Get ALL files with Excel placeholder metadata
+      const query = sql`
+        SELECT f.id, f.original_name, f.user_id
+        FROM files f
+        INNER JOIN file_metadata fm ON f.id = fm.file_id
+        WHERE f.user_id = ${userId}
+        AND (
+          fm.extracted_text LIKE 'File reference:%'
+          OR fm.summary LIKE 'Google Drive file:%'
+          OR fm.summary LIKE 'Imported from Excel:%'
+        )
+        ORDER BY f.uploaded_at DESC
+      `;
+      
+      const result = await db.execute(query);
+      const filesToProcess = result.rows;
+      
+      console.log(`Found ${filesToProcess.length} Excel files with placeholder metadata to process`);
+      
+      if (filesToProcess.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No files with placeholder metadata found',
+          totalFiles: 0
+        });
+      }
+      
+      // Process in batches
+      const batchSize = 3;
+      let processedCount = 0;
+      let failedCount = 0;
+      const results: any[] = [];
+      
+      for (let i = 0; i < filesToProcess.length; i += batchSize) {
+        const batch = filesToProcess.slice(i, i + batchSize);
+        console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(filesToProcess.length/batchSize)}`);
+        
+        const batchPromises = batch.map(async (file) => {
+          try {
+            console.log(`🔄 Processing: ${file.original_name}`);
+            const success = await driveFileProcessor.processFileById(file.id as string, file.user_id as string);
+            if (success) {
+              processedCount++;
+              console.log(`✅ Successfully processed: ${file.original_name}`);
+              return { file: file.original_name, status: 'success' };
+            } else {
+              failedCount++;
+              console.log(`❌ Failed to process: ${file.original_name}`);
+              return { file: file.original_name, status: 'failed' };
+            }
+          } catch (error) {
+            failedCount++;
+            console.error(`❌ Error processing ${file.original_name}:`, error);
+            return { file: file.original_name, status: 'error', error: error instanceof Error ? error.message : 'Unknown error' };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+        
+        // Small delay between batches
+        if (i + batchSize < filesToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      console.log(`✅ Completed processing: ${processedCount} succeeded, ${failedCount} failed`);
+      
+      res.json({
+        success: true,
+        message: `Processed ${processedCount} files successfully, ${failedCount} failed`,
+        totalFiles: filesToProcess.length,
+        processedCount,
+        failedCount,
+        results: results.slice(0, 20) // Show first 20 results
+      });
+    } catch (error) {
+      console.error('Error processing Excel files:', error);
+      res.status(500).json({ 
+        error: 'Failed to process Excel files',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
@@ -2370,46 +2476,100 @@ Remember:
         // Import the drive processor
         const { driveFileProcessor } = await import('./driveFileProcessor');
         
-        // Get all files that were just created (with placeholder metadata)
+        // Get all files that were just created from this Excel import
+        // Look for files with Excel import metadata
         const recentFiles = await db
-          .select()
+          .select({
+            id: files.id,
+            originalName: files.originalName,
+            userId: files.userId
+          })
           .from(files)
+          .innerJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
           .where(
             and(
               eq(files.userId, userId),
-              eq(files.processingStatus, 'pending')
+              sql`${fileMetadata.keywords}::text LIKE '%excel-import%'`,
+              sql`${fileMetadata.extractedText} LIKE 'File reference:%'`
             )
           )
           .orderBy(desc(files.uploadedAt))
-          .limit(result.filesCreated);
+          .limit(result.filesCreated * 2); // Get more to ensure we catch all
         
-        // Process all files asynchronously in the background
-        setTimeout(async () => {
-          let processedCount = 0;
-          let failedCount = 0;
-          
-          for (const file of recentFiles) {
-            try {
-              console.log(`Processing file ${processedCount + 1}/${recentFiles.length}: ${file.originalName}`);
-              const success = await driveFileProcessor.processFileById(file.id, userId);
-              if (success) {
-                processedCount++;
-              } else {
-                failedCount++;
-              }
-            } catch (error) {
-              console.error(`Failed to process ${file.originalName}:`, error);
+        console.log(`Found ${recentFiles.length} Excel-imported files to process`);
+        
+        // Start processing immediately (not in setTimeout)
+        // Process in batches for better performance
+        const batchSize = 5;
+        let processedCount = 0;
+        let failedCount = 0;
+        
+        // Process first batch synchronously, rest in background
+        const firstBatch = recentFiles.slice(0, batchSize);
+        const remainingFiles = recentFiles.slice(batchSize);
+        
+        // Process first batch immediately
+        for (const file of firstBatch) {
+          try {
+            console.log(`🔄 Processing (immediate): ${file.originalName}`);
+            const success = await driveFileProcessor.processFileById(file.id, file.userId);
+            if (success) {
+              processedCount++;
+              console.log(`✅ Processed: ${file.originalName}`);
+            } else {
               failedCount++;
+              console.log(`❌ Failed: ${file.originalName}`);
             }
+          } catch (error) {
+            console.error(`Failed to process ${file.originalName}:`, error);
+            failedCount++;
           }
-          
-          console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
-        }, 1000); // Start processing after 1 second
+        }
+        
+        // Process remaining files in background
+        if (remainingFiles.length > 0) {
+          setTimeout(async () => {
+            console.log(`📦 Processing ${remainingFiles.length} remaining files in background...`);
+            
+            for (let i = 0; i < remainingFiles.length; i += batchSize) {
+              const batch = remainingFiles.slice(i, i + batchSize);
+              
+              // Process batch in parallel
+              const promises = batch.map(async (file) => {
+                try {
+                  console.log(`🔄 Processing (batch ${Math.floor(i/batchSize) + 1}): ${file.originalName}`);
+                  const success = await driveFileProcessor.processFileById(file.id, file.userId);
+                  if (success) {
+                    console.log(`✅ Processed: ${file.originalName}`);
+                    return true;
+                  } else {
+                    console.log(`❌ Failed: ${file.originalName}`);
+                    return false;
+                  }
+                } catch (error) {
+                  console.error(`Failed to process ${file.originalName}:`, error);
+                  return false;
+                }
+              });
+              
+              const results = await Promise.all(promises);
+              processedCount += results.filter(r => r).length;
+              failedCount += results.filter(r => !r).length;
+              
+              // Small delay between batches to avoid overload
+              if (i + batchSize < remainingFiles.length) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+            }
+            
+            console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
+          }, 100);
+        }
         
         res.json({
           success: true,
           ...result,
-          message: `Created ${result.filesCreated} files. Processing content in background...`
+          message: `Created ${result.filesCreated} files. Processing started - ${firstBatch.length} files processing now, ${remainingFiles.length} queued...`
         });
       } else {
         res.json({
