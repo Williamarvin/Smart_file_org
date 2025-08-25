@@ -3280,7 +3280,7 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
                 // Use regular processing for uploaded files (includes OCR)
                 console.log(`  → Using regular processor for ${file.originalName}`);
                 await processFileAsync(file.id, userId);
-                console.log(`✅ Successfully auto-processed: ${file.originalName}`);
+                // Success message is logged inside processFileAsync if successful
               }
             } catch (error: any) {
               console.error(`❌ Failed to auto-process ${file.originalName}:`, error.message);

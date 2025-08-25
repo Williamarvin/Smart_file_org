@@ -5,6 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Clock, 
   AlertCircle, 
@@ -14,7 +21,9 @@ import {
   Loader2,
   FileText,
   FolderOpen,
-  Zap
+  Zap,
+  Eye,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -46,6 +55,8 @@ export default function ProcessingStatus() {
   const { toast } = useToast();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
@@ -123,6 +134,25 @@ export default function ProcessingStatus() {
     }
   };
 
+  const viewFileDetails = async (file: ProcessingFile) => {
+    setSelectedFile(file);
+    
+    // If completed, fetch metadata
+    if (file.processingStatus === 'completed') {
+      try {
+        const response = await fetch(`/api/files/${file.id}`);
+        if (response.ok) {
+          const fullFileData = await response.json();
+          setSelectedFile(fullFileData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch file metadata:', error);
+      }
+    }
+    
+    setShowDetailsModal(true);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -175,7 +205,7 @@ export default function ProcessingStatus() {
     }
     return false;
   });
-  const failedFiles = files.filter(f => f.processingStatus === 'failed');
+  const errorFiles = files.filter(f => f.processingStatus === 'error' || f.processingStatus === 'failed');
   const completedFiles = files.filter(f => f.processingStatus === 'completed');
   const skippedFiles = files.filter(f => f.processingStatus === 'skipped');
 
@@ -261,11 +291,11 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-600">Failed</CardTitle>
+            <CardTitle className="text-sm font-medium text-red-600">Error</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {failedFiles.length}
+              {errorFiles.length}
             </div>
           </CardContent>
         </Card>
@@ -275,7 +305,7 @@ export default function ProcessingStatus() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {['all', 'pending', 'processing', 'stuck', 'failed', 'skipped', 'completed'].map(status => (
+        {['all', 'pending', 'processing', 'stuck', 'error', 'skipped', 'completed'].map(status => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
@@ -286,7 +316,7 @@ export default function ProcessingStatus() {
             {status === 'pending' && ` (${pendingFiles.length})`}
             {status === 'processing' && ` (${processingFiles.length})`}
             {status === 'stuck' && ` (${stuckFiles.length})`}
-            {status === 'failed' && ` (${failedFiles.length})`}
+            {status === 'error' && ` (${errorFiles.length})`}
             {status === 'skipped' && ` (${skippedFiles.length})`}
             {status === 'completed' && ` (${completedFiles.length})`}
           </Button>
@@ -373,7 +403,17 @@ export default function ProcessingStatus() {
                     </div>
                     
                     <div className="flex gap-2">
-                      {(file.processingStatus === 'failed' || isStuck) && (
+                      {/* View Details button for all files */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => viewFileDetails(file)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Details
+                      </Button>
+                      
+                      {(file.processingStatus === 'error' || file.processingStatus === 'failed' || isStuck) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -400,6 +440,132 @@ export default function ProcessingStatus() {
           )}
         </CardContent>
       </Card>
+
+      {/* File Details Modal */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              File Details: {selectedFile?.filename}
+            </DialogTitle>
+            <DialogDescription>
+              Detailed information about the file and its processing status
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedFile && (
+            <div className="space-y-4 mt-4">
+              {/* Basic Information */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-gray-700">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="font-medium">ID:</span> {selectedFile.id}</div>
+                  <div><span className="font-medium">Status:</span> {getStatusBadge(selectedFile.processingStatus)}</div>
+                  <div><span className="font-medium">Type:</span> {selectedFile.fileType || selectedFile.mimeType}</div>
+                  <div><span className="font-medium">Size:</span> {formatFileSize(selectedFile.fileSize || selectedFile.size || 0)}</div>
+                  {selectedFile.folderName && (
+                    <div><span className="font-medium">Folder:</span> {selectedFile.folderName}</div>
+                  )}
+                  {selectedFile.processingStartedAt && (
+                    <div><span className="font-medium">Started:</span> {new Date(selectedFile.processingStartedAt).toLocaleString()}</div>
+                  )}
+                  {selectedFile.processingDuration > 0 && (
+                    <div><span className="font-medium">Duration:</span> {formatDuration(selectedFile.processingDuration)}</div>
+                  )}
+                  {selectedFile.processedAt && (
+                    <div><span className="font-medium">Completed:</span> {new Date(selectedFile.processedAt).toLocaleString()}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Error Information */}
+              {selectedFile.processingError && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-red-700">Error Information</h3>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    {selectedFile.processingError}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata (for completed files) */}
+              {selectedFile.processingStatus === 'completed' && selectedFile.metadata && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-gray-700">AI-Generated Metadata</h3>
+                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                    {selectedFile.metadata.summary && (
+                      <div>
+                        <span className="font-medium text-sm">Summary:</span>
+                        <p className="text-sm mt-1 text-gray-600">{selectedFile.metadata.summary}</p>
+                      </div>
+                    )}
+                    
+                    {selectedFile.metadata.keywords && selectedFile.metadata.keywords.length > 0 && (
+                      <div>
+                        <span className="font-medium text-sm">Keywords:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedFile.metadata.keywords.map((keyword: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedFile.metadata.topics && selectedFile.metadata.topics.length > 0 && (
+                      <div>
+                        <span className="font-medium text-sm">Topics:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedFile.metadata.topics.map((topic: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {topic}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedFile.metadata.category && (
+                      <div>
+                        <span className="font-medium text-sm">Category:</span>
+                        <Badge className="ml-2 text-xs">{selectedFile.metadata.category}</Badge>
+                      </div>
+                    )}
+                    
+                    {selectedFile.metadata.confidence && (
+                      <div>
+                        <span className="font-medium text-sm">AI Confidence:</span>
+                        <span className="ml-2 text-sm">{(selectedFile.metadata.confidence * 100).toFixed(1)}%</span>
+                      </div>
+                    )}
+                    
+                    {selectedFile.metadata.extractedText && (
+                      <div>
+                        <span className="font-medium text-sm">Extracted Text Preview:</span>
+                        <div className="mt-1 p-2 bg-white border rounded text-xs font-mono max-h-40 overflow-y-auto">
+                          {selectedFile.metadata.extractedText.slice(0, 500)}...
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* File Path */}
+              {selectedFile.objectPath && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm text-gray-700">Storage Information</h3>
+                  <div className="p-2 bg-gray-100 rounded text-xs font-mono overflow-x-auto">
+                    {selectedFile.objectPath}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
