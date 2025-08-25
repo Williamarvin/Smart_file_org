@@ -7,8 +7,8 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { GoogleDriveService } from "./googleDriveService";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech } from "./openai";
 import { db } from "./db";
-import { files, folders } from "@shared/schema";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { files, folders, fileMetadata } from "@shared/schema";
+import { eq, sql, desc, and, or } from "drizzle-orm";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -3187,20 +3187,35 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
       try {
         const userId = "demo-user";
         
-        // Get pending files (max 5 at a time to avoid overload)
+        // Get files that need processing (pending OR completed with placeholder content)
+        // This includes files imported from Excel that have placeholder content
         const pendingFiles = await db
-          .select()
+          .select({
+            id: files.id,
+            originalName: files.originalName,
+            googleDriveUrl: files.googleDriveUrl,
+            storageType: files.storageType,
+            processingStatus: files.processingStatus
+          })
           .from(files)
+          .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
           .where(
             and(
               eq(files.userId, userId),
-              eq(files.processingStatus, "pending")
+              or(
+                eq(files.processingStatus, "pending"),
+                // Also process "completed" files that still have placeholder content
+                and(
+                  eq(files.processingStatus, "completed"),
+                  sql`"file_metadata"."extracted_text" LIKE 'File reference:%'`
+                )
+              )
             )
           )
           .limit(5);
         
         if (pendingFiles.length > 0) {
-          console.log(`🔄 Found ${pendingFiles.length} pending files to process automatically`);
+          console.log(`🔄 Found ${pendingFiles.length} files to process automatically (including Excel imports with placeholder content)`);
           
           // Import the drive processor for Google Drive files
           const { driveFileProcessor } = await import('./driveFileProcessor');
