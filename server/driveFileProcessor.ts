@@ -114,45 +114,64 @@ export class DriveFileProcessor {
         // Try different parsing options for better text extraction
         const pdfOptions = {
           max: 0, // Parse all pages (0 = no limit)
-          version: 'v2.0.550', // Use latest parser version
           // Try to normalize whitespace and combine text better
           normalizeWhitespace: true,
-          disableCombineTextItems: false,
         };
         
         const pdfData = await pdfParse(pdfBuffer, pdfOptions);
         extractedContent = pdfData.text || '';
         
-        // Also try to get text from pages array if main text is empty
-        if (!extractedContent.trim() && pdfData.pages) {
-          console.log(`Attempting to extract text from ${pdfData.pages.length} pages individually...`);
-          extractedContent = pdfData.pages.map((page: any) => page.text || '').join('\n\n');
-        }
-        
         // Clean up the text - remove excessive whitespace but preserve structure
-        extractedContent = extractedContent
-          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-          .replace(/(\r\n|\n|\r){3,}/g, '\n\n') // Replace excessive line breaks
-          .trim();
+        if (extractedContent) {
+          // First, try to preserve paragraph structure by replacing single newlines with spaces
+          // but keeping double newlines as paragraph breaks
+          extractedContent = extractedContent
+            .replace(/([^\n])\n([^\n])/g, '$1 $2') // Single newlines become spaces
+            .replace(/\s+/g, ' ') // Multiple spaces become single space
+            .replace(/\n{3,}/g, '\n\n') // Multiple newlines become double newlines
+            .trim();
+        }
         
         // Check if we got meaningful text (not just whitespace)
         const cleanedText = extractedContent.trim();
+        
+        // More detailed debugging
+        console.log(`PDF Debug for ${file.filename}:`);
+        console.log(`- Raw text length: ${pdfData.text?.length}`);
+        console.log(`- Cleaned text length: ${cleanedText.length}`);
+        console.log(`- Number of pages: ${pdfData.numpages}`);
+        console.log(`- PDF Version: ${pdfData.version}`);
+        
         if (cleanedText.length < 10) {
-          console.warn(`PDF extraction returned minimal text (${cleanedText.length} chars) for ${file.filename}`);
-          console.log(`PDF info - Pages: ${pdfData.numpages}, Version: ${pdfData.version}`);
-          console.log(`Raw text length: ${pdfData.text?.length}, Pages: ${pdfData.pages?.length}`);
+          console.warn(`PDF extraction returned minimal text for ${file.filename}`);
           
           // Log first 500 chars of raw text to debug
           if (pdfData.text) {
-            console.log(`First 500 chars of raw text: "${pdfData.text.substring(0, 500)}"`);
+            const rawSample = pdfData.text.substring(0, 500);
+            console.log(`First 500 chars of raw text (char codes):`, 
+              Array.from(rawSample).map(c => c.charCodeAt(0)));
+            console.log(`Raw text sample: "${rawSample}"`);
           }
           
-          // If no meaningful text extracted, provide fallback info
-          const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
-          const title = pdfData.info?.Title || file.filename;
-          const author = pdfData.info?.Author || 'Unknown author';
+          // Try alternative extraction if main text failed
+          if (pdfData.text && pdfData.text.length > 80) {
+            // Sometimes PDFs have text but it's all whitespace characters
+            // Try to extract any visible characters
+            const visibleChars = pdfData.text.match(/[^\s]/g);
+            if (visibleChars && visibleChars.length > 10) {
+              console.log(`Found ${visibleChars.length} visible characters, attempting recovery...`);
+              extractedContent = pdfData.text;
+            }
+          }
           
-          extractedContent = `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+          // If still no text, provide fallback
+          if (extractedContent.trim().length < 10) {
+            const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
+            const title = pdfData.info?.Title || file.filename;
+            const author = pdfData.info?.Author || 'Unknown author';
+            
+            extractedContent = `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+          }
         }
         
         console.log(`✅ Extracted ${extractedContent.length} characters from PDF`);
