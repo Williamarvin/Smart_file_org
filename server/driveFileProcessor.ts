@@ -9,6 +9,7 @@ import pdfParse from 'pdf-parse';
 import { getOpenAIClient } from './openai';
 import { spawn } from 'child_process';
 import ffmpeg from 'ffmpeg-static';
+import { enhancedPdfExtractor } from './enhancedPdfExtractor';
 
 /**
  * Service to download and process files from Google Drive
@@ -108,73 +109,10 @@ export class DriveFileProcessor {
         extractedContent = result.value;
         console.log(`✅ Extracted ${extractedContent.length} characters from DOCX`);
       } else if (fileExt === '.pdf') {
-        // Extract text from PDF with improved options
+        // Extract text from PDF using enhanced extractor
         const pdfBuffer = await fs.readFile(tempFilePath);
-        
-        // Try different parsing options for better text extraction
-        const pdfOptions = {
-          max: 0, // Parse all pages (0 = no limit)
-          // Try to normalize whitespace and combine text better
-          normalizeWhitespace: true,
-        };
-        
-        const pdfData = await pdfParse(pdfBuffer, pdfOptions);
-        extractedContent = pdfData.text || '';
-        
-        // Clean up the text - remove excessive whitespace but preserve structure
-        if (extractedContent) {
-          // First, try to preserve paragraph structure by replacing single newlines with spaces
-          // but keeping double newlines as paragraph breaks
-          extractedContent = extractedContent
-            .replace(/([^\n])\n([^\n])/g, '$1 $2') // Single newlines become spaces
-            .replace(/\s+/g, ' ') // Multiple spaces become single space
-            .replace(/\n{3,}/g, '\n\n') // Multiple newlines become double newlines
-            .trim();
-        }
-        
-        // Check if we got meaningful text (not just whitespace)
-        const cleanedText = extractedContent.trim();
-        
-        // More detailed debugging
-        console.log(`PDF Debug for ${file.filename}:`);
-        console.log(`- Raw text length: ${pdfData.text?.length}`);
-        console.log(`- Cleaned text length: ${cleanedText.length}`);
-        console.log(`- Number of pages: ${pdfData.numpages}`);
-        console.log(`- PDF Version: ${pdfData.version}`);
-        
-        if (cleanedText.length < 10) {
-          console.warn(`PDF extraction returned minimal text for ${file.filename}`);
-          
-          // Log first 500 chars of raw text to debug
-          if (pdfData.text) {
-            const rawSample = pdfData.text.substring(0, 500);
-            console.log(`First 500 chars of raw text (char codes):`, 
-              Array.from(rawSample).map(c => c.charCodeAt(0)));
-            console.log(`Raw text sample: "${rawSample}"`);
-          }
-          
-          // Try alternative extraction if main text failed
-          if (pdfData.text && pdfData.text.length > 80) {
-            // Sometimes PDFs have text but it's all whitespace characters
-            // Try to extract any visible characters
-            const visibleChars = pdfData.text.match(/[^\s]/g);
-            if (visibleChars && visibleChars.length > 10) {
-              console.log(`Found ${visibleChars.length} visible characters, attempting recovery...`);
-              extractedContent = pdfData.text;
-            }
-          }
-          
-          // If still no text, provide fallback
-          if (extractedContent.trim().length < 10) {
-            const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
-            const title = pdfData.info?.Title || file.filename;
-            const author = pdfData.info?.Author || 'Unknown author';
-            
-            extractedContent = `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
-          }
-        }
-        
-        console.log(`✅ Extracted ${extractedContent.length} characters from PDF`);
+        extractedContent = await enhancedPdfExtractor.extractText(pdfBuffer, file.filename);
+        console.log(`✅ Enhanced extraction got ${extractedContent.length} characters from PDF`);
       } else if (fileExt === '.txt' || fileExt === '.md') {
         // Read text files directly
         extractedContent = fileBuffer.toString('utf-8');
