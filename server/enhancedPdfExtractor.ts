@@ -160,7 +160,65 @@ The document likely contains valuable content but needs special processing to ma
     console.log(`📷 Starting Tesseract OCR for ${filename} (${pageCount} pages)`);
     
     try {
-      console.log('Creating Tesseract worker...');
+      // First, try using pdf-poppler to convert PDF to images
+      const tmpPdfPath = `/tmp/ocr-pdf-${Date.now()}.pdf`;
+      const tmpDir = `/tmp/ocr-images-${Date.now()}`;
+      
+      await fs.writeFile(tmpPdfPath, pdfBuffer);
+      await fs.mkdir(tmpDir, { recursive: true });
+      
+      console.log('Converting PDF to images for OCR...');
+      
+      // Use pdf-poppler to convert PDF pages to images
+      try {
+        await execAsync(`pdftoppm -png -r 300 "${tmpPdfPath}" "${tmpDir}/page"`);
+      } catch (popplerError: any) {
+        console.log('pdf-poppler not available, trying alternative method...');
+        
+        // Fallback: Try using ImageMagick if available
+        try {
+          await execAsync(`convert -density 300 "${tmpPdfPath}" "${tmpDir}/page-%d.png"`);
+        } catch (magickError: any) {
+          console.log('ImageMagick not available either.');
+          
+          // Final fallback: Try Tesseract directly on PDF (may not work well)
+          console.log('Attempting direct PDF OCR (may have limited success)...');
+          const worker = await Tesseract.createWorker('eng');
+          
+          try {
+            const { data: { text } } = await worker.recognize(pdfBuffer);
+            await worker.terminate();
+            
+            if (text && text.trim()) {
+              console.log(`✅ Direct OCR extracted ${text.length} characters`);
+              return `[OCR Extracted from ${filename}]\n\n${text}\n\nNote: Text extracted using OCR from scanned PDF.`;
+            }
+          } catch (error) {
+            await worker.terminate();
+            throw error;
+          } finally {
+            // Cleanup
+            try {
+              await fs.unlink(tmpPdfPath);
+              await fs.rmdir(tmpDir, { recursive: true });
+            } catch {}
+          }
+          
+          throw new Error('PDF to image conversion tools not available');
+        }
+      }
+      
+      // Read all generated images
+      const imageFiles = await fs.readdir(tmpDir);
+      const pngFiles = imageFiles.filter(f => f.endsWith('.png')).sort();
+      
+      if (pngFiles.length === 0) {
+        throw new Error('No images generated from PDF');
+      }
+      
+      console.log(`Converted ${pngFiles.length} pages to images`);
+      
+      // Create Tesseract worker
       const worker = await Tesseract.createWorker('eng', 1, {
         logger: (m: any) => {
           if (m.status === 'recognizing text') {
@@ -169,40 +227,43 @@ The document likely contains valuable content but needs special processing to ma
         }
       });
       
-      try {
-        // Try to recognize text from the PDF buffer
-        // Note: This works best with single-page PDFs or images
-        console.log('Running OCR on PDF...');
-        const { data: { text } } = await worker.recognize(pdfBuffer);
+      let fullText = '';
+      
+      // Process each page
+      for (let i = 0; i < Math.min(pngFiles.length, 10); i++) { // Limit to first 10 pages for performance
+        const imagePath = path.join(tmpDir, pngFiles[i]);
+        const imageBuffer = await fs.readFile(imagePath);
         
-        await worker.terminate();
+        console.log(`Processing page ${i + 1}/${pngFiles.length}...`);
+        const { data: { text } } = await worker.recognize(imageBuffer);
         
         if (text && text.trim()) {
-          console.log(`✅ Tesseract extracted ${text.length} characters`);
-          
-          // Add metadata to extracted text
-          const fullText = `[OCR Extracted from ${filename}]
+          fullText += `\n\n--- Page ${i + 1} ---\n\n${text}`;
+        }
+      }
+      
+      await worker.terminate();
+      
+      // Cleanup temporary files
+      try {
+        await fs.unlink(tmpPdfPath);
+        await fs.rmdir(tmpDir, { recursive: true });
+      } catch {}
+      
+      if (fullText.trim()) {
+        console.log(`✅ Tesseract extracted ${fullText.length} characters from ${pngFiles.length} pages`);
+        
+        return `[OCR Extracted from ${filename}]
 
-${text}
+${fullText}
 
 Note: Text extracted using OCR from scanned PDF (${pageCount} pages).`;
-          
-          return fullText;
-        } else {
-          console.log('⚠️ Tesseract could not extract text from PDF');
-        }
-      } catch (error) {
-        await worker.terminate();
-        throw error;
+      } else {
+        console.log('⚠️ Tesseract could not extract text from images');
       }
+      
     } catch (error: any) {
       console.error('Tesseract OCR error:', error.message);
-      
-      // If Tesseract fails on PDF directly, note that conversion to images may be needed
-      if (error.message.includes('Error attempting to read image')) {
-        console.log('ℹ️ PDF needs to be converted to images for OCR processing');
-      }
-      
       throw error;
     }
     
