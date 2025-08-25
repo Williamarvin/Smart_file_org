@@ -232,19 +232,95 @@ export async function generateTextToSpeech(text: string, voice: string = "alloy"
 
 export async function generateVideo(content: string, style: string = "natural", fileContext?: any): Promise<Buffer> {
   try {
-    console.log(`Starting video generation with style: ${style}`);
+    console.log(`Starting slideshow video generation with OpenAI narration`);
     
-    // Process the content to extract key points for video
-    const videoContent = await processContentForVideo(content, fileContext);
+    // Process the content to extract slides and generate narration
+    const slides = await processContentForSlides(content, fileContext);
     
-    // Generate enhanced animated video with the processed content
-    console.log("Generating AI-powered video with dynamic content...");
-    return await generateEnhancedAnimatedVideo(videoContent, style);
+    // Generate narration for all slides
+    const narration = await generateSlideshowNarration(slides);
+    
+    // Generate slideshow video with narration
+    console.log("Generating slideshow video with AI narration...");
+    const { generateSlideshowVideo } = await import('./slideshowVideo');
+    return await generateSlideshowVideo(slides, narration);
     
   } catch (error: any) {
     console.error("Video generation failed:", error);
     // Fallback to simpler video if enhanced generation fails
     return await createFallbackVideo(content.substring(0, 500), style);
+  }
+}
+
+// Process content into slides for slideshow
+async function processContentForSlides(content: string, fileContext?: any): Promise<string[]> {
+  try {
+    // Use GPT to create slide content
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "Create 5-8 slides from the content. Each slide should have a title and 2-3 bullet points. Format as: SLIDE 1: [Title]\n- [Point 1]\n- [Point 2]\n\nSLIDE 2: etc. Keep each point under 50 characters."
+        },
+        {
+          role: "user",
+          content: `Create slides from:\n${content.substring(0, 3000)}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 800
+    });
+    
+    const slidesText = response.choices[0].message.content || "";
+    const slides = slidesText.split(/SLIDE \d+:/).filter(s => s.trim());
+    
+    // Ensure we have at least 3 slides
+    if (slides.length < 3) {
+      return [
+        "Introduction\n• Overview of content\n• Key objectives",
+        "Main Points\n• " + content.substring(0, 100) + "\n• Additional details",
+        "Conclusion\n• Summary\n• Next steps"
+      ];
+    }
+    
+    return slides.slice(0, 8); // Max 8 slides
+  } catch (error) {
+    console.error("Error creating slides:", error);
+    return [
+      "AI Generated Content\n• Processing information\n• Creating summary",
+      "Key Points\n• " + content.substring(0, 100),
+      "Conclusion\n• End of presentation"
+    ];
+  }
+}
+
+// Generate narration for each slide
+async function generateSlideshowNarration(slides: string[]): Promise<Buffer> {
+  try {
+    // Create narration script
+    const narrationScript = slides.map((slide, index) => {
+      const lines = slide.split('\n').filter(l => l.trim());
+      const title = lines[0] || `Slide ${index + 1}`;
+      const points = lines.slice(1).join('. ').replace(/[•\-]/g, '');
+      return `${title}. ${points}`;
+    }).join(' Next slide. ');
+    
+    // Generate speech using OpenAI TTS
+    const response = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: "alloy",
+      input: narrationScript,
+      speed: 1.0
+    });
+    
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    console.log(`Generated narration audio: ${audioBuffer.length} bytes`);
+    return audioBuffer;
+  } catch (error) {
+    console.error("Error generating narration:", error);
+    // Return silent audio as fallback
+    return Buffer.alloc(0);
   }
 }
 

@@ -1462,6 +1462,35 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Dedicated video generation endpoint
+  app.post("/api/generate-video", async (req: any, res) => {
+    try {
+      const { content, style } = z.object({
+        content: z.string(),
+        style: z.string().optional().default("professional")
+      }).parse(req.body);
+
+      console.log("Generating slideshow video...");
+      const { generateVideo } = await import('./openai');
+      
+      const videoBuffer = await generateVideo(content, style);
+      
+      // Send video as binary response
+      res.set({
+        'Content-Type': 'video/mp4',
+        'Content-Length': videoBuffer.length.toString()
+      });
+      res.send(videoBuffer);
+      
+    } catch (error: any) {
+      console.error("Video generation error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate video",
+        message: error?.message || "Unknown error"
+      });
+    }
+  });
+
   // Chat with files endpoint
   app.post("/api/chat", async (req: any, res) => {
     try {
