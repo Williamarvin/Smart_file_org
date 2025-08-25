@@ -214,6 +214,22 @@ Respond with only a JSON array of indices, e.g., [2, 0, 1, 3] where the first nu
   }
 }
 
+export async function generateTextToSpeech(text: string, voice: string = "alloy"): Promise<Buffer> {
+  try {
+    const response = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: voice as any,
+      input: text.slice(0, 4096), // Limit to OpenAI's max input length
+    });
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer;
+  } catch (error: any) {
+    console.error("Failed to generate speech:", error);
+    throw new Error("Failed to generate speech: " + (error?.message || "Unknown error"));
+  }
+}
+
 export async function generateContentFromFiles(
   prompt: string, 
   fileContents: Array<{ filename: string; content: string; category: string }>,

@@ -1337,10 +1337,12 @@ ${file.fileContent.toString()}`;
   app.post("/api/generate-content", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { prompt, fileIds, type } = z.object({
+      const { prompt, fileIds, type, generateAudio, voice } = z.object({
         prompt: z.string(),
         fileIds: z.array(z.string()),
         type: z.string(),
+        generateAudio: z.boolean().optional(),
+        voice: z.string().optional(),
       }).parse(req.body);
 
       // Get files and their content
@@ -1359,7 +1361,27 @@ ${file.fileContent.toString()}`;
       // Generate content using AI
       const generatedContent = await generateContentFromFiles(prompt, fileContents, type);
       
-      res.json({ content: generatedContent });
+      let audioBuffer = null;
+      if (generateAudio) {
+        try {
+          audioBuffer = await generateTextToSpeech(generatedContent, voice || "alloy");
+        } catch (audioError) {
+          console.error("Audio generation failed:", audioError);
+          // Continue without audio if generation fails
+        }
+      }
+      
+      if (audioBuffer) {
+        // Convert buffer to base64 for transmission
+        const audioBase64 = audioBuffer.toString('base64');
+        res.json({ 
+          content: generatedContent,
+          audio: audioBase64,
+          audioFormat: 'mp3'
+        });
+      } else {
+        res.json({ content: generatedContent });
+      }
     } catch (error) {
       console.error("Error generating content:", error);
       res.status(500).json({ error: "Failed to generate content" });

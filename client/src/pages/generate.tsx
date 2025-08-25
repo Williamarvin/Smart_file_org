@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Sparkles, FileText, Brain, Copy, Download, Wand2 } from "lucide-react";
+import { Sparkles, FileText, Brain, Copy, Download, Wand2, Volume2, Play, Pause } from "lucide-react";
 
 const CUSTOM_PROMPTS = {
   summary: [
@@ -53,6 +54,9 @@ export function Generate() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [generatedContent, setGeneratedContent] = useState("");
   const [generationType, setGenerationType] = useState("summary");
+  const [generateAudio, setGenerateAudio] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState("alloy");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Fetch available files
@@ -62,15 +66,39 @@ export function Generate() {
 
   // Content generation mutation
   const generateMutation = useMutation({
-    mutationFn: async ({ prompt, fileIds, type }: { prompt: string; fileIds: string[]; type: string }) => {
-      const response = await apiRequest("POST", "/api/generate-content", { prompt, fileIds, type });
+    mutationFn: async ({ prompt, fileIds, type, generateAudio, voice }: { 
+      prompt: string; 
+      fileIds: string[]; 
+      type: string; 
+      generateAudio?: boolean; 
+      voice?: string; 
+    }) => {
+      const response = await apiRequest("POST", "/api/generate-content", { 
+        prompt, 
+        fileIds, 
+        type, 
+        generateAudio, 
+        voice 
+      });
       return response.json();
     },
     onSuccess: (data: any) => {
       setGeneratedContent(data.content);
+      
+      // Handle audio if generated
+      if (data.audio) {
+        const audioBlob = new Blob([
+          Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))
+        ], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+      } else {
+        setAudioUrl(null);
+      }
+      
       toast({
         title: "Content Generated",
-        description: "AI has successfully generated new content based on your files.",
+        description: data.audio ? "AI has generated content with audio narration!" : "AI has successfully generated new content based on your files.",
       });
     },
     onError: (error) => {
@@ -114,6 +142,8 @@ export function Generate() {
       prompt: prompt.trim(),
       fileIds: selectedFiles,
       type: generationType,
+      generateAudio,
+      voice: selectedVoice,
     });
   };
 
@@ -319,6 +349,49 @@ export function Generate() {
               </CardContent>
             </Card>
 
+            {/* Audio Generation */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Volume2 className="text-blue-600" />
+                  <span>Audio Generation</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="generate-audio"
+                      checked={generateAudio}
+                      onCheckedChange={setGenerateAudio}
+                    />
+                    <label htmlFor="generate-audio" className="text-sm font-medium">
+                      Generate audio narration
+                    </label>
+                  </div>
+                  
+                  {generateAudio && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Voice Selection</label>
+                      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="alloy">Alloy (Neutral)</SelectItem>
+                          <SelectItem value="echo">Echo (Male)</SelectItem>
+                          <SelectItem value="fable">Fable (British Male)</SelectItem>
+                          <SelectItem value="onyx">Onyx (Deep Male)</SelectItem>
+                          <SelectItem value="nova">Nova (Female)</SelectItem>
+                          <SelectItem value="shimmer">Shimmer (Soft Female)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* File Selection */}
             <Card>
               <CardHeader>
@@ -483,7 +556,19 @@ export function Generate() {
                     <p className="text-center text-slate-600">AI is analyzing your files and generating content...</p>
                   </div>
                 ) : generatedContent ? (
-                  <div className="prose prose-slate max-w-none">
+                  <div className="prose prose-slate max-w-none space-y-4">
+                    {audioUrl && (
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <div className="flex items-center space-x-3">
+                          <Volume2 className="text-blue-600 h-5 w-5" />
+                          <span className="font-medium text-blue-900">Audio Narration</span>
+                        </div>
+                        <audio controls className="w-full mt-3" src={audioUrl}>
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    )}
+                    
                     <div className="bg-white rounded-lg p-6 border shadow-sm">
                       <div 
                         className="text-sm text-slate-800 leading-relaxed"
