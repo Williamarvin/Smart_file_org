@@ -17,6 +17,7 @@ import { z } from "zod";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
+import { ocrService } from "./ocrService";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
