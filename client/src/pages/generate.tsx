@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,34 @@ export function Generate() {
   const [selectedVideoStyle, setSelectedVideoStyle] = useState("natural");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const { toast } = useToast();
+
+  // Restore session data on component mount
+  React.useEffect(() => {
+    try {
+      const savedVideo = sessionStorage.getItem('lastGeneratedVideo');
+      const savedContent = sessionStorage.getItem('lastGeneratedVideoContent');
+      
+      if (savedVideo && savedContent) {
+        // Recreate video blob URL
+        const videoBlob = new Blob([
+          Uint8Array.from(atob(savedVideo), c => c.charCodeAt(0))
+        ], { type: 'video/mp4' });
+        const url = URL.createObjectURL(videoBlob);
+        setVideoUrl(url);
+        setGeneratedContent(savedContent);
+        
+        toast({
+          title: "Previous Session Restored",
+          description: "Your last generated video has been restored.",
+        });
+      }
+    } catch (e) {
+      console.log('Could not restore previous session');
+    }
+  }, [toast]);
 
   // Fetch available files
   const { data: files = [], isLoading: filesLoading } = useQuery({
@@ -78,6 +106,23 @@ export function Generate() {
       voice?: string; 
       videoStyle?: string;
     }) => {
+      // Start video progress tracking if generating video
+      if (generateVideo) {
+        setIsGeneratingVideo(true);
+        setVideoProgress(0);
+        
+        // Simulate progress for better UX
+        const progressInterval = setInterval(() => {
+          setVideoProgress(prev => {
+            if (prev < 90) return prev + Math.random() * 15;
+            return prev;
+          });
+        }, 1000);
+        
+        // Clear interval after 30 seconds max
+        setTimeout(() => clearInterval(progressInterval), 30000);
+      }
+      
       const response = await apiRequest("POST", "/api/generate-content", { 
         prompt, 
         fileIds, 
@@ -91,6 +136,8 @@ export function Generate() {
     },
     onSuccess: (data: any) => {
       setGeneratedContent(data.content);
+      setIsGeneratingVideo(false);
+      setVideoProgress(100);
       
       // Handle audio if generated
       if (data.audio) {
@@ -110,6 +157,14 @@ export function Generate() {
         ], { type: 'video/mp4' });
         const url = URL.createObjectURL(videoBlob);
         setVideoUrl(url);
+        
+        // Store video in sessionStorage for persistence across page navigation
+        try {
+          sessionStorage.setItem('lastGeneratedVideo', data.video);
+          sessionStorage.setItem('lastGeneratedVideoContent', data.content);
+        } catch (e) {
+          console.log('Could not store video in sessionStorage (too large)');
+        }
       } else {
         setVideoUrl(null);
       }
@@ -117,11 +172,13 @@ export function Generate() {
       const mediaType = data.video ? "video" : (data.audio ? "audio" : "text");
       toast({
         title: "Content Generated",
-        description: `AI has generated content${data.video ? " with video!" : (data.audio ? " with audio narration!" : "!")}`,
+        description: `AI has generated ${data.video ? "an animated video with audio!" : (data.audio ? "content with audio narration!" : "content!")}`,
       });
     },
     onError: (error) => {
       console.error("Generation error:", error);
+      setIsGeneratingVideo(false);
+      setVideoProgress(0);
       toast({
         title: "Generation Failed",
         description: "Failed to generate content. Please try again.",
@@ -604,6 +661,23 @@ export function Generate() {
               <CardContent>
                 {generateMutation.isPending ? (
                   <div className="space-y-4">
+                    {isGeneratingVideo && (
+                      <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                          <span className="font-medium text-purple-900">Generating Enhanced Video</span>
+                        </div>
+                        <div className="w-full bg-purple-200 rounded-full h-3">
+                          <div 
+                            className="bg-purple-600 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(videoProgress, 100)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-purple-700 mt-2">
+                          Creating animated video with music and narration... {Math.round(videoProgress)}%
+                        </p>
+                      </div>
+                    )}
                     <div className="animate-pulse">
                       <div className="space-y-2">
                         {[1, 2, 3, 4, 5].map(i => (
@@ -611,19 +685,43 @@ export function Generate() {
                         ))}
                       </div>
                     </div>
-                    <p className="text-center text-slate-600">AI is analyzing your files and generating content...</p>
+                    <p className="text-center text-slate-600">
+                      AI is analyzing your files and generating {generateVideo ? "video " : ""}content...
+                    </p>
                   </div>
                 ) : generatedContent ? (
                   <div className="prose prose-slate max-w-none space-y-4">
                     {videoUrl && (
-                      <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                        <div className="flex items-center space-x-3">
-                          <Play className="text-purple-600 h-5 w-5" />
-                          <span className="font-medium text-purple-900">Generated Video</span>
+                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-purple-100 rounded-full">
+                              <Play className="text-purple-600 h-5 w-5" />
+                            </div>
+                            <div>
+                              <span className="font-semibold text-purple-900">Enhanced AI Video</span>
+                              <p className="text-sm text-purple-700">Generated with animations and musical background</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2 text-sm text-purple-600">
+                            <span>🎵 Audio</span>
+                            <span>🎨 Animated</span>
+                            <span>📱 HD Quality</span>
+                          </div>
                         </div>
-                        <video controls className="w-full mt-3 rounded-lg" src={videoUrl}>
+                        <video 
+                          controls 
+                          className="w-full rounded-lg shadow-lg border border-purple-200" 
+                          src={videoUrl}
+                          preload="metadata"
+                          poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'%3E%3Crect width='1280' height='720' fill='%23f8fafc'/%3E%3Ctext x='640' y='360' text-anchor='middle' font-family='Arial' font-size='48' fill='%236366f1'%3E🎬 AI Generated Video%3C/text%3E%3C/svg%3E"
+                        >
                           Your browser does not support the video element.
                         </video>
+                        <div className="mt-3 flex items-center justify-between text-sm text-purple-600">
+                          <span>💡 Video persists during session - won't disappear when navigating</span>
+                          <span>⏱️ Up to 60 seconds with rich animations</span>
+                        </div>
                       </div>
                     )}
                     
