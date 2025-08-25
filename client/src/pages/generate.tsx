@@ -222,10 +222,10 @@ export function Generate() {
     // Collect all file IDs (directly selected + files from selected folders)
     let allFileIds = [...selectedFiles];
     
-    // Add files from selected folders
+    // Add files from selected folders (only completed files)
     if (selectedFolders.length > 0) {
-      const folderFiles = processedFiles.filter((file: any) => 
-        selectedFolders.includes(file.folderId)
+      const folderFiles = files.filter((file: any) => 
+        selectedFolders.includes(file.folderId) && file.processingStatus === "completed"
       );
       const folderFileIds = folderFiles.map((f: any) => f.id);
       allFileIds = Array.from(new Set([...allFileIds, ...folderFileIds]));
@@ -559,8 +559,10 @@ export function Generate() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {(folders as any[]).map((folder: any) => {
-                      const folderFiles = processedFiles.filter((f: any) => f.folderId === folder.id);
-                      const fileCount = folderFiles.length;
+                      // Count all files in the folder, not just processed ones
+                      const folderFiles = files.filter((f: any) => f.folderId === folder.id);
+                      const processedFolderFiles = folderFiles.filter((f: any) => f.processingStatus === "completed");
+                      const fileCount = processedFolderFiles.length;
                       
                       return (
                         <div
