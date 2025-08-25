@@ -332,28 +332,25 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
   try {
     console.log("Generating improved video placeholder using FFmpeg...");
     
-    const fs = require('fs');
-    const path = require('path');
-    const { spawn } = require('child_process');
-    
     // Create a temporary text file with the content
     const tempTextFile = path.join('/tmp', `video_text_${Date.now()}.txt`);
     const tempVideoFile = path.join('/tmp', `video_output_${Date.now()}.mp4`);
     
     // Create content for the video
-    const videoText = `Video: ${prompt.substring(0, 100)}...\nStyle: ${style}\nGenerated: ${new Date().toLocaleString()}\n\nNote: AI video generation models are currently loading.\nThis is a text-based placeholder video.`;
+    const videoText = `Video Summary:\n${prompt.substring(0, 200)}...\n\nStyle: ${style}\nGenerated: ${new Date().toLocaleString()}\n\nAI video generation models are loading.\nThis is a placeholder video.`;
     
     fs.writeFileSync(tempTextFile, videoText);
     
     // Use FFmpeg to create a video with text overlay (if FFmpeg is available)
     return new Promise((resolve, reject) => {
       // Try to create a simple video using FFmpeg
-      const ffmpeg = spawn('ffmpeg', [
+      const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', `color=c=blue:size=640x480:duration=5:rate=1`,
-        '-vf', `drawtext=text='${videoText.replace(/'/g, "\\'")}':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=(h-text_h)/2`,
+        '-i', 'color=c=navy:size=640x480:duration=10:rate=30',
+        '-vf', `drawtext=text='${videoText.replace(/'/g, "\\'")}':fontcolor=white:fontsize=18:box=1:boxcolor=black@0.7:boxborderw=10:x=(w-text_w)/2:y=(h-text_h)/2`,
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
+        '-preset', 'ultrafast',
         '-y',
         tempVideoFile
       ]);
@@ -390,7 +387,7 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
           }
           
           // Fallback to a valid minimal MP4
-          createMinimalMP4Video(prompt, style).then(resolve).catch(reject);
+          createWorkingMP4Video(prompt, style).then(resolve).catch(reject);
         }
       });
 
@@ -406,52 +403,88 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
         }
         
         // Fallback approach
-        createMinimalMP4Video(prompt, style).then(resolve).catch(reject);
+        createWorkingMP4Video(prompt, style).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
     console.error("Failed to generate video placeholder:", error);
     // Final fallback
-    return createMinimalMP4Video(prompt, style);
+    return createWorkingMP4Video(prompt, style);
   }
 }
 
-async function createMinimalMP4Video(prompt: string, style: string): Promise<Buffer> {
-  // Create a proper minimal MP4 file that browsers can actually play
-  // This is a valid MP4 container with minimal metadata
-  console.log("Creating minimal playable MP4...");
+async function createWorkingMP4Video(prompt: string, style: string): Promise<Buffer> {
+  // Create a working MP4 video using FFmpeg with a solid color and text
+  console.log("Creating working MP4 video with FFmpeg...");
   
-  // Basic MP4 structure with ftyp, mdat boxes
-  const ftypBox = Buffer.from([
-    // ftyp box
-    0x00, 0x00, 0x00, 0x20, // box size (32 bytes)
-    0x66, 0x74, 0x79, 0x70, // 'ftyp'
-    0x69, 0x73, 0x6f, 0x6d, // major brand 'isom'
-    0x00, 0x00, 0x02, 0x00, // minor version
-    0x69, 0x73, 0x6f, 0x6d, // compatible brand 'isom'
-    0x69, 0x73, 0x6f, 0x32, // compatible brand 'iso2'
-    0x61, 0x76, 0x63, 0x31, // compatible brand 'avc1'
-    0x6d, 0x70, 0x34, 0x31  // compatible brand 'mp41'
+  try {
+    const tempVideoFile = path.join('/tmp', `working_video_${Date.now()}.mp4`);
+    
+    return new Promise((resolve, reject) => {
+      // Create a simple 5-second video with solid background
+      const ffmpeg = spawn(ffmpegPath!, [
+        '-f', 'lavfi',
+        '-i', 'color=c=0x2563eb:size=640x360:duration=5:rate=30',
+        '-f', 'lavfi', 
+        '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'ultrafast',
+        '-shortest',
+        '-y',
+        tempVideoFile
+      ]);
+
+      ffmpeg.on('close', (code) => {
+        try {
+          if (code === 0 && fs.existsSync(tempVideoFile)) {
+            const videoBuffer = fs.readFileSync(tempVideoFile);
+            fs.unlinkSync(tempVideoFile); // cleanup
+            console.log(`✅ Generated working MP4 video (${videoBuffer.length} bytes)`);
+            resolve(videoBuffer);
+          } else {
+            // If even this fails, create a very basic test pattern
+            reject(new Error(`Failed to create working video, code: ${code}`));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      ffmpeg.on('error', (error) => {
+        console.log("Working video creation failed:", error.message);
+        reject(error);
+      });
+    });
+    
+  } catch (error: any) {
+    console.error("Failed to create working video:", error);
+    // Absolute fallback - create a test pattern video
+    return createTestPatternVideo();
+  }
+}
+
+function createTestPatternVideo(): Buffer {
+  console.log("Creating test pattern video as final fallback");
+  
+  // This is a very basic MP4 with proper structure that should play
+  // Contains minimal headers for a valid MP4 file
+  const mp4Header = Buffer.from([
+    // ftyp box (file type)
+    0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, // ftyp header
+    0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00, // isom brand
+    0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32, // compatible brands
+    0x61, 0x76, 0x63, 0x31, 0x6D, 0x70, 0x34, 0x31, // more brands
+    
+    // mdat box (media data) - minimal placeholder
+    0x00, 0x00, 0x00, 0x10, 0x6D, 0x64, 0x61, 0x74, // mdat header
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // placeholder data
   ]);
   
-  // Create a simple mdat box with placeholder data
-  const mdatData = Buffer.from(`Video placeholder for: ${prompt.substring(0, 50)}...`);
-  const mdatSize = 8 + mdatData.length;
-  const mdatBox = Buffer.concat([
-    Buffer.from([
-      (mdatSize >> 24) & 0xFF,
-      (mdatSize >> 16) & 0xFF,
-      (mdatSize >> 8) & 0xFF,
-      mdatSize & 0xFF,
-      0x6d, 0x64, 0x61, 0x74 // 'mdat'
-    ]),
-    mdatData
-  ]);
-  
-  const videoBuffer = Buffer.concat([ftypBox, mdatBox]);
-  console.log(`Generated minimal MP4 (${videoBuffer.length} bytes)`);
-  return videoBuffer;
+  console.log(`Generated test pattern video (${mp4Header.length} bytes)`);
+  return mp4Header;
 }
 
 export async function generateContentFromFiles(
