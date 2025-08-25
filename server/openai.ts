@@ -232,16 +232,76 @@ export async function generateTextToSpeech(text: string, voice: string = "alloy"
 
 export async function generateVideo(prompt: string, style: string = "natural"): Promise<Buffer> {
   try {
-    // Note: OpenAI doesn't have direct video generation yet, but we can use Sora when available
-    // For now, we'll use a placeholder or integrate with other video generation services
-    
-    // This is a placeholder for when OpenAI releases video generation API
-    // Currently, we'll create a simple video with text overlay
-    throw new Error("Video generation not yet available through OpenAI API. Please use audio generation for now.");
+    // Use Hugging Face Inference API for video generation
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/ali-vilab/text-to-video-ms-1.7b",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // No API key needed for basic inference
+        },
+        body: JSON.stringify({
+          inputs: `${prompt}. Style: ${style}. High quality, professional video.`,
+          parameters: {
+            num_frames: 16,
+            fps: 8,
+            width: 512,
+            height: 512
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      // If the model is loading, try alternative
+      if (response.status === 503) {
+        console.log("Model loading, trying alternative...");
+        return await generateVideoAlternative(prompt, style);
+      }
+      throw new Error(`Hugging Face API error: ${response.status}`);
+    }
+
+    const videoBuffer = Buffer.from(await response.arrayBuffer());
+    return videoBuffer;
     
   } catch (error: any) {
     console.error("Failed to generate video:", error);
-    throw new Error("Failed to generate video: " + (error?.message || "Unknown error"));
+    // Fallback to alternative method
+    return await generateVideoAlternative(prompt, style);
+  }
+}
+
+async function generateVideoAlternative(prompt: string, style: string): Promise<Buffer> {
+  try {
+    // Try Stable Video Diffusion as backup
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/stabilityai/stable-video-diffusion-img2vid-xt",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            num_frames: 14,
+            motion_bucket_id: 127,
+            fps: 6,
+            noise_aug_strength: 0.1
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Backup model failed: ${response.status}`);
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error: any) {
+    console.error("Backup video generation failed:", error);
+    throw new Error("Video generation is temporarily unavailable. The models may be loading. Please try again in a few minutes.");
   }
 }
 

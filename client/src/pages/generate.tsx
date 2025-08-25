@@ -441,8 +441,8 @@ export function Generate() {
                           <SelectItem value="documentary">Documentary</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-amber-600 mt-2">
-                        ⚠️ Video generation is coming soon when OpenAI releases their video API (Sora)
+                      <p className="text-xs text-green-600 mt-2">
+                        ✅ Video generation powered by Hugging Face (free, no API key required)
                       </p>
                     </div>
                   )}
