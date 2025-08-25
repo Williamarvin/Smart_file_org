@@ -5,7 +5,7 @@ import { storage } from "./storage";
 // Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { GoogleDriveService } from "./googleDriveService";
-import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech } from "./openai";
 import { db } from "./db";
 import { files, folders } from "@shared/schema";
 import { eq, sql, desc, and } from "drizzle-orm";
@@ -1410,7 +1410,7 @@ ${file.fileContent.toString()}`;
           const { generateVideo: generateVideoFunc } = await import('./openai');
           
           // Add timeout to prevent hanging
-          const videoPromise = generateVideoFunc(generatedContent, videoStyle || "natural");
+          const videoPromise = generateVideoFunc(generatedContent, videoStyle || "natural", fileContents);
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error("Video generation timeout after 60 seconds")), 60000)
           );

@@ -230,44 +230,106 @@ export async function generateTextToSpeech(text: string, voice: string = "alloy"
   }
 }
 
-export async function generateVideo(prompt: string, style: string = "natural"): Promise<Buffer> {
+export async function generateVideo(content: string, style: string = "natural", fileContext?: any): Promise<Buffer> {
   try {
-    console.log(`Starting video generation for prompt: "${prompt.substring(0, 100)}..."`);
+    console.log(`Starting video generation with style: ${style}`);
     
-    // Skip external APIs for now since they're not working, go straight to enhanced local generation
-    console.log("Generating enhanced animated video with audio and animations...");
-    return await generateEnhancedAnimatedVideo(prompt, style);
+    // Process the content to extract key points for video
+    const videoContent = await processContentForVideo(content, fileContext);
+    
+    // Generate enhanced animated video with the processed content
+    console.log("Generating AI-powered video with dynamic content...");
+    return await generateEnhancedAnimatedVideo(videoContent, style);
     
   } catch (error: any) {
     console.error("Video generation failed:", error);
-    return await generateEnhancedAnimatedVideo(prompt, style);
+    // Fallback to simpler video if enhanced generation fails
+    return await createFallbackVideo(content.substring(0, 500), style);
   }
 }
 
-async function generateEnhancedAnimatedVideo(prompt: string, style: string): Promise<Buffer> {
+// Process content to extract key points for video display
+async function processContentForVideo(content: string, fileContext?: any): Promise<string> {
   try {
-    console.log("Creating professional animated video with music and narration...");
+    // If we have file context, extract the most important information
+    if (fileContext && fileContext.length > 0) {
+      const contextSummary = fileContext.map((f: any) => 
+        `${f.filename}: ${f.content.substring(0, 200)}...`
+      ).join('\n');
+      
+      // Use GPT to create video-friendly content
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "Create a concise, video-friendly summary with key bullet points. Format for display in a video with clear, short statements. Maximum 8 key points, each under 40 characters."
+          },
+          {
+            role: "user",
+            content: `Create video content from:\n${content.substring(0, 2000)}\n\nContext from files:\n${contextSummary}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
+      
+      return response.choices[0].message.content || content.substring(0, 500);
+    }
     
-    const tempVideoFile = path.join('/tmp', `professional_video_${Date.now()}.mp4`);
+    // If no file context, summarize the content for video
+    const lines = content.split('\n');
+    const keyPoints = [];
+    
+    // Extract key sentences (those starting with -, *, numbers, or after headers)
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.match(/^[-*•]|^\d+\.|^#+/) && trimmed.length < 100) {
+        keyPoints.push(trimmed.replace(/^[-*•]|^\d+\.|^#+/, '').trim());
+      }
+    }
+    
+    // If we found key points, use them; otherwise use first part of content
+    return keyPoints.length > 0 ? keyPoints.slice(0, 8).join('\n') : content.substring(0, 500);
+    
+  } catch (error) {
+    console.error("Error processing content for video:", error);
+    return content.substring(0, 500);
+  }
+}
+
+async function generateEnhancedAnimatedVideo(content: string, style: string): Promise<Buffer> {
+  try {
+    console.log("Creating AI-powered animated video with dynamic content...");
+    
+    const tempVideoFile = path.join('/tmp', `ai_video_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      // Process prompt into readable segments
-      const words = prompt.split(' ');
-      const lines = [];
-      let currentLine = '';
+      // Process content into display lines
+      const lines = content.split('\n').filter(line => line.trim());
       
-      for (const word of words) {
-        if (currentLine.length + word.length + 1 <= 35) {
-          currentLine += (currentLine ? ' ' : '') + word;
-        } else {
-          if (currentLine) lines.push(currentLine);
-          currentLine = word;
+      // Smart line wrapping for video display
+      const displayLines = [];
+      for (const line of lines.slice(0, 10)) {
+        const words = line.split(' ');
+        let currentLine = '';
+        
+        for (const word of words) {
+          if (currentLine.length + word.length + 1 <= 42) {
+            currentLine += (currentLine ? ' ' : '') + word;
+          } else {
+            if (currentLine) displayLines.push(currentLine);
+            currentLine = word;
+          }
         }
+        if (currentLine) displayLines.push(currentLine);
+        if (displayLines.length >= 8) break;
       }
-      if (currentLine) lines.push(currentLine);
       
-      // Take up to 8 lines for comprehensive content
-      const displayLines = lines.slice(0, 8);
+      // Ensure we have at least some content
+      if (displayLines.length === 0) {
+        displayLines.push("AI Generated Content");
+      }
       
       // Create sophisticated text animations with staggered timing
       const textFilters = displayLines.map((line, index) => {
@@ -327,9 +389,9 @@ async function generateEnhancedAnimatedVideo(prompt: string, style: string): Pro
           `[timer]drawbox=x='60+20*sin(4*PI*t)':y='30+15*cos(4*PI*t)':w=40:h=40:color=0xffffff@0.7[pulse1];`,
           `[pulse1]drawbox=x='w-100+15*sin(6*PI*t)':y='30+12*cos(6*PI*t)':w=35:h=35:color=0xff6b6b@0.6[pulse2];`,
           `[pulse2]drawbox=x='60+18*sin(3*PI*t)':y='h-70+12*cos(3*PI*t)':w=30:h=30:color=0x4ade80@0.8[pulse3];`,
-          `[pulse3]drawbox=x='w-100+16*sin(5*PI*t)':y='h-70+10*cos(5*PI*t)':w=28:h=28:color=0xa78bfa@0.7[final]`,
+          `[pulse3]drawbox=x='w-100+16*sin(5*PI*t)':y='h-70+10*cos(5*PI*t)':w=28:h=28:color=0xa78bfa@0.7[final];`,
           
-          // Rich musical composition with multiple layers
+          // Rich musical composition with multiple layers (separate from video chain)
           `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.6 0.4[layer1];`,
           `[layer1][3:a]amix=inputs=2:duration=longest:weights=0.7 0.3[layer2];`,
           `[layer2][4:a]amix=inputs=2:duration=longest:weights=0.8 0.2[layer3];`,
@@ -363,34 +425,34 @@ async function generateEnhancedAnimatedVideo(prompt: string, style: string): Pro
             resolve(videoBuffer);
           } else {
             console.log(`Professional video generation failed with code ${code}: ${errorOutput}`);
-            createFallbackVideo(prompt, style).then(resolve).catch(reject);
+            createFallbackVideo(content, style).then(resolve).catch(reject);
           }
         } catch (error) {
           console.log("Error with professional video:", error);
-          createFallbackVideo(prompt, style).then(resolve).catch(reject);
+          createFallbackVideo(content, style).then(resolve).catch(reject);
         }
       });
 
       ffmpeg.on('error', (error) => {
         console.log("Professional video creation failed:", error.message);
-        createFallbackVideo(prompt, style).then(resolve).catch(reject);
+        createFallbackVideo(content, style).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
     console.error("Failed to create professional video:", error);
-    return createFallbackVideo(prompt, style);
+    return createFallbackVideo(content, style);
   }
 }
 
-async function createFallbackVideo(prompt: string, style: string): Promise<Buffer> {
+async function createFallbackVideo(content: string, style: string): Promise<Buffer> {
   console.log("Creating reliable fallback video with animations and audio...");
   
   try {
     const tempVideoFile = path.join('/tmp', `fallback_video_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      const shortPrompt = prompt.length > 50 ? prompt.substring(0, 50) + "..." : prompt;
+      const shortContent = content.length > 50 ? content.substring(0, 50) + "..." : content;
       
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
@@ -410,7 +472,7 @@ async function createFallbackVideo(prompt: string, style: string): Promise<Buffe
           `[shapes]drawtext=text='🎬 AI Generated Video':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=100:enable='gte(t,1)':alpha='min(1,max(0,(t-1)/2))'[title];`,
           
           // Content
-          `[title]drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=24:x=(w-text_w)/2:y=300:enable='gte(t,3)':alpha='min(1,max(0,(t-3)/2))'[content];`,
+          `[title]drawtext=text='${shortContent.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=24:x=(w-text_w)/2:y=300:enable='gte(t,3)':alpha='min(1,max(0,(t-3)/2))'[content];`,
           
           // Style and timer
           `[content]drawtext=text='Style\\: ${style}':fontcolor=cyan:fontsize=20:x=(w-text_w)/2:y=400:enable='gte(t,5)'[style_text];`,
