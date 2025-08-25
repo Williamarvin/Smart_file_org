@@ -228,15 +228,6 @@ export function Generate() {
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      toast({
-        title: "Prompt Required",
-        description: "Please enter a prompt for content generation.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Collect all file IDs (directly selected + files from selected folders)
     let allFileIds = [...selectedFiles];
     
@@ -261,8 +252,11 @@ export function Generate() {
       return;
     }
 
+    // Use provided prompt or a default based on generation type
+    const finalPrompt = prompt.trim() || `Generate a ${generationType} based on the selected content`;
+    
     generateMutation.mutate({
-      prompt: prompt.trim(),
+      prompt: finalPrompt,
       fileIds: allFileIds,
       type: generationType,
       generateAudio,
