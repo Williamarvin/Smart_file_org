@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Sparkles, FileText, Brain, Copy, Download, Wand2, Volume2, Play, Pause } from "lucide-react";
+import { Sparkles, FileText, Brain, Copy, Download, Wand2, Volume2, Play, Pause, Folder, FolderOpen } from "lucide-react";
 
 const CUSTOM_PROMPTS = {
   summary: [
@@ -53,6 +53,7 @@ const CUSTOM_PROMPTS = {
 export function Generate() {
   const [prompt, setPrompt] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [generatedContent, setGeneratedContent] = useState("");
   const [generationType, setGenerationType] = useState("summary");
   const [generateAudio, setGenerateAudio] = useState(false);
@@ -90,9 +91,14 @@ export function Generate() {
     }
   }, [toast]);
 
-  // Fetch available files
-  const { data: files = [], isLoading: filesLoading } = useQuery({
-    queryKey: ["/api/files"],
+  // Fetch all available files (no limit)
+  const { data: files = [], isLoading: filesLoading } = useQuery<any[]>({
+    queryKey: ["/api/files?limit=1000"],
+  });
+
+  // Fetch all folders
+  const { data: folders = [], isLoading: foldersLoading } = useQuery<any[]>({
+    queryKey: ["/api/folders/all"],
   });
 
   // Content generation mutation
@@ -195,7 +201,15 @@ export function Generate() {
     );
   };
 
-  const handleGenerate = () => {
+  const handleFolderToggle = (folderId: string) => {
+    setSelectedFolders(prev => 
+      prev.includes(folderId) 
+        ? prev.filter(id => id !== folderId)
+        : [...prev, folderId]
+    );
+  };
+
+  const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast({
         title: "Prompt Required",
@@ -205,10 +219,22 @@ export function Generate() {
       return;
     }
 
-    if (selectedFiles.length === 0) {
+    // Collect all file IDs (directly selected + files from selected folders)
+    let allFileIds = [...selectedFiles];
+    
+    // Add files from selected folders
+    if (selectedFolders.length > 0) {
+      const folderFiles = processedFiles.filter((file: any) => 
+        selectedFolders.includes(file.folderId)
+      );
+      const folderFileIds = folderFiles.map((f: any) => f.id);
+      allFileIds = Array.from(new Set([...allFileIds, ...folderFileIds]));
+    }
+
+    if (allFileIds.length === 0) {
       toast({
-        title: "Files Required",
-        description: "Please select at least one file to generate content from.",
+        title: "Selection Required",
+        description: "Please select at least one file or folder to generate content from.",
         variant: "destructive",
       });
       return;
@@ -216,7 +242,7 @@ export function Generate() {
 
     generateMutation.mutate({
       prompt: prompt.trim(),
-      fileIds: selectedFiles,
+      fileIds: allFileIds,
       type: generationType,
       generateAudio,
       generateVideo,
@@ -507,12 +533,85 @@ export function Generate() {
               </CardContent>
             </Card>
 
+            {/* Folder Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Folder className="text-green-600" />
+                  <span>Select Folders ({selectedFolders.length} selected)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {foldersLoading ? (
+                  <div className="animate-pulse">
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-12 bg-slate-200 rounded"></div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (folders as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <Folder className="mx-auto text-4xl mb-2 text-slate-400" />
+                    <p>No folders available</p>
+                    <p className="text-sm">Create folders to organize your files</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {(folders as any[]).map((folder: any) => {
+                      const folderFiles = processedFiles.filter((f: any) => f.folderId === folder.id);
+                      const fileCount = folderFiles.length;
+                      
+                      return (
+                        <div
+                          key={folder.id}
+                          onClick={() => handleFolderToggle(folder.id)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedFolders.includes(folder.id)
+                              ? "border-green-300 bg-green-50"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              {selectedFolders.includes(folder.id) ? (
+                                <FolderOpen className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                <Folder className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-800 truncate">{folder.name}</p>
+                                <p className="text-xs text-slate-500">
+                                  {fileCount} processed {fileCount === 1 ? 'file' : 'files'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className={`w-4 h-4 border-2 rounded flex-shrink-0 ${
+                              selectedFolders.includes(folder.id)
+                                ? "bg-green-600 border-green-600"
+                                : "border-slate-300"
+                            }`}>
+                              {selectedFolders.includes(folder.id) && (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* File Selection */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <FileText className="text-blue-600" />
-                  <span>Select Files ({selectedFiles.length} selected)</span>
+                  <span>Select Individual Files ({selectedFiles.length} selected)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
