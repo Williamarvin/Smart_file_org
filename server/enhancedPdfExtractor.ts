@@ -157,7 +157,10 @@ The document likely contains valuable content but needs special processing to ma
    * Perform OCR using Tesseract.js
    */
   private async performTesseractOCR(pdfBuffer: Buffer, filename: string, pageCount: number): Promise<string> {
-    console.log(`📷 Starting Tesseract OCR for ${filename} (${pageCount} pages)`);
+    // Limit pages to process for performance (max 5 pages for now)
+    const maxPages = 5;
+    const pagesToProcess = Math.min(pageCount, maxPages);
+    console.log(`📷 Starting Tesseract OCR for ${filename} (processing ${pagesToProcess} of ${pageCount} pages)`);
     
     try {
       // First, try using pdf-poppler to convert PDF to images
@@ -167,11 +170,11 @@ The document likely contains valuable content but needs special processing to ma
       await fs.writeFile(tmpPdfPath, pdfBuffer);
       await fs.mkdir(tmpDir, { recursive: true });
       
-      console.log('Converting PDF to images for OCR...');
+      console.log(`Converting first ${pagesToProcess} PDF pages to images for OCR...`);
       
-      // Use pdf-poppler to convert PDF pages to images
+      // Use pdf-poppler to convert PDF pages to images (limit pages)
       try {
-        await execAsync(`pdftoppm -png -r 300 "${tmpPdfPath}" "${tmpDir}/page"`);
+        await execAsync(`pdftoppm -png -r 300 -f 1 -l ${pagesToProcess} "${tmpPdfPath}" "${tmpDir}/page"`);
       } catch (popplerError: any) {
         console.log('pdf-poppler not available, trying alternative method...');
         

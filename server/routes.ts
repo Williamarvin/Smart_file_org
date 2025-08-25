@@ -68,8 +68,8 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
         console.log(`- Number of pages: ${pdfData.numpages}`);
         console.log(`- PDF Version: ${pdfData.version}`);
         
-        if (cleanedText.length < 10) {
-          console.warn(`PDF extraction returned minimal text for ${filename}`);
+        if (cleanedText.length < 50) {  // Changed from 10 to 50 to match enhancedPdfExtractor threshold
+          console.warn(`PDF extraction returned minimal text for ${filename} (${cleanedText.length} chars) - triggering OCR`);
           
           // Log first 500 chars of raw text to debug
           if (pdfData.text) {
@@ -84,19 +84,37 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
             // Sometimes PDFs have text but it's all whitespace characters
             // Try to extract any visible characters
             const visibleChars = pdfData.text.match(/[^\s]/g);
-            if (visibleChars && visibleChars.length > 10) {
+            if (visibleChars && visibleChars.length > 50) {  // Changed from 10 to 50
               console.log(`Found ${visibleChars.length} visible characters, attempting recovery...`);
               extractedText = pdfData.text;
             }
           }
           
-          // If still no text, provide fallback
-          if (extractedText.trim().length < 10) {
+          // If still no text, try enhanced extraction with OCR
+          if (extractedText.trim().length < 50) {
+            console.log(`📷 Minimal text detected (${extractedText.trim().length} chars), triggering enhanced extraction with OCR...`);
+            
+            // Import and use enhanced PDF extractor with OCR capabilities
+            const { enhancedPdfExtractor } = await import('./enhancedPdfExtractor');
+            
+            try {
+              const ocrText = await enhancedPdfExtractor.extractText(buffer, filename);
+              
+              // Check if OCR was successful
+              if (ocrText && ocrText.trim().length > 50) {
+                console.log(`✅ Enhanced extraction with OCR succeeded: ${ocrText.length} characters`);
+                return ocrText;
+              }
+            } catch (ocrError: any) {
+              console.error(`❌ Enhanced extraction failed: ${ocrError.message}`);
+            }
+            
+            // Only return fallback if OCR also failed
             const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
             const title = pdfData.info?.Title || filename;
             const author = pdfData.info?.Author || 'Unknown author';
             
-            return `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+            return `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. OCR processing was attempted but failed.`;
           }
         }
         
@@ -983,11 +1001,21 @@ ${file.fileContent.toString()}`;
       for (const file of pendingFiles) {
         try {
           console.log(`Processing: ${file.originalName}`);
-          const success = await driveFileProcessor.processFileById(file.id, userId);
-          if (success) {
-            processedCount++;
+          
+          // Check if this is a Google Drive file
+          if (file.googleDriveUrl || file.storageType === 'google-drive') {
+            // Use drive processor for Google Drive files
+            const success = await driveFileProcessor.processFileById(file.id, userId);
+            if (success) {
+              processedCount++;
+            } else {
+              failedCount++;
+            }
           } else {
-            failedCount++;
+            // Use regular processing for uploaded files
+            console.log(`Using regular processing for uploaded file: ${file.originalName}`);
+            await processFileAsync(file.id, userId);
+            processedCount++;
           }
         } catch (error) {
           console.error(`Failed to process ${file.originalName}:`, error);
@@ -3150,6 +3178,66 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
       });
     }
   });
+
+  // Automatic background processing loop for pending files
+  const startAutomaticProcessing = async () => {
+    console.log('🤖 Starting automatic file processing loop...');
+    
+    const processPendingFiles = async () => {
+      try {
+        const userId = "demo-user";
+        
+        // Get pending files (max 5 at a time to avoid overload)
+        const pendingFiles = await db
+          .select()
+          .from(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              eq(files.processingStatus, "pending")
+            )
+          )
+          .limit(5);
+        
+        if (pendingFiles.length > 0) {
+          console.log(`🔄 Found ${pendingFiles.length} pending files to process automatically`);
+          
+          // Import the drive processor for Google Drive files
+          const { driveFileProcessor } = await import('./driveFileProcessor');
+          
+          for (const file of pendingFiles) {
+            try {
+              console.log(`📄 Auto-processing: ${file.originalName}`);
+              
+              // Check if this is a Google Drive file
+              if (file.googleDriveUrl || file.storageType === 'google-drive') {
+                // Use drive processor for Google Drive files
+                await driveFileProcessor.processFileById(file.id, userId);
+              } else {
+                // Use regular processing for uploaded files (includes OCR)
+                await processFileAsync(file.id, userId);
+              }
+              
+              console.log(`✅ Successfully auto-processed: ${file.originalName}`);
+            } catch (error) {
+              console.error(`❌ Failed to auto-process ${file.originalName}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in automatic processing loop:', error);
+      }
+    };
+    
+    // Run immediately on startup
+    processPendingFiles();
+    
+    // Then run every 30 seconds
+    setInterval(processPendingFiles, 30000);
+  };
+  
+  // Start the automatic processing loop
+  startAutomaticProcessing();
 
   const httpServer = createServer(app);
   return httpServer;
