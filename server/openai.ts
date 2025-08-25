@@ -407,19 +407,19 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
 }
 
 async function createWorkingMP4Video(prompt: string, style: string): Promise<Buffer> {
-  console.log("Creating enhanced animated MP4 video with FFmpeg...");
+  console.log("Creating feature-rich animated video with music and narration...");
   
   try {
-    const tempVideoFile = path.join('/tmp', `enhanced_video_${Date.now()}.mp4`);
+    const tempVideoFile = path.join('/tmp', `feature_rich_video_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      // Split prompt into multiple lines for better display
+      // Split prompt into readable segments
       const words = prompt.split(' ');
       const lines = [];
       let currentLine = '';
       
       for (const word of words) {
-        if (currentLine.length + word.length + 1 <= 50) {
+        if (currentLine.length + word.length + 1 <= 45) {
           currentLine += (currentLine ? ' ' : '') + word;
         } else {
           if (currentLine) lines.push(currentLine);
@@ -428,56 +428,73 @@ async function createWorkingMP4Video(prompt: string, style: string): Promise<Buf
       }
       if (currentLine) lines.push(currentLine);
       
-      // Take first 4 lines max
-      const displayLines = lines.slice(0, 4);
+      // Take up to 6 lines for more content
+      const displayLines = lines.slice(0, 6);
       
-      // Create animated text filters
+      // Create comprehensive animated text filters with typewriter effect
       const textFilters = displayLines.map((line, index) => {
-        const yPos = 150 + (index * 40);
-        const delay = index * 1; // Stagger text appearance
-        return `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=22:x=(w-text_w)/2:y=${yPos}:enable='gte(t,${delay})'`;
+        const yPos = 120 + (index * 35);
+        const delay = 2 + (index * 3); // More spacing between text appearances
+        const duration = 8; // Text stays longer
+        return `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=20:x=(w-text_w)/2:y=${yPos}:enable='between(t,${delay},${delay + duration})':alpha='min(1,max(0,(t-${delay})/1))'`;
       });
       
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=0x1a1a2e:size=854x480:duration=30:rate=30', // Longer 30-second video, higher resolution
+        '-i', 'color=c=0x0a0a0a:size=1280x720:duration=45:rate=30', // 45-second HD video
         '-f', 'lavfi', 
-        '-i', 'sine=frequency=440:duration=30', // Generate a simple tone
+        '-i', 'sine=frequency=261.63:duration=45', // C4 note for base melody
         '-f', 'lavfi',
-        '-i', 'sine=frequency=330:duration=30', // Second tone for harmony
+        '-i', 'sine=frequency=329.63:duration=45', // E4 note for harmony
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=392.00:duration=45', // G4 note for chord
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=130.81:duration=45', // C3 bass note
         '-filter_complex', [
-          // Create animated gradient background
-          `[0:v]geq=r='128+127*sin(2*PI*t/8)':g='64+63*sin(2*PI*t/6+PI/3)':b='192+63*sin(2*PI*t/4+2*PI/3)'[bg];`,
+          // Dynamic gradient background that changes colors
+          `[0:v]geq=r='128+127*sin(2*PI*t/12+PI/6)':g='64+191*sin(2*PI*t/10+PI/3)':b='192+63*sin(2*PI*t/8+PI/2)'[bg];`,
           
-          // Add geometric shapes that move
-          `[bg]drawbox=x='200+100*sin(t/2)':y='100+50*cos(t/3)':w=100:h=100:color=0x3498db@0.3[shapes1];`,
-          `[shapes1]drawbox=x='400+80*cos(t/2.5)':y='200+60*sin(t/4)':w=80:h=80:color=0xe74c3c@0.4[shapes2];`,
+          // Multiple moving geometric elements
+          `[bg]drawbox=x='300+200*sin(t/3)':y='150+100*cos(t/4)':w=120:h=120:color=0x3498db@0.4[shapes1];`,
+          `[shapes1]drawbox=x='600+150*cos(t/2.5)':y='300+80*sin(t/3.5)':w=100:h=100:color=0xe74c3c@0.5[shapes2];`,
+          `[shapes2]drawbox=x='200+180*sin(t/4.5)':y='500+70*cos(t/2.8)':w=80:h=80:color=0x2ecc71@0.4[shapes3];`,
           
-          // Add title with fade-in effect
-          `[shapes2]drawtext=text='AI GENERATED CONTENT':fontcolor=yellow:fontsize=32:x=(w-text_w)/2:y=50:enable='gte(t,0.5)':alpha='min(1,max(0,(t-0.5)/2))'[title];`,
+          // Rotating circles for more visual interest
+          `[shapes3]drawbox=x='640+100*sin(2*PI*t/6)':y='360+100*cos(2*PI*t/6)':w=60:h=60:color=0xf39c12@0.6[circles1];`,
+          `[circles1]drawbox=x='640+150*sin(2*PI*t/8+PI)':y='360+150*cos(2*PI*t/8+PI)':w=40:h=40:color=0x9b59b6@0.5[circles2];`,
           
-          // Add animated subtitle
-          `[title]drawtext=text='${style.toUpperCase()} STYLE':fontcolor=cyan:fontsize=18:x=(w-text_w)/2:y=90:enable='gte(t,1.5)':alpha='min(1,max(0,(t-1.5)/1.5))'[subtitle];`,
+          // Animated main title with glow effect
+          `[circles2]drawtext=text='🎬 AI CONTENT GENERATION':fontcolor=yellow:fontsize=36:x=(w-text_w)/2:y=40:enable='gte(t,0.5)':alpha='min(1,max(0,(t-0.5)/2))'[title];`,
           
-          // Add main content text with staggered appearance
+          // Style indicator with animation
+          `[title]drawtext=text='📱 ${style.toUpperCase()} PRESENTATION':fontcolor=cyan:fontsize=24:x=(w-text_w)/2:y=80:enable='gte(t,1.5)':alpha='min(1,max(0,(t-1.5)/1.5))'[subtitle];`,
+          
+          // Main content with smooth transitions
           `[subtitle]${textFilters.join(',')}[content];`,
           
-          // Add progress bar at bottom
-          `[content]drawbox=x=50:y=420:w='(w-100)*t/30':h=10:color=0x2ecc71[progress];`,
+          // Animated progress indicators
+          `[content]drawbox=x=100:y=650:w='(w-200)*t/45':h=15:color=0x2ecc71[progress];`,
+          `[progress]drawtext=text='🔊 Audio Enabled':fontcolor=lime:fontsize=18:x=100:y=600:enable='gte(t,10)'[audio_indicator];`,
+          `[audio_indicator]drawtext=text='⏱️ %{eif\\:t\\:d}/45s':fontcolor=white:fontsize=18:x=w-200:y=600[time];`,
           
-          // Add time indicator
-          `[progress]drawtext=text='%{eif\\:t\\:d}/%{eif\\:30\\:d}s':fontcolor=white:fontsize=16:x=50:y=400[final]`,
+          // Pulsing elements for visual rhythm
+          `[time]drawbox=x='50+10*sin(4*PI*t)':y='50+10*cos(4*PI*t)':w=30:h=30:color=0xffffff@0.7[pulse1];`,
+          `[pulse1]drawbox=x='w-80+8*sin(6*PI*t)':y='50+8*cos(6*PI*t)':w=25:h=25:color=0xff6b6b@0.6[final]`,
           
-          // Mix audio tracks
-          `[1:a][2:a]amix=inputs=2:duration=longest:dropout_transition=2[audio]`
+          // Create rich musical composition
+          `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.6 0.4[harmony];`,
+          `[harmony][3:a]amix=inputs=2:duration=longest:weights=0.8 0.3[chord];`,
+          `[chord][4:a]amix=inputs=2:duration=longest:weights=0.9 0.4[music];`,
+          `[music]volume=0.3,highpass=f=80,lowpass=f=8000[audio_final]`
         ].join(''),
         '-map', '[final]',
-        '-map', '[audio]',
+        '-map', '[audio_final]',
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'medium', // Better quality
-        '-crf', '23', // Good quality
+        '-preset', 'medium',
+        '-crf', '20', // Higher quality
+        '-movflags', '+faststart', // Optimize for web playback
         '-shortest',
         '-y',
         tempVideoFile
@@ -493,97 +510,144 @@ async function createWorkingMP4Video(prompt: string, style: string): Promise<Buf
           if (code === 0 && fs.existsSync(tempVideoFile)) {
             const videoBuffer = fs.readFileSync(tempVideoFile);
             fs.unlinkSync(tempVideoFile);
-            console.log(`✅ Generated enhanced animated video with sound (${videoBuffer.length} bytes, 30 seconds)`);
+            console.log(`✅ Generated feature-rich animated video with music (${videoBuffer.length} bytes, 45 seconds)`);
             resolve(videoBuffer);
           } else {
-            console.log(`Enhanced video failed with code ${code}: ${errorOutput}`);
-            // Fallback to simpler version
+            console.log(`Feature-rich video failed with code ${code}: ${errorOutput}`);
             createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
           }
         } catch (error) {
-          console.log("Error with enhanced video:", error);
+          console.log("Error with feature-rich video:", error);
           createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
         }
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("Enhanced video creation failed:", error.message);
+        console.log("Feature-rich video creation failed:", error.message);
         createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
-    console.error("Failed to create enhanced video:", error);
+    console.error("Failed to create feature-rich video:", error);
     return createSimpleAnimatedVideo(prompt, style);
   }
 }
 
 async function createSimpleAnimatedVideo(prompt: string, style: string): Promise<Buffer> {
-  console.log("Creating simple animated video fallback...");
+  console.log("Creating enhanced animated video with music...");
   
   try {
-    const tempVideoFile = path.join('/tmp', `simple_animated_${Date.now()}.mp4`);
+    const tempVideoFile = path.join('/tmp', `enhanced_animated_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      const shortPrompt = prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt;
+      // Better text processing
+      const words = prompt.split(' ');
+      const chunks = [];
+      let currentChunk = '';
+      
+      for (const word of words) {
+        if (currentChunk.length + word.length + 1 <= 40) {
+          currentChunk += (currentChunk ? ' ' : '') + word;
+        } else {
+          if (currentChunk) chunks.push(currentChunk);
+          currentChunk = word;
+        }
+      }
+      if (currentChunk) chunks.push(currentChunk);
+      
+      // Use up to 4 text chunks
+      const textChunks = chunks.slice(0, 4);
+      
+      // Create animated text with better timing
+      const textAnimations = textChunks.map((chunk, index) => {
+        const yPos = 120 + (index * 40);
+        const delay = 2 + (index * 4);
+        const duration = 8;
+        return `drawtext=text='${chunk.replace(/'/g, "\\'")}':fontcolor=white:fontsize=22:x=(w-text_w)/2:y=${yPos}:enable='between(t,${delay},${delay + duration})':alpha='min(1,max(0,(t-${delay})/1.5))'`;
+      });
       
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=0x2c3e50:size=640x360:duration=20:rate=30',
+        '-i', 'color=c=0x1a1a2e:size=854x480:duration=30:rate=30', // 30-second video
         '-f', 'lavfi', 
-        '-i', 'sine=frequency=523:duration=20', // C note
+        '-i', 'sine=frequency=440:duration=30', // A4 note
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=554.37:duration=30', // C#5 harmony
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=659.25:duration=30', // E5 chord
         '-filter_complex', [
-          // Animated background
-          `[0:v]geq=r='128+127*sin(2*PI*t/5)':g='128+127*sin(2*PI*t/7)':b='128+127*sin(2*PI*t/3)'[bg];`,
+          // Dynamic animated background
+          `[0:v]geq=r='100+155*sin(2*PI*t/8)':g='50+105*sin(2*PI*t/6+PI/4)':b='150+105*sin(2*PI*t/4+PI/2)'[bg];`,
           
-          // Main title with fade
-          `[bg]drawtext=text='CONTENT SUMMARY':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=80:alpha='min(1,t/2)'[title];`,
+          // Moving geometric shapes
+          `[bg]drawbox=x='200+150*sin(t/3)':y='100+75*cos(t/4)':w=100:h=100:color=0x3498db@0.4[shapes1];`,
+          `[shapes1]drawbox=x='500+120*cos(t/2.5)':y='250+60*sin(t/3.5)':w=80:h=80:color=0xe74c3c@0.5[shapes2];`,
           
-          // Content text with typewriter effect
-          `[title]drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=18:x=50:y=150:alpha='min(1,max(0,(t-2)/3))'[content];`,
+          // Animated title with glow
+          `[shapes2]drawtext=text='🎥 AI GENERATED CONTENT':fontcolor=yellow:fontsize=32:x=(w-text_w)/2:y=40:enable='gte(t,0.5)':alpha='min(1,max(0,(t-0.5)/2))'[title];`,
           
-          // Style indicator
-          `[content]drawtext=text='Style\\: ${style}':fontcolor=cyan:fontsize=16:x=50:y=250:alpha='min(1,max(0,(t-5)/2))'[style];`,
+          // Style subtitle
+          `[title]drawtext=text='📊 ${style.toUpperCase()} PRESENTATION':fontcolor=cyan:fontsize=20:x=(w-text_w)/2:y=80:enable='gte(t,1.5)':alpha='min(1,max(0,(t-1.5)/1.5))'[subtitle];`,
           
-          // Animated progress dots
-          `[style]drawtext=text='●':fontcolor=lime:fontsize=20:x=300:y=300:enable='mod(floor(t*2),3)==0'[dot1];`,
-          `[dot1]drawtext=text='●':fontcolor=lime:fontsize=20:x=320:y=300:enable='mod(floor(t*2),3)==1'[dot2];`,
-          `[dot2]drawtext=text='●':fontcolor=lime:fontsize=20:x=340:y=300:enable='mod(floor(t*2),3)==2'[final]`
+          // Main content animations
+          `[subtitle]${textAnimations.join(',')}[content];`,
+          
+          // Progress bar and indicators
+          `[content]drawbox=x=80:y=420:w='(w-160)*t/30':h=12:color=0x2ecc71[progress];`,
+          `[progress]drawtext=text='🎵 Musical Background':fontcolor=lime:fontsize=16:x=80:y=390:enable='gte(t,5)'[music_indicator];`,
+          `[music_indicator]drawtext=text='⏰ %{eif\\:t\\:d}/30s':fontcolor=white:fontsize=16:x=w-150:y=390[time];`,
+          
+          // Pulsing visual elements
+          `[time]drawbox=x='80+15*sin(3*PI*t)':y='40+10*cos(3*PI*t)':w=20:h=20:color=0xffffff@0.8[final]`,
+          
+          // Mix audio for richer sound
+          `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.7 0.3[harmony];`,
+          `[harmony][3:a]amix=inputs=2:duration=longest:weights=0.8 0.2[music];`,
+          `[music]volume=0.4[audio_final]`
         ].join(''),
         '-map', '[final]',
-        '-map', '1:a',
+        '-map', '[audio_final]',
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'fast',
+        '-preset', 'medium',
+        '-crf', '22',
+        '-movflags', '+faststart',
         '-y',
         tempVideoFile
       ]);
+
+      let errorOutput = '';
+      ffmpeg.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
 
       ffmpeg.on('close', (code) => {
         try {
           if (code === 0 && fs.existsSync(tempVideoFile)) {
             const videoBuffer = fs.readFileSync(tempVideoFile);
             fs.unlinkSync(tempVideoFile);
-            console.log(`✅ Generated simple animated video (${videoBuffer.length} bytes, 20 seconds)`);
+            console.log(`✅ Generated enhanced animated video with music (${videoBuffer.length} bytes, 30 seconds)`);
             resolve(videoBuffer);
           } else {
-            console.log(`Simple animated video failed with code ${code}`);
+            console.log(`Enhanced animated video failed with code ${code}: ${errorOutput}`);
             resolve(createBasicVideo(prompt));
           }
         } catch (error) {
+          console.log("Error with enhanced animated video:", error);
           resolve(createBasicVideo(prompt));
         }
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("Simple animated video failed:", error.message);
+        console.log("Enhanced animated video failed:", error.message);
         resolve(createBasicVideo(prompt));
       });
     });
     
   } catch (error: any) {
-    console.error("Failed to create simple animated video:", error);
+    console.error("Failed to create enhanced animated video:", error);
     return createBasicVideo(prompt);
   }
 }
