@@ -1,109 +1,6 @@
 # Overview
 
-This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
-
-## Recent Updates (August 25, 2025)
-- **✅ COMPLETED: Automatic OCR with Background Processing**: Full automatic OCR text extraction for scanned PDFs
-  - **Automatic Background Loop**: Processes pending files every 30 seconds without manual intervention
-  - **Smart OCR Detection**: Automatically identifies scanned PDFs (< 50 chars) and triggers OCR
-  - **Tesseract.js Integration**: Local OCR processing with page limits (5 pages) to prevent timeouts
-  - **Zero Manual Steps**: Files upload → OCR processes → Becomes searchable automatically
-  - **Successful Testing**: "The Debating Book" PDF processed with 4,601 chars extracted from 5 pages
-  - **Database Integration**: OCR text stored in file_metadata table for full-text search
-  - **Dual OCR System**: Primary Tesseract.js, fallback to Google Vision API if available
-  - **Search Confirmed**: OCR-extracted PDFs fully searchable in system
-- **✅ AVAILABLE: Transcribed Files Filter**: Browse page includes filter to view only transcribed files
-  - **Green Badge Filter**: Click "✓ Transcribed" button to see all successfully transcribed files
-  - **Smart Filtering**: Shows files with actual content (>100 chars) that completed processing
-  - **Visual Indicator**: Green badges on files indicate successful transcription status
-- **✅ IMPROVED: Smart Search with Title Priority**: Search now intelligently prioritizes exact filename matches
-  - **Title Match Priority**: Files with search terms in their name appear first
-  - **Combined Search**: Uses both title matching AND semantic similarity
-  - **Smart Scoring**: Exact matches (1.0) > Partial title matches (0.7-0.8) > Content matches (0.3) > Semantic (0.1-0.2)
-  - **Better Relevance**: Searching "Lesson 23" now correctly shows all "Lesson 23" files at the top
-- **✅ REMOVED: Manual Processing Controls**: All file processing is now fully automatic
-  - **Removed Manual UI**: Eliminated "Process 50/100 Files" buttons and manual batch processing
-  - **Continuous Background Processing**: System automatically processes all files without user intervention
-  - **Active Processing**: 441+ files being processed automatically in background
-  - **No User Action Required**: Files queue and process automatically after Excel upload
-- **✅ COMPLETED: Auto-Processing Excel Files with Whisper AI**: Excel uploads now automatically trigger full content extraction
-  - **Automatic Processing**: Files from Excel imports are immediately processed with Whisper transcription
-  - **Continuous Pipeline**: Downloads from Google Drive → Transcribes with Whisper → Generates AI summaries
-  - **Scale**: Successfully processing 500+ files with automatic transcription and metadata
-- **✅ FIXED: Folder Deletion Performance**: Optimized deletion for Google Drive files
-  - **Smart Detection**: Skips cloud storage deletion for Google Drive URLs (http/https links)
-  - **Fast Deletion**: Folders with Google Drive files now delete instantly instead of timing out
-- **✅ COMPLETED: Hierarchical Excel Import with Folder Structure**: Full three-level folder hierarchy from Excel spreadsheets
-  - **Parent Folder**: Created from Excel filename (e.g., "Video Production Status")
-  - **Subject Folders**: Created from sheet names (e.g., "LV1(UP)", "LV2(LS)", "Public Speaking LV1")
-  - **Lesson Folders**: Created from first column values (e.g., "LV1-Lesson1", "LV1-Lesson2")
-  - **File Organization**: Files placed in correct lesson folders within subject folders
-  - **Performance**: Excel upload triggers immediate processing with Whisper AI transcription
-  - **Scale**: Successfully processed 598 files across multiple folders from Excel uploads
-- **✅ COMPLETED: Google Drive File Download System**: Full infrastructure for downloading and processing actual files from Google Drive
-  - **Automatic Processing**: Files from Excel imports are automatically processed - no manual batch processing needed
-  - **Google Cloud Integration**: Successfully integrated GOOGLE_CLOUD_CREDENTIALS for API authentication  
-  - **DriveFileProcessor Service**: Downloads and extracts content from DOCX, PDF, and other file types
-  - **Large Scale Processing**: Successfully processed 1,056 files (35.6 GB) from Google Drive
-  - **Permission Required**: Files need to be shared with service account (client_email from credentials) to enable downloads
-  - **Content Extraction**: Supports text extraction from DOCX/PDF, metadata for videos, and file type detection
-- **✅ FIXED: Complete File Processing System**: All automatic processing and status tracking issues resolved
-  - **Automatic Processing**: Files now process automatically within 10-15 seconds of upload
-  - **Accurate Status Tracking**: 725 total files properly tracked with proper status distribution
-  - **API Filtering Fixed**: `/api/files` endpoint now correctly filters by processingStatus parameter
-  - **Retry Processing**: Fixed retry endpoint to allow retrying failed/error files
-  - **Stats Synchronization**: Dashboard, Processing Status, and Analysis pages all show consistent accurate counts
-- **✅ Processing Status Monitoring**: Complete visibility into file processing pipeline
-  - Dedicated page at `/processing-status` showing all 666 files with real-time status
-  - Filter tabs for All, Processing, Stuck, Failed, Completed, and Skipped files
-  - Auto-refresh every 5 seconds to track progress
-  - Action buttons for stuck files (retry processing, mark as failed)
-  - Shows processing duration, file types, and error messages
-  - Direct database queries to include all files (pending, processing, completed, failed, skipped)
-- **✅ Excel Import System**: Automatic folder/file structure creation from curriculum spreadsheets
-  - Hierarchical folder structure: Video Production parent → lesson child folders
-  - Intelligent column detection for subjects/folders and file references
-  - Flexible Excel parsing handling different column formats (.xlsx, .xls, .csv)
-  - Automatic folder creation based on subject/category columns
-  - File extraction from "Video Link" and "Harry Trimmed" columns
-  - Integration with existing AI processing pipeline for imported files
-  - Frontend UI with dedicated Excel upload section in upload page
-  - Progress tracking and result display showing folders/files created
-- **✅ Validation Report System**: Complete validation system to compare teacher chat session parameters with original request parameters
-  - PDF report generation using pdfkit library for downloadable validation reports
-  - Comprehensive validation logic that analyzes deviations in teaching style, difficulty levels, action types, and durations
-  - Database table for storing validation results with compliance scores (0-100%)
-  - REST API endpoints for creating, retrieving, and downloading validation reports
-  - Frontend UI integration in generate-lessons page with report creation, viewing, and PDF download capabilities
-  - Automatic parameter extraction from chat sessions to detect actual vs expected behavior
-- **✅ Teacher Agent Global Configuration**: Added teaching style and expertise subject to main teacher configuration
-- **✅ Teaching Style Selection**: Global teaching approach (Visual, Storytelling, Hands-on, Discussion, Analytical) for entire course
-- **✅ Teacher Expertise Subject**: Specialized subject area selection (Mathematics, Science, Language Arts, Social Studies, Computer Science, Arts, Physical Education, General)
-- **✅ AI Pre-filled Sections**: Teacher prompt sections now auto-populate with LLM-generated content based on selected files/folders
-- **✅ Structured Course Editor**: Teacher prompt divided into 5 editable sections (Introduction, Warm-up, Main Content, Practice, Wrap-up/Homework)
-- **✅ Enhanced Section Configuration**: Each section has customizable content, action type, duration, difficulty level, and per-section teaching style
-- **✅ Difficulty Levels**: Beginner, Intermediate, Advanced for each section
-- **✅ Prompt Consolidation**: "Consolidate Sections" button combines all sections into a single prompt with preview
-- **✅ Chat Session Management**: Save, load, and share teacher chat sessions with custom titles and public URLs
-- **✅ Simplified Execution**: Removed auto-execution features - now uses manual execution only for individual prompts
-- **✅ Natural Teacher Voice**: Teacher agent speaks conversationally like a real classroom teacher, not in bullet points
-- **✅ Text-to-Speech Integration**: Teacher responses can be read aloud using OpenAI TTS with multiple voice options
-- **✅ Enhanced Chat Interface**: "Chat with Teacher" with larger chat area (h-96) and speak buttons for teacher messages
-- **✅ Master Teacher Agent**: Consolidated lesson generation into single comprehensive prompt with 5-section course structure
-- **✅ File Processing Management**: Detect stuck files (>2 hours), retry failed processing, mark files as failed with reasons
-- **✅ API Endpoints Added**: `/api/files/:id/retry-processing` and `/api/files/:id/mark-failed` for better file control
-- **✅ Enhanced UI Controls**: Action buttons in FileGrid for stuck/failed files (retry, mark failed, delete)
-- **✅ COMPLETED: Production-Ready Testing Infrastructure**: Complete Jest/TypeScript integration with all core tests passing (20/25 tests)
-- **✅ TypeScript Strict Mode**: All complex Jest mock typing issues resolved, nanoid ES module imports fixed
-- **✅ API Test Suite**: 13 comprehensive endpoint tests fully functional with Express server integration
-- **✅ Mock Infrastructure**: OpenAI SDK, storage layer, and database mocking working with TypeScript compatibility
-- **✅ Testing Success**: Core functionality verified with health checks, API validation, and storage interface tests
-- **Voice Synthesis Integration**: OpenAI TTS API for natural avatar chat voices (alloy, echo, fable, onyx, nova, shimmer)
-- **Production Build Optimized**: 844KB bundle with TypeScript strict mode, no LSP errors
-- **Live API Testing**: Real-time endpoint verification (stats, categories, files)
-- **Documentation Complete**: README.md, TEST_GUIDE.md, REST_API_GUIDE.md, and OpenAPI 3.0 spec
-- **Deployment Ready**: All systems verified, 64 files processed, voice features operational
-- **Code Quality**: TypeScript strict mode, proper error handling, clean test suite
+This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats, transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval, enabling automatic content extraction from various sources including Google Drive and Excel imports, and offering advanced features like AI-powered video generation and hierarchical file organization.
 
 # User Preferences
 
@@ -116,33 +13,37 @@ Preferred communication style: Simple, everyday language.
 - **UI Library**: Shadcn/UI (built on Radix UI) with Tailwind CSS.
 - **State Management**: TanStack Query for server state and caching.
 - **Routing**: Wouter for client-side routing.
-- **Navigation**: Sidebar-based, with pages for Dashboard, Browse, Upload, and Analysis.
+- **Navigation**: Sidebar-based, with pages for Dashboard, Browse, Upload, Processing Status, and Analysis.
 - **File Upload**: Uppy.js for direct-to-cloud uploads.
+- **UX Decisions**: Chat input positioned at the top, manual scroll control in chat.
 
 ## Backend Architecture
 - **Framework**: Express.js with TypeScript.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
-- **File Processing**: Asynchronous pipeline for document and video content extraction and transcription.
-- **AI Integration**: OpenAI GPT-4o for metadata and embeddings, Whisper for video transcription.
+- **File Processing**: Asynchronous pipeline for document and video content extraction and transcription, including automatic OCR for scanned PDFs and Whisper AI for video transcription.
+- **AI Integration**: OpenAI GPT-4o for metadata and embeddings.
 - **Object Storage**: Google Cloud Storage with custom ACL.
 
 ## Data Storage Architecture
 - **Primary Database**: PostgreSQL via Neon serverless.
-- **Vector Store**: PostgreSQL pgvector for vector similarity search.
+- **Vector Store**: PostgreSQL pgvector for vector similarity search with HNSW indexing.
 - **Schema Design**: Tables for `files`, `file_metadata`, `search_history`, and `users`.
-- **File Storage**: Hybrid system utilizing Google Cloud Storage for all files and PostgreSQL BYTEA caching for files ≤10MB for performance.
-- **Vector Search**: pgvector with HNSW indexing.
+- **File Storage**: Hybrid system utilizing Google Cloud Storage for all files and PostgreSQL BYTEA caching for files ≤10MB.
 
 ## Key Features
-- **Multi-Page Navigation**: Dedicated sections for Dashboard, Browse, Upload, and Analysis.
-- **Document & Video Processing Pipeline**: Automated text extraction, video transcription, AI analysis, and embedding generation.
+- **Multi-Page Navigation**: Dedicated sections for Dashboard, Browse, Upload, Processing Status, and Analysis.
+- **Slideshow Video Generation**: Create MP4 videos with AI-generated slides and OpenAI TTS narration (multiple voice options).
+- **Document & Video Processing Pipeline**: Automated text extraction, video transcription, AI analysis, OCR, and embedding generation.
+- **Excel Import System**: Automatic hierarchical folder/file structure creation from curriculum spreadsheets, integrated with Google Drive.
 - **Bulk File Operations**: Multi-file selection with bulk moving and comprehensive folder upload capabilities.
-- **Semantic Search**: Vector similarity search combined with traditional text search.
-- **Real-time Updates**: Live processing status updates.
-- **File Management**: Upload, preview, and delete operations with progress tracking.
-- **Enhanced Selection**: Global and current view file selection options.
-- **Optimized Performance**: Non-blocking storage implementation with optimized queries, caching, and fixed N+1 query problems for fast response times.
-- **Improved UX**: Chat input positioned at the top for immediate access, with manual scroll control to prevent unwanted auto-scrolling during conversations.
+- **Semantic Search**: Vector similarity search with title priority.
+- **Real-time Updates**: Live processing status updates with detailed error tracking and auto-processing.
+- **File Management**: Upload, preview, delete, and view detailed metadata with progress tracking.
+- **Content Generation**: Support for selecting entire folders and up to 1000 files for content creation, with automatic deduplication.
+- **Automatic OCR**: Background OCR processing for scanned PDFs using Tesseract.js with Google Vision fallback, integrated directly into the file processing pipeline.
+- **Optimized Performance**: Non-blocking storage implementation, optimized queries, caching, and fixed N+1 query problems.
+- **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, and text-to-speech integration.
+- **Validation Report System**: Generates PDF reports comparing teacher chat session parameters with original request parameters, including compliance scoring.
 
 # External Dependencies
 
@@ -153,10 +54,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Libraries
 - **Database**: Drizzle ORM.
-- **File Processing**: `pdf-parse`, `mammoth`, `ffmpeg-static`, `multer`.
+- **File Processing**: `pdf-parse`, `mammoth`, `ffmpeg-static`, `multer`, `tesseract.js`.
 - **UI Components**: Shadcn/UI.
+- **PDF Generation**: `pdfkit`.
 
 ## Integration Points
 - **Replit Sidecar**: Custom authentication for Google Cloud Storage.
 - **Direct Upload Flow**: Client-side direct uploads to cloud storage.
 - **Processing Queue**: Asynchronous document processing.
+- **Google Drive API**: For downloading files from Google Drive.

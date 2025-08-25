@@ -6,13 +6,18 @@ An advanced AI-powered document management and lesson generation platform with s
 
 ### Core Capabilities
 - **📁 Smart File Management**: Upload, organize, and manage documents and videos with folder hierarchy
-- **🔍 AI-Powered Search**: Semantic similarity search using OpenAI embeddings and pgvector
+- **🔍 AI-Powered Search**: Semantic similarity search using OpenAI embeddings with title priority matching
 - **💬 Document Chat**: Conversational AI interface with oversight agent for context management
 - **🤖 Avatar System**: AI personas with distinct personalities and database access
 - **📚 Lesson Generation**: Multi-agent system creating PowerPoints, flashcards, and quizzes
+- **🎬 Slideshow Video Generation**: Create MP4 videos with AI-generated slides and OpenAI TTS narration
+- **📊 Excel Import System**: Automatic folder/file structure creation from curriculum spreadsheets
+- **🔄 Automatic OCR**: Background OCR processing for scanned PDFs using Tesseract.js
 - **⚡ Hybrid Storage**: Optimized performance with PostgreSQL BYTEA (≤10MB) + Google Cloud Storage
 - **🎥 Media Processing**: Automatic text extraction from PDFs, documents, and video transcription
-- **🔧 Processing Management**: Detect and manage stuck files, retry failed processing, manual error handling
+- **🔧 Processing Management**: Real-time status monitoring with detailed error tracking and retry capabilities
+- **📂 Folder Selection**: Content generation from folders with support for 137+ folders
+- **📈 Scale Support**: Generate content from up to 1000 files simultaneously
 
 ### Technical Highlights
 - **Vector Search**: PostgreSQL pgvector with HNSW indexing for fast similarity search
@@ -40,8 +45,11 @@ An advanced AI-powered document management and lesson generation platform with s
 - **pgvector** for vector similarity search
 
 ### AI Integration
-- **OpenAI GPT-4o**: Content analysis, chat, and generation
+- **OpenAI GPT-5**: Content analysis, chat, and generation (latest model)
+- **OpenAI TTS**: Multiple voice options for slideshow narration (alloy, echo, fable, onyx, nova, shimmer)
 - **Whisper**: Video/audio transcription
+- **Tesseract.js**: Local OCR for scanned PDFs
+- **Google Vision API**: Fallback OCR for enhanced accuracy
 - **Custom Agents**: Specialized lesson creation agents
 
 ## 📦 Installation
@@ -105,12 +113,16 @@ The application will be available at `http://localhost:5000`
 
 ### Key Endpoints
 - `POST /api/files` - Upload and process files
-- `GET /api/search/{query}` - Semantic search
+- `POST /api/excel/import` - Import Excel curriculum with automatic folder creation
+- `GET /api/search/{query}` - Semantic search with title priority
 - `POST /api/chat` - Chat with documents
 - `POST /api/avatar-chat` - Avatar interactions
 - `POST /api/generate-lesson-prompts` - Generate lesson content
+- `POST /api/generate-slideshow-video` - Create slideshow videos with TTS narration
+- `GET /api/files/processing-status` - Monitor file processing status
 - `POST /api/files/:id/retry-processing` - Retry failed file processing
 - `POST /api/files/:id/mark-failed` - Mark file as failed
+- `GET /api/folders/all` - List all folders for selection
 - `GET /api/stats` - Usage statistics
 
 ### Example Usage
