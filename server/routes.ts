@@ -3190,13 +3190,7 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
         // Get files that need processing (pending OR completed with placeholder content)
         // This includes files imported from Excel that have placeholder content
         const pendingFiles = await db
-          .select({
-            id: files.id,
-            originalName: files.originalName,
-            googleDriveUrl: files.googleDriveUrl,
-            storageType: files.storageType,
-            processingStatus: files.processingStatus
-          })
+          .select()
           .from(files)
           .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
           .where(
@@ -3220,16 +3214,21 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
           // Import the drive processor for Google Drive files
           const { driveFileProcessor } = await import('./driveFileProcessor');
           
-          for (const file of pendingFiles) {
+          for (const result of pendingFiles) {
+            // Extract file data from joined result
+            const file = result.files || result;
+            
             try {
               console.log(`📄 Auto-processing: ${file.originalName}`);
               
               // Check if this is a Google Drive file
               if (file.googleDriveUrl || file.storageType === 'google-drive') {
                 // Use drive processor for Google Drive files
+                console.log(`  → Using Google Drive processor for ${file.originalName}`);
                 await driveFileProcessor.processFileById(file.id, userId);
               } else {
                 // Use regular processing for uploaded files (includes OCR)
+                console.log(`  → Using regular processor for ${file.originalName}`);
                 await processFileAsync(file.id, userId);
               }
               
