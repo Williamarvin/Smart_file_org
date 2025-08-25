@@ -1,6 +1,12 @@
 import PDFParse from 'pdf-parse';
 import * as fs from 'fs/promises';
 import { googleVisionOCR } from './googleVisionOCR';
+import Tesseract from 'tesseract.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
 
 /**
  * Enhanced PDF text extraction with multiple fallback strategies and OCR support
@@ -49,30 +55,36 @@ export class EnhancedPdfExtractor {
         console.log(`- Producer: ${basicData.info.Producer || 'N/A'}`);
       }
       
-      // Check if it's truly a scanned PDF
-      const hasOnlyWhitespace = basicData.text && 
-        basicData.text.trim().length === 0 && 
-        basicData.text.length > 0;
+      // Check if it's truly a scanned PDF (no text or only whitespace)
+      const hasMinimalText = !basicData.text || basicData.text.trim().length < 50;
       
-      if (hasOnlyWhitespace) {
-        console.log('⚠️ PDF contains only whitespace - likely a scanned document');
-        console.log('🔍 Attempting OCR with Google Cloud Vision API...');
+      if (hasMinimalText) {
+        console.log('📷 Detected scanned PDF - attempting OCR processing...');
         
+        // Try Tesseract.js OCR first (local processing)
         try {
-          // Use Google Cloud Vision API for OCR
+          console.log('🔍 Attempting local Tesseract OCR...');
+          const ocrText = await this.performTesseractOCR(pdfBuffer, filename, basicData.numpages);
+          
+          if (ocrText && ocrText.trim().length > 50) {
+            console.log(`✅ Tesseract OCR successfully extracted ${ocrText.length} characters`);
+            return ocrText;
+          }
+        } catch (tesseractError: any) {
+          console.log(`⚠️ Tesseract OCR failed: ${tesseractError.message}`);
+        }
+        
+        // Fallback to Google Cloud Vision API if available
+        try {
+          console.log('🔍 Attempting Google Cloud Vision API...');
           const ocrText = await googleVisionOCR.extractTextFromPDF(pdfBuffer, filename);
           
           if (ocrText && ocrText.trim().length > 50) {
-            console.log(`✅ OCR successfully extracted ${ocrText.length} characters`);
+            console.log(`✅ Vision API successfully extracted ${ocrText.length} characters`);
             return ocrText;
           }
         } catch (ocrError: any) {
-          console.error(`OCR failed: ${ocrError.message}`);
-          
-          // If it's a credentials issue, provide helpful message
-          if (ocrError.message.includes('GOOGLE_CLOUD_CREDENTIALS')) {
-            console.log('⚠️ Google Cloud Vision API not configured');
-          }
+          console.log(`⚠️ Vision API failed: ${ocrError.message}`);
         }
         
         // If OCR failed, return detailed fallback with metadata
@@ -141,6 +153,62 @@ The document likely contains valuable content but needs special processing to ma
       .trim();
   }
   
+  /**
+   * Perform OCR using Tesseract.js
+   */
+  private async performTesseractOCR(pdfBuffer: Buffer, filename: string, pageCount: number): Promise<string> {
+    console.log(`📷 Starting Tesseract OCR for ${filename} (${pageCount} pages)`);
+    
+    try {
+      console.log('Creating Tesseract worker...');
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: (m: any) => {
+          if (m.status === 'recognizing text') {
+            console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+          }
+        }
+      });
+      
+      try {
+        // Try to recognize text from the PDF buffer
+        // Note: This works best with single-page PDFs or images
+        console.log('Running OCR on PDF...');
+        const { data: { text } } = await worker.recognize(pdfBuffer);
+        
+        await worker.terminate();
+        
+        if (text && text.trim()) {
+          console.log(`✅ Tesseract extracted ${text.length} characters`);
+          
+          // Add metadata to extracted text
+          const fullText = `[OCR Extracted from ${filename}]
+
+${text}
+
+Note: Text extracted using OCR from scanned PDF (${pageCount} pages).`;
+          
+          return fullText;
+        } else {
+          console.log('⚠️ Tesseract could not extract text from PDF');
+        }
+      } catch (error) {
+        await worker.terminate();
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Tesseract OCR error:', error.message);
+      
+      // If Tesseract fails on PDF directly, note that conversion to images may be needed
+      if (error.message.includes('Error attempting to read image')) {
+        console.log('ℹ️ PDF needs to be converted to images for OCR processing');
+      }
+      
+      throw error;
+    }
+    
+    return '';
+  }
+
   /**
    * Generate fallback text with all available metadata
    */
