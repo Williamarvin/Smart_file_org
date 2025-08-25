@@ -1,8 +1,9 @@
 import PDFParse from 'pdf-parse';
 import * as fs from 'fs/promises';
+import { googleVisionOCR } from './googleVisionOCR';
 
 /**
- * Enhanced PDF text extraction with multiple fallback strategies
+ * Enhanced PDF text extraction with multiple fallback strategies and OCR support
  */
 export class EnhancedPdfExtractor {
   
