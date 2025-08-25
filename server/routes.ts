@@ -37,7 +37,24 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
     switch (mimeType) {
       case "application/pdf":
         const pdfData = await PDFParse(buffer);
-        return pdfData.text;
+        let extractedText = pdfData.text || '';
+        
+        // Check if we got meaningful text (not just whitespace)
+        const cleanedText = extractedText.trim();
+        if (cleanedText.length < 10) {
+          console.warn(`PDF extraction returned minimal text (${cleanedText.length} chars) for ${filename}`);
+          console.log(`PDF info - Pages: ${pdfData.numpages}, Version: ${pdfData.version}, Info:`, pdfData.info);
+          
+          // If no meaningful text extracted, provide fallback info
+          const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
+          const title = pdfData.info?.Title || filename;
+          const author = pdfData.info?.Author || 'Unknown author';
+          
+          return `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+        }
+        
+        console.log(`✅ Extracted ${cleanedText.length} characters from PDF: ${filename}`);
+        return extractedText;
       
       case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         const docxResult = await mammoth.extractRawText({ buffer });

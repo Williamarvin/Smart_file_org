@@ -2,7 +2,16 @@
 
 This is a full-stack file management and search application designed for uploading, processing, and searching documents and videos using AI-powered content analysis. The system extracts text from various file formats and transcribes video content, generates metadata and embeddings, and provides semantic search capabilities. It features a React frontend and Express.js backend, with a modern multi-page navigation system for dashboard overview, file browsing, uploading, and analytics. The project aims to provide a robust, AI-enhanced platform for efficient content organization and retrieval.
 
-## Recent Updates (August 23, 2025)
+## Recent Updates (August 25, 2025)
+- **✅ ENHANCED: PDF Text Extraction with Better Error Handling**: Improved PDF processing for scanned/complex documents
+  - **Smart Detection**: Identifies PDFs with minimal extractable text (scanned images or complex formatting)
+  - **Fallback Information**: Provides document metadata (title, author, page count) when text extraction fails
+  - **Detailed Logging**: Shows PDF processing details for debugging extraction issues
+  - **OCR Notice**: Informs users when PDFs need OCR processing for text extraction
+- **✅ AVAILABLE: Transcribed Files Filter**: Browse page includes filter to view only transcribed files
+  - **Green Badge Filter**: Click "✓ Transcribed" button to see all successfully transcribed files
+  - **Smart Filtering**: Shows files with actual content (>100 chars) that completed processing
+  - **Visual Indicator**: Green badges on files indicate successful transcription status
 - **✅ IMPROVED: Smart Search with Title Priority**: Search now intelligently prioritizes exact filename matches
   - **Title Match Priority**: Files with search terms in their name appear first
   - **Combined Search**: Uses both title matching AND semantic similarity

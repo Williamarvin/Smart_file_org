@@ -3,7 +3,7 @@ import { storage } from './storage';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import { v4 as uuidv4 } from 'uuid';
+import { nanoid } from 'nanoid';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
 import { getOpenAIClient } from './openai';
@@ -95,7 +95,7 @@ export class DriveFileProcessor {
       }
 
       // Save to temp file
-      const tempFilePath = path.join(this.tempDir, `${uuidv4()}-${file.filename}`);
+      const tempFilePath = path.join(this.tempDir, `${nanoid()}-${file.filename}`);
       await fs.writeFile(tempFilePath, fileBuffer);
 
       // Extract content based on file type
@@ -111,7 +111,22 @@ export class DriveFileProcessor {
         // Extract text from PDF
         const pdfBuffer = await fs.readFile(tempFilePath);
         const pdfData = await pdfParse(pdfBuffer);
-        extractedContent = pdfData.text;
+        extractedContent = pdfData.text || '';
+        
+        // Check if we got meaningful text (not just whitespace)
+        const cleanedText = extractedContent.trim();
+        if (cleanedText.length < 10) {
+          console.warn(`PDF extraction returned minimal text (${cleanedText.length} chars) for ${file.filename}`);
+          console.log(`PDF info - Pages: ${pdfData.numpages}, Version: ${pdfData.version}`);
+          
+          // If no meaningful text extracted, provide fallback info
+          const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
+          const title = pdfData.info?.Title || file.filename;
+          const author = pdfData.info?.Author || 'Unknown author';
+          
+          extractedContent = `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+        }
+        
         console.log(`✅ Extracted ${extractedContent.length} characters from PDF`);
       } else if (fileExt === '.txt' || fileExt === '.md') {
         // Read text files directly
@@ -123,7 +138,7 @@ export class DriveFileProcessor {
           console.log(`📹 Processing video for transcription: ${file.filename}`);
           
           // Extract audio from video using ffmpeg
-          const audioPath = path.join(this.tempDir, `${uuidv4()}.mp3`);
+          const audioPath = path.join(this.tempDir, `${nanoid()}.mp3`);
           
           await new Promise<void>((resolve, reject) => {
             const ffmpegPath = ffmpeg || 'ffmpeg';
