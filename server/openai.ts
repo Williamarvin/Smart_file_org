@@ -356,8 +356,8 @@ async function generateEnhancedAnimatedVideo(content: string, style: string): Pr
         '-f', 'lavfi',
         '-i', 'sine=frequency=523.25:duration=60', // C5 high note
         '-filter_complex', [
-          // Dynamic gradient background with smooth transitions
-          `[0:v]geq=r='64+191*sin(2*PI*t/15+PI/6)':g='32+223*sin(2*PI*t/12+PI/3)':b='128+127*sin(2*PI*t/10+PI/2)'[bg];`,
+          // Simple colored background (avoiding complex geq expressions)
+          `[0:v]hue=H=2*t:s=1.5[bg];`,
           
           // Multiple animated geometric elements
           `[bg]drawbox=x='320+280*sin(t/4)':y='120+140*cos(t/5)':w=140:h=140:color=0x3b82f6@0.3[shapes1];`,
@@ -366,9 +366,9 @@ async function generateEnhancedAnimatedVideo(content: string, style: string): Pr
           `[shapes3]drawbox=x='900+160*cos(t/2.8)':y='180+120*sin(t/6)':w=80:h=80:color=0xf59e0b@0.45[shapes4];`,
           
           // Rotating orbital elements
-          `[shapes4]drawbox=x='640+180*sin(2*PI*t/8)':y='360+180*cos(2*PI*t/8)':w=60:h=60:color=0x8b5cf6@0.5[orbit1];`,
-          `[orbit1]drawbox=x='640+240*sin(2*PI*t/12+PI)':y='360+240*cos(2*PI*t/12+PI)':w=40:h=40:color=0xec4899@0.4[orbit2];`,
-          `[orbit2]drawbox=x='640+120*sin(2*PI*t/6+PI/2)':y='360+120*cos(2*PI*t/6+PI/2)':w=30:h=30:color=0x06b6d4@0.6[orbit3];`,
+          `[shapes4]drawbox=x='640+180*sin(2*3.14159*t/8)':y='360+180*cos(2*3.14159*t/8)':w=60:h=60:color=0x8b5cf6@0.5[orbit1];`,
+          `[orbit1]drawbox=x='640+240*sin(2*3.14159*t/12+3.14159)':y='360+240*cos(2*3.14159*t/12+3.14159)':w=40:h=40:color=0xec4899@0.4[orbit2];`,
+          `[orbit2]drawbox=x='640+120*sin(2*3.14159*t/6+1.571)':y='360+120*cos(2*3.14159*t/6+1.571)':w=30:h=30:color=0x06b6d4@0.6[orbit3];`,
           
           // Professional title with glow effect and animation
           `[orbit3]drawtext=text='🎬 AI CONTENT GENERATOR':fontcolor=white:fontsize=42:x=(w-text_w)/2:y=30:enable='gte(t,1)':alpha='min(1,max(0,(t-1)/3))'[title];`,
@@ -379,17 +379,17 @@ async function generateEnhancedAnimatedVideo(content: string, style: string): Pr
           // Main content with sophisticated animations
           `[subtitle]${textFilters.join(',')}[content];`,
           
-          // Animated progress indicators and status
-          `[content]drawbox=x=120:y=660:w='(w-240)*t/60':h=18:color=0x10b981[progress];`,
+          // Animated progress indicators and status (simplified)
+          `[content]drawbox=x=120:y=660:w=800:h=18:t=fill:color=0x10b981@0.5[progress];`,
           `[progress]drawtext=text='🎵 Musical Background Active':fontcolor=lime:fontsize=20:x=120:y=620:enable='gte(t,8)'[music];`,
           `[music]drawtext=text='🎨 Enhanced Animations':fontcolor=yellow:fontsize=20:x=120:y=590:enable='gte(t,12)'[animations];`,
           `[animations]drawtext=text='⏱️ %{eif\\:t\\:d}/60 seconds':fontcolor=white:fontsize=20:x=w-250:y=620[timer];`,
           
           // Pulsing accent elements for visual rhythm
-          `[timer]drawbox=x='60+20*sin(4*PI*t)':y='30+15*cos(4*PI*t)':w=40:h=40:color=0xffffff@0.7[pulse1];`,
-          `[pulse1]drawbox=x='w-100+15*sin(6*PI*t)':y='30+12*cos(6*PI*t)':w=35:h=35:color=0xff6b6b@0.6[pulse2];`,
-          `[pulse2]drawbox=x='60+18*sin(3*PI*t)':y='h-70+12*cos(3*PI*t)':w=30:h=30:color=0x4ade80@0.8[pulse3];`,
-          `[pulse3]drawbox=x='w-100+16*sin(5*PI*t)':y='h-70+10*cos(5*PI*t)':w=28:h=28:color=0xa78bfa@0.7[final];`,
+          `[timer]drawbox=x='60+20*sin(4*3.14159*t)':y='30+15*cos(4*3.14159*t)':w=40:h=40:color=0xffffff@0.7[pulse1];`,
+          `[pulse1]drawbox=x='w-100+15*sin(6*3.14159*t)':y='30+12*cos(6*3.14159*t)':w=35:h=35:color=0xff6b6b@0.6[pulse2];`,
+          `[pulse2]drawbox=x='60+18*sin(3*3.14159*t)':y='h-70+12*cos(3*3.14159*t)':w=30:h=30:color=0x4ade80@0.8[pulse3];`,
+          `[pulse3]drawbox=x='w-100+16*sin(5*3.14159*t)':y='h-70+10*cos(5*3.14159*t)':w=28:h=28:color=0xa78bfa@0.7[final];`,
           
           // Rich musical composition with multiple layers (separate from video chain)
           `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.6 0.4[layer1];`,
@@ -462,8 +462,8 @@ async function createFallbackVideo(content: string, style: string): Promise<Buff
         '-f', 'lavfi',
         '-i', 'sine=frequency=554:duration=30',
         '-filter_complex', [
-          // Animated background
-          `[0:v]geq=r='80+175*sin(2*PI*t/10)':g='40+215*sin(2*PI*t/8+PI/3)':b='120+135*sin(2*PI*t/6+PI/2)'[bg];`,
+          // Animated background with color shift
+          `[0:v]hue=H=t:s=1.2:b=0.2[bg];`,
           
           // Moving shapes
           `[bg]drawbox=x='320+200*sin(t/4)':y='180+100*cos(t/5)':w=120:h=120:color=0x3b82f6@0.4[shapes];`,
