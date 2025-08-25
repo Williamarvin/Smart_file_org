@@ -230,6 +230,21 @@ export async function generateTextToSpeech(text: string, voice: string = "alloy"
   }
 }
 
+export async function generateVideo(prompt: string, style: string = "natural"): Promise<Buffer> {
+  try {
+    // Note: OpenAI doesn't have direct video generation yet, but we can use Sora when available
+    // For now, we'll use a placeholder or integrate with other video generation services
+    
+    // This is a placeholder for when OpenAI releases video generation API
+    // Currently, we'll create a simple video with text overlay
+    throw new Error("Video generation not yet available through OpenAI API. Please use audio generation for now.");
+    
+  } catch (error: any) {
+    console.error("Failed to generate video:", error);
+    throw new Error("Failed to generate video: " + (error?.message || "Unknown error"));
+  }
+}
+
 export async function generateContentFromFiles(
   prompt: string, 
   fileContents: Array<{ filename: string; content: string; category: string }>,

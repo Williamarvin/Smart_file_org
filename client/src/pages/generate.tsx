@@ -55,8 +55,11 @@ export function Generate() {
   const [generatedContent, setGeneratedContent] = useState("");
   const [generationType, setGenerationType] = useState("summary");
   const [generateAudio, setGenerateAudio] = useState(false);
+  const [generateVideo, setGenerateVideo] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState("alloy");
+  const [selectedVideoStyle, setSelectedVideoStyle] = useState("natural");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Fetch available files
@@ -66,19 +69,23 @@ export function Generate() {
 
   // Content generation mutation
   const generateMutation = useMutation({
-    mutationFn: async ({ prompt, fileIds, type, generateAudio, voice }: { 
+    mutationFn: async ({ prompt, fileIds, type, generateAudio, generateVideo, voice, videoStyle }: { 
       prompt: string; 
       fileIds: string[]; 
       type: string; 
       generateAudio?: boolean; 
+      generateVideo?: boolean;
       voice?: string; 
+      videoStyle?: string;
     }) => {
       const response = await apiRequest("POST", "/api/generate-content", { 
         prompt, 
         fileIds, 
         type, 
         generateAudio, 
-        voice 
+        generateVideo,
+        voice,
+        videoStyle
       });
       return response.json();
     },
@@ -96,9 +103,21 @@ export function Generate() {
         setAudioUrl(null);
       }
       
+      // Handle video if generated
+      if (data.video) {
+        const videoBlob = new Blob([
+          Uint8Array.from(atob(data.video), c => c.charCodeAt(0))
+        ], { type: 'video/mp4' });
+        const url = URL.createObjectURL(videoBlob);
+        setVideoUrl(url);
+      } else {
+        setVideoUrl(null);
+      }
+      
+      const mediaType = data.video ? "video" : (data.audio ? "audio" : "text");
       toast({
         title: "Content Generated",
-        description: data.audio ? "AI has generated content with audio narration!" : "AI has successfully generated new content based on your files.",
+        description: `AI has generated content${data.video ? " with video!" : (data.audio ? " with audio narration!" : "!")}`,
       });
     },
     onError: (error) => {
@@ -143,7 +162,9 @@ export function Generate() {
       fileIds: selectedFiles,
       type: generationType,
       generateAudio,
+      generateVideo,
       voice: selectedVoice,
+      videoStyle: selectedVideoStyle,
     });
   };
 
@@ -349,12 +370,12 @@ export function Generate() {
               </CardContent>
             </Card>
 
-            {/* Audio Generation */}
+            {/* Media Generation */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Volume2 className="text-blue-600" />
-                  <span>Audio Generation</span>
+                  <span>Media Generation</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -363,10 +384,27 @@ export function Generate() {
                     <Switch
                       id="generate-audio"
                       checked={generateAudio}
-                      onCheckedChange={setGenerateAudio}
+                      onCheckedChange={(checked) => {
+                        setGenerateAudio(checked);
+                        if (checked) setGenerateVideo(false);
+                      }}
                     />
                     <label htmlFor="generate-audio" className="text-sm font-medium">
                       Generate audio narration
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="generate-video"
+                      checked={generateVideo}
+                      onCheckedChange={(checked) => {
+                        setGenerateVideo(checked);
+                        if (checked) setGenerateAudio(false);
+                      }}
+                    />
+                    <label htmlFor="generate-video" className="text-sm font-medium">
+                      Generate video presentation
                     </label>
                   </div>
                   
@@ -386,6 +424,26 @@ export function Generate() {
                           <SelectItem value="shimmer">Shimmer (Soft Female)</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  )}
+                  
+                  {generateVideo && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Video Style</label>
+                      <Select value={selectedVideoStyle} onValueChange={setSelectedVideoStyle}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select video style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="natural">Natural</SelectItem>
+                          <SelectItem value="animated">Animated</SelectItem>
+                          <SelectItem value="presentation">Presentation</SelectItem>
+                          <SelectItem value="documentary">Documentary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-amber-600 mt-2">
+                        ⚠️ Video generation is coming soon when OpenAI releases their video API (Sora)
+                      </p>
                     </div>
                   )}
                 </div>
@@ -557,7 +615,19 @@ export function Generate() {
                   </div>
                 ) : generatedContent ? (
                   <div className="prose prose-slate max-w-none space-y-4">
-                    {audioUrl && (
+                    {videoUrl && (
+                      <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                        <div className="flex items-center space-x-3">
+                          <Play className="text-purple-600 h-5 w-5" />
+                          <span className="font-medium text-purple-900">Generated Video</span>
+                        </div>
+                        <video controls className="w-full mt-3 rounded-lg" src={videoUrl}>
+                          Your browser does not support the video element.
+                        </video>
+                      </div>
+                    )}
+                    
+                    {audioUrl && !videoUrl && (
                       <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                         <div className="flex items-center space-x-3">
                           <Volume2 className="text-blue-600 h-5 w-5" />

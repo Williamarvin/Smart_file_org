@@ -1337,12 +1337,14 @@ ${file.fileContent.toString()}`;
   app.post("/api/generate-content", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { prompt, fileIds, type, generateAudio, voice } = z.object({
+      const { prompt, fileIds, type, generateAudio, generateVideo, voice, videoStyle } = z.object({
         prompt: z.string(),
         fileIds: z.array(z.string()),
         type: z.string(),
         generateAudio: z.boolean().optional(),
+        generateVideo: z.boolean().optional(),
         voice: z.string().optional(),
+        videoStyle: z.string().optional(),
       }).parse(req.body);
 
       // Get files and their content
@@ -1362,6 +1364,8 @@ ${file.fileContent.toString()}`;
       const generatedContent = await generateContentFromFiles(prompt, fileContents, type);
       
       let audioBuffer = null;
+      let videoBuffer = null;
+      
       if (generateAudio) {
         try {
           audioBuffer = await generateTextToSpeech(generatedContent, voice || "alloy");
@@ -1371,17 +1375,34 @@ ${file.fileContent.toString()}`;
         }
       }
       
-      if (audioBuffer) {
-        // Convert buffer to base64 for transmission
-        const audioBase64 = audioBuffer.toString('base64');
-        res.json({ 
-          content: generatedContent,
-          audio: audioBase64,
-          audioFormat: 'mp3'
-        });
-      } else {
-        res.json({ content: generatedContent });
+      if (generateVideo) {
+        try {
+          const { generateVideo: generateVideoFunc } = await import('./openai');
+          videoBuffer = await generateVideoFunc(generatedContent, videoStyle || "natural");
+        } catch (videoError) {
+          console.error("Video generation failed:", videoError);
+          // Return error for video since it's the main request
+          return res.status(400).json({ 
+            error: "Video generation is not yet available. OpenAI's video generation API (Sora) is not publicly released yet.",
+            content: generatedContent,
+            suggestion: "Please try audio generation instead, or check back when video generation becomes available."
+          });
+        }
       }
+      
+      const response: any = { content: generatedContent };
+      
+      if (audioBuffer) {
+        response.audio = audioBuffer.toString('base64');
+        response.audioFormat = 'mp3';
+      }
+      
+      if (videoBuffer) {
+        response.video = videoBuffer.toString('base64');
+        response.videoFormat = 'mp4';
+      }
+      
+      res.json(response);
     } catch (error) {
       console.error("Error generating content:", error);
       res.status(500).json({ error: "Failed to generate content" });
