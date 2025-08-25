@@ -332,22 +332,38 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
   try {
     console.log("Generating improved video placeholder using FFmpeg...");
     
-    // Create a temporary text file with the content
-    const tempTextFile = path.join('/tmp', `video_text_${Date.now()}.txt`);
     const tempVideoFile = path.join('/tmp', `video_output_${Date.now()}.mp4`);
     
-    // Create content for the video
-    const videoText = `Video Summary:\n${prompt.substring(0, 200)}...\n\nStyle: ${style}\nGenerated: ${new Date().toLocaleString()}\n\nAI video generation models are loading.\nThis is a placeholder video.`;
+    // Create content for the video with line breaks
+    const lines = [
+      "AI VIDEO GENERATION",
+      "",
+      "Content Summary:",
+      prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt,
+      "",
+      `Style: ${style}`,
+      "",
+      "Status: Models are loading...",
+      "This is a placeholder video",
+      "",
+      new Date().toLocaleDateString()
+    ];
     
-    fs.writeFileSync(tempTextFile, videoText);
+    // Create a more visually appealing video with multiple text elements
+    const textFilter = lines.map((line, index) => {
+      const yPos = 80 + (index * 35); // Vertical spacing between lines
+      const fontSize = index === 0 ? 24 : (index === 3 ? 16 : 18); // Different font sizes
+      const color = index === 0 ? 'yellow' : 'white'; // Highlight first line
+      
+      return `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=${color}:fontsize=${fontSize}:x=(w-text_w)/2:y=${yPos}`;
+    }).join(',');
     
-    // Use FFmpeg to create a video with text overlay (if FFmpeg is available)
+    // Use FFmpeg to create a video with multiple text overlays
     return new Promise((resolve, reject) => {
-      // Try to create a simple video using FFmpeg
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=navy:size=640x480:duration=10:rate=30',
-        '-vf', `drawtext=text='${videoText.replace(/'/g, "\\'")}':fontcolor=white:fontsize=18:box=1:boxcolor=black@0.7:boxborderw=10:x=(w-text_w)/2:y=(h-text_h)/2`,
+        '-i', 'color=c=0x1a365d:size=640x480:duration=15:rate=30', // Darker blue, longer duration
+        '-vf', textFilter,
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
         '-preset', 'ultrafast',
@@ -363,71 +379,59 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
       ffmpeg.on('close', (code) => {
         try {
           if (code === 0 && fs.existsSync(tempVideoFile)) {
-            // Success - read the video file
             const videoBuffer = fs.readFileSync(tempVideoFile);
-            
-            // Cleanup
-            if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile);
-            if (fs.existsSync(tempVideoFile)) fs.unlinkSync(tempVideoFile);
-            
-            console.log(`✅ Generated placeholder video with FFmpeg (${videoBuffer.length} bytes)`);
+            fs.unlinkSync(tempVideoFile); // cleanup
+            console.log(`✅ Generated informative placeholder video (${videoBuffer.length} bytes)`);
             resolve(videoBuffer);
           } else {
-            throw new Error(`FFmpeg failed with code ${code}: ${errorOutput}`);
+            console.log(`FFmpeg failed with code ${code}: ${errorOutput}`);
+            // Fallback to working video
+            createWorkingMP4Video(prompt, style).then(resolve).catch(reject);
           }
         } catch (error) {
-          console.log("FFmpeg approach failed, trying alternative...");
-          
-          // Cleanup on error
-          try {
-            if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile);
-            if (fs.existsSync(tempVideoFile)) fs.unlinkSync(tempVideoFile);
-          } catch (cleanupError) {
-            console.log("Cleanup error:", cleanupError);
-          }
-          
-          // Fallback to a valid minimal MP4
+          console.log("Error reading video file:", error);
           createWorkingMP4Video(prompt, style).then(resolve).catch(reject);
         }
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("FFmpeg spawn error, trying alternative:", error.message);
-        
-        // Cleanup
-        try {
-          if (fs.existsSync(tempTextFile)) fs.unlinkSync(tempTextFile);
-          if (fs.existsSync(tempVideoFile)) fs.unlinkSync(tempVideoFile);
-        } catch (cleanupError) {
-          console.log("Cleanup error:", cleanupError);
-        }
-        
-        // Fallback approach
+        console.log("FFmpeg spawn error:", error.message);
         createWorkingMP4Video(prompt, style).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
     console.error("Failed to generate video placeholder:", error);
-    // Final fallback
     return createWorkingMP4Video(prompt, style);
   }
 }
 
 async function createWorkingMP4Video(prompt: string, style: string): Promise<Buffer> {
-  // Create a working MP4 video using FFmpeg with a solid color and text
-  console.log("Creating working MP4 video with FFmpeg...");
+  console.log("Creating animated MP4 video with FFmpeg...");
   
   try {
     const tempVideoFile = path.join('/tmp', `working_video_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      // Create a simple 5-second video with solid background
+      // Create an animated gradient background with scrolling text
+      const shortPrompt = prompt.length > 40 ? prompt.substring(0, 40) + "..." : prompt;
+      
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=0x2563eb:size=640x360:duration=5:rate=30',
+        '-i', 'color=c=0x1e3a8a:size=640x360:duration=10:rate=30', // Blue background
         '-f', 'lavfi', 
         '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+        '-filter_complex', [
+          // Create animated gradient overlay
+          `[0:v]geq=r='255*sin(2*PI*t/4)':g='255*sin(2*PI*t/4+2*PI/3)':b='255*sin(2*PI*t/4+4*PI/3)':a=0.3[gradient];`,
+          // Add animated text
+          `[gradient]drawtext=text='VIDEO CONTENT':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=100,`,
+          `drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=20:x=(w-text_w)/2:y=160,`,
+          `drawtext=text='Style\\: ${style}':fontcolor=lightblue:fontsize=16:x=(w-text_w)/2:y=200,`,
+          `drawtext=text='Processing...':fontcolor=white:fontsize=18:x=(w-text_w)/2:y=250:enable='mod(floor(t*2),2)'[v]`
+        ].join(''),
+        '-map', '[v]',
+        '-map', '1:a',
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
@@ -437,31 +441,83 @@ async function createWorkingMP4Video(prompt: string, style: string): Promise<Buf
         tempVideoFile
       ]);
 
+      let errorOutput = '';
+      ffmpeg.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
       ffmpeg.on('close', (code) => {
         try {
           if (code === 0 && fs.existsSync(tempVideoFile)) {
             const videoBuffer = fs.readFileSync(tempVideoFile);
-            fs.unlinkSync(tempVideoFile); // cleanup
-            console.log(`✅ Generated working MP4 video (${videoBuffer.length} bytes)`);
+            fs.unlinkSync(tempVideoFile);
+            console.log(`✅ Generated animated MP4 video (${videoBuffer.length} bytes)`);
             resolve(videoBuffer);
           } else {
-            // If even this fails, create a very basic test pattern
-            reject(new Error(`Failed to create working video, code: ${code}`));
+            console.log(`Animated video failed with code ${code}: ${errorOutput}`);
+            // Fallback to simple solid color video
+            createSimpleVideo(prompt).then(resolve).catch(reject);
           }
         } catch (error) {
-          reject(error);
+          console.log("Error with animated video:", error);
+          createSimpleVideo(prompt).then(resolve).catch(reject);
         }
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("Working video creation failed:", error.message);
-        reject(error);
+        console.log("Animated video creation failed:", error.message);
+        createSimpleVideo(prompt).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
-    console.error("Failed to create working video:", error);
-    // Absolute fallback - create a test pattern video
+    console.error("Failed to create animated video:", error);
+    return createSimpleVideo(prompt);
+  }
+}
+
+async function createSimpleVideo(prompt: string): Promise<Buffer> {
+  console.log("Creating simple video as final fallback...");
+  
+  try {
+    const tempVideoFile = path.join('/tmp', `simple_video_${Date.now()}.mp4`);
+    
+    return new Promise((resolve, reject) => {
+      const ffmpeg = spawn(ffmpegPath!, [
+        '-f', 'lavfi',
+        '-i', 'color=c=0x059669:size=640x360:duration=8:rate=30', // Green background
+        '-vf', `drawtext=text='Content Generated':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=(h-text_h)/2`,
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'ultrafast',
+        '-y',
+        tempVideoFile
+      ]);
+
+      ffmpeg.on('close', (code) => {
+        try {
+          if (code === 0 && fs.existsSync(tempVideoFile)) {
+            const videoBuffer = fs.readFileSync(tempVideoFile);
+            fs.unlinkSync(tempVideoFile);
+            console.log(`✅ Generated simple video (${videoBuffer.length} bytes)`);
+            resolve(videoBuffer);
+          } else {
+            console.log(`Simple video failed with code ${code}`);
+            resolve(createTestPatternVideo());
+          }
+        } catch (error) {
+          resolve(createTestPatternVideo());
+        }
+      });
+
+      ffmpeg.on('error', (error) => {
+        console.log("Simple video creation failed:", error.message);
+        resolve(createTestPatternVideo());
+      });
+    });
+    
+  } catch (error: any) {
+    console.error("Failed to create simple video:", error);
     return createTestPatternVideo();
   }
 }
