@@ -407,35 +407,77 @@ async function generateVideoPlaceholder(prompt: string, style: string): Promise<
 }
 
 async function createWorkingMP4Video(prompt: string, style: string): Promise<Buffer> {
-  console.log("Creating animated MP4 video with FFmpeg...");
+  console.log("Creating enhanced animated MP4 video with FFmpeg...");
   
   try {
-    const tempVideoFile = path.join('/tmp', `working_video_${Date.now()}.mp4`);
+    const tempVideoFile = path.join('/tmp', `enhanced_video_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
-      // Create an animated gradient background with scrolling text
-      const shortPrompt = prompt.length > 40 ? prompt.substring(0, 40) + "..." : prompt;
+      // Split prompt into multiple lines for better display
+      const words = prompt.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        if (currentLine.length + word.length + 1 <= 50) {
+          currentLine += (currentLine ? ' ' : '') + word;
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      
+      // Take first 4 lines max
+      const displayLines = lines.slice(0, 4);
+      
+      // Create animated text filters
+      const textFilters = displayLines.map((line, index) => {
+        const yPos = 150 + (index * 40);
+        const delay = index * 1; // Stagger text appearance
+        return `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=22:x=(w-text_w)/2:y=${yPos}:enable='gte(t,${delay})'`;
+      });
       
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=0x1e3a8a:size=640x360:duration=10:rate=30', // Blue background
+        '-i', 'color=c=0x1a1a2e:size=854x480:duration=30:rate=30', // Longer 30-second video, higher resolution
         '-f', 'lavfi', 
-        '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+        '-i', 'sine=frequency=440:duration=30', // Generate a simple tone
+        '-f', 'lavfi',
+        '-i', 'sine=frequency=330:duration=30', // Second tone for harmony
         '-filter_complex', [
-          // Create animated gradient overlay
-          `[0:v]geq=r='255*sin(2*PI*t/4)':g='255*sin(2*PI*t/4+2*PI/3)':b='255*sin(2*PI*t/4+4*PI/3)':a=0.3[gradient];`,
-          // Add animated text
-          `[gradient]drawtext=text='VIDEO CONTENT':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=100,`,
-          `drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=20:x=(w-text_w)/2:y=160,`,
-          `drawtext=text='Style\\: ${style}':fontcolor=lightblue:fontsize=16:x=(w-text_w)/2:y=200,`,
-          `drawtext=text='Processing...':fontcolor=white:fontsize=18:x=(w-text_w)/2:y=250:enable='mod(floor(t*2),2)'[v]`
+          // Create animated gradient background
+          `[0:v]geq=r='128+127*sin(2*PI*t/8)':g='64+63*sin(2*PI*t/6+PI/3)':b='192+63*sin(2*PI*t/4+2*PI/3)'[bg];`,
+          
+          // Add geometric shapes that move
+          `[bg]drawbox=x='200+100*sin(t/2)':y='100+50*cos(t/3)':w=100:h=100:color=0x3498db@0.3[shapes1];`,
+          `[shapes1]drawbox=x='400+80*cos(t/2.5)':y='200+60*sin(t/4)':w=80:h=80:color=0xe74c3c@0.4[shapes2];`,
+          
+          // Add title with fade-in effect
+          `[shapes2]drawtext=text='AI GENERATED CONTENT':fontcolor=yellow:fontsize=32:x=(w-text_w)/2:y=50:enable='gte(t,0.5)':alpha='min(1,max(0,(t-0.5)/2))'[title];`,
+          
+          // Add animated subtitle
+          `[title]drawtext=text='${style.toUpperCase()} STYLE':fontcolor=cyan:fontsize=18:x=(w-text_w)/2:y=90:enable='gte(t,1.5)':alpha='min(1,max(0,(t-1.5)/1.5))'[subtitle];`,
+          
+          // Add main content text with staggered appearance
+          `[subtitle]${textFilters.join(',')}[content];`,
+          
+          // Add progress bar at bottom
+          `[content]drawbox=x=50:y=420:w='(w-100)*t/30':h=10:color=0x2ecc71[progress];`,
+          
+          // Add time indicator
+          `[progress]drawtext=text='%{eif\\:t\\:d}/%{eif\\:30\\:d}s':fontcolor=white:fontsize=16:x=50:y=400[final]`,
+          
+          // Mix audio tracks
+          `[1:a][2:a]amix=inputs=2:duration=longest:dropout_transition=2[audio]`
         ].join(''),
-        '-map', '[v]',
-        '-map', '1:a',
+        '-map', '[final]',
+        '-map', '[audio]',
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'ultrafast',
+        '-preset', 'medium', // Better quality
+        '-crf', '23', // Good quality
         '-shortest',
         '-y',
         tempVideoFile
@@ -451,43 +493,124 @@ async function createWorkingMP4Video(prompt: string, style: string): Promise<Buf
           if (code === 0 && fs.existsSync(tempVideoFile)) {
             const videoBuffer = fs.readFileSync(tempVideoFile);
             fs.unlinkSync(tempVideoFile);
-            console.log(`✅ Generated animated MP4 video (${videoBuffer.length} bytes)`);
+            console.log(`✅ Generated enhanced animated video with sound (${videoBuffer.length} bytes, 30 seconds)`);
             resolve(videoBuffer);
           } else {
-            console.log(`Animated video failed with code ${code}: ${errorOutput}`);
-            // Fallback to simple solid color video
-            createSimpleVideo(prompt).then(resolve).catch(reject);
+            console.log(`Enhanced video failed with code ${code}: ${errorOutput}`);
+            // Fallback to simpler version
+            createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
           }
         } catch (error) {
-          console.log("Error with animated video:", error);
-          createSimpleVideo(prompt).then(resolve).catch(reject);
+          console.log("Error with enhanced video:", error);
+          createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
         }
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("Animated video creation failed:", error.message);
-        createSimpleVideo(prompt).then(resolve).catch(reject);
+        console.log("Enhanced video creation failed:", error.message);
+        createSimpleAnimatedVideo(prompt, style).then(resolve).catch(reject);
       });
     });
     
   } catch (error: any) {
-    console.error("Failed to create animated video:", error);
-    return createSimpleVideo(prompt);
+    console.error("Failed to create enhanced video:", error);
+    return createSimpleAnimatedVideo(prompt, style);
   }
 }
 
-async function createSimpleVideo(prompt: string): Promise<Buffer> {
-  console.log("Creating simple video as final fallback...");
+async function createSimpleAnimatedVideo(prompt: string, style: string): Promise<Buffer> {
+  console.log("Creating simple animated video fallback...");
   
   try {
-    const tempVideoFile = path.join('/tmp', `simple_video_${Date.now()}.mp4`);
+    const tempVideoFile = path.join('/tmp', `simple_animated_${Date.now()}.mp4`);
     
     return new Promise((resolve, reject) => {
+      const shortPrompt = prompt.length > 60 ? prompt.substring(0, 60) + "..." : prompt;
+      
       const ffmpeg = spawn(ffmpegPath!, [
         '-f', 'lavfi',
-        '-i', 'color=c=0x059669:size=640x360:duration=8:rate=30', // Green background
-        '-vf', `drawtext=text='Content Generated':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=(h-text_h)/2`,
+        '-i', 'color=c=0x2c3e50:size=640x360:duration=20:rate=30',
+        '-f', 'lavfi', 
+        '-i', 'sine=frequency=523:duration=20', // C note
+        '-filter_complex', [
+          // Animated background
+          `[0:v]geq=r='128+127*sin(2*PI*t/5)':g='128+127*sin(2*PI*t/7)':b='128+127*sin(2*PI*t/3)'[bg];`,
+          
+          // Main title with fade
+          `[bg]drawtext=text='CONTENT SUMMARY':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=80:alpha='min(1,t/2)'[title];`,
+          
+          // Content text with typewriter effect
+          `[title]drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=18:x=50:y=150:alpha='min(1,max(0,(t-2)/3))'[content];`,
+          
+          // Style indicator
+          `[content]drawtext=text='Style\\: ${style}':fontcolor=cyan:fontsize=16:x=50:y=250:alpha='min(1,max(0,(t-5)/2))'[style];`,
+          
+          // Animated progress dots
+          `[style]drawtext=text='●':fontcolor=lime:fontsize=20:x=300:y=300:enable='mod(floor(t*2),3)==0'[dot1];`,
+          `[dot1]drawtext=text='●':fontcolor=lime:fontsize=20:x=320:y=300:enable='mod(floor(t*2),3)==1'[dot2];`,
+          `[dot2]drawtext=text='●':fontcolor=lime:fontsize=20:x=340:y=300:enable='mod(floor(t*2),3)==2'[final]`
+        ].join(''),
+        '-map', '[final]',
+        '-map', '1:a',
         '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'fast',
+        '-y',
+        tempVideoFile
+      ]);
+
+      ffmpeg.on('close', (code) => {
+        try {
+          if (code === 0 && fs.existsSync(tempVideoFile)) {
+            const videoBuffer = fs.readFileSync(tempVideoFile);
+            fs.unlinkSync(tempVideoFile);
+            console.log(`✅ Generated simple animated video (${videoBuffer.length} bytes, 20 seconds)`);
+            resolve(videoBuffer);
+          } else {
+            console.log(`Simple animated video failed with code ${code}`);
+            resolve(createBasicVideo(prompt));
+          }
+        } catch (error) {
+          resolve(createBasicVideo(prompt));
+        }
+      });
+
+      ffmpeg.on('error', (error) => {
+        console.log("Simple animated video failed:", error.message);
+        resolve(createBasicVideo(prompt));
+      });
+    });
+    
+  } catch (error: any) {
+    console.error("Failed to create simple animated video:", error);
+    return createBasicVideo(prompt);
+  }
+}
+
+async function createBasicVideo(prompt: string): Promise<Buffer> {
+  console.log("Creating basic video as final fallback...");
+  
+  try {
+    const tempVideoFile = path.join('/tmp', `basic_video_${Date.now()}.mp4`);
+    
+    return new Promise((resolve, reject) => {
+      const shortPrompt = prompt.length > 30 ? prompt.substring(0, 30) + "..." : prompt;
+      
+      const ffmpeg = spawn(ffmpegPath!, [
+        '-f', 'lavfi',
+        '-i', 'color=c=0x34495e:size=640x360:duration=15:rate=30',
+        '-f', 'lavfi', 
+        '-i', 'sine=frequency=440:duration=15',
+        '-filter_complex', [
+          `[0:v]drawtext=text='Generated Content':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=120[title];`,
+          `[title]drawtext=text='${shortPrompt.replace(/'/g, "\\'")}':fontcolor=yellow:fontsize=16:x=(w-text_w)/2:y=180[content];`,
+          `[content]drawtext=text='Duration\\: 15 seconds':fontcolor=cyan:fontsize=14:x=(w-text_w)/2:y=240[final]`
+        ].join(''),
+        '-map', '[final]',
+        '-map', '1:a',
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
         '-pix_fmt', 'yuv420p',
         '-preset', 'ultrafast',
         '-y',
@@ -499,10 +622,10 @@ async function createSimpleVideo(prompt: string): Promise<Buffer> {
           if (code === 0 && fs.existsSync(tempVideoFile)) {
             const videoBuffer = fs.readFileSync(tempVideoFile);
             fs.unlinkSync(tempVideoFile);
-            console.log(`✅ Generated simple video (${videoBuffer.length} bytes)`);
+            console.log(`✅ Generated basic video with audio (${videoBuffer.length} bytes, 15 seconds)`);
             resolve(videoBuffer);
           } else {
-            console.log(`Simple video failed with code ${code}`);
+            console.log(`Basic video failed with code ${code}`);
             resolve(createTestPatternVideo());
           }
         } catch (error) {
@@ -511,13 +634,13 @@ async function createSimpleVideo(prompt: string): Promise<Buffer> {
       });
 
       ffmpeg.on('error', (error) => {
-        console.log("Simple video creation failed:", error.message);
+        console.log("Basic video creation failed:", error.message);
         resolve(createTestPatternVideo());
       });
     });
     
   } catch (error: any) {
-    console.error("Failed to create simple video:", error);
+    console.error("Failed to create basic video:", error);
     return createTestPatternVideo();
   }
 }
