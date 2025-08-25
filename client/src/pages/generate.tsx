@@ -93,7 +93,11 @@ export function Generate() {
 
   // Fetch all available files (with high limit to get all files)
   const { data: files = [], isLoading: filesLoading } = useQuery<any[]>({
-    queryKey: ["/api/files?limit=5000"],
+    queryKey: ["/api/files", "all"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/files?limit=5000");
+      return res.json();
+    },
   });
 
   // Fetch all folders
@@ -244,9 +248,20 @@ export function Generate() {
     }
 
     if (allFileIds.length === 0) {
+      // Provide more helpful error message
+      const totalFiles = files.length;
+      const completedCount = files.filter((f: any) => f.processingStatus === "completed").length;
+      
+      let errorMessage = "Please select at least one file or folder to generate content from.";
+      if (selectedFolders.length > 0 && completedCount === 0) {
+        errorMessage = `The selected folder(s) contain ${totalFiles} files, but none are fully processed yet. Please wait for files to complete processing or select different folders.`;
+      } else if (selectedFolders.length > 0) {
+        errorMessage = `No processed files found in the selected folder(s). Try selecting folders with processed content.`;
+      }
+      
       toast({
         title: "Selection Required",
-        description: "Please select at least one file or folder to generate content from.",
+        description: errorMessage,
         variant: "destructive",
       });
       return;
