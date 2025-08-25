@@ -703,12 +703,12 @@ export function Generate() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Brain className="text-green-600" />
-                  <span>Content Prompt</span>
+                  <span>Content Prompt (Optional)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Textarea
-                  placeholder="Describe what you want to generate based on your selected files... For example: 'Create a comprehensive summary of the main points' or 'Generate action items and recommendations'"
+                  placeholder="(Optional) Describe what you want to generate... Leave empty to use default generation based on the type selected above"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   className="min-h-[120px]"
@@ -736,7 +736,7 @@ export function Generate() {
                 <div className="mt-4">
                   <Button
                     onClick={handleGenerate}
-                    disabled={generateMutation.isPending || !prompt.trim() || selectedFiles.length === 0}
+                    disabled={generateMutation.isPending || (selectedFiles.length === 0 && selectedFolders.length === 0)}
                     className="w-full bg-purple-600 hover:bg-purple-700"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
