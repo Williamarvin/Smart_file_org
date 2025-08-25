@@ -17,8 +17,9 @@ export async function generateSlideshowVideo(slides: string[], narrationBuffer: 
     }
     
     return new Promise((resolve, reject) => {
-      // Calculate slide duration (total 60 seconds divided by number of slides)
-      const slideDuration = Math.floor(60 / slides.length);
+      // Calculate slide duration - increased to 90 seconds for more content
+      const totalDuration = 90; // Increased from 60 to 90 seconds
+      const slideDuration = Math.floor(totalDuration / slides.length);
       
       // Build FFmpeg command
       const ffmpegArgs = [];
@@ -26,7 +27,7 @@ export async function generateSlideshowVideo(slides: string[], narrationBuffer: 
       // Video input (dark background)
       ffmpegArgs.push(
         '-f', 'lavfi',
-        '-i', `color=c=0x1e293b:size=1280x720:duration=60:rate=30`
+        '-i', `color=c=0x1e293b:size=1280x720:duration=${totalDuration}:rate=30`
       );
       
       // Add audio input if we have narration
@@ -36,7 +37,7 @@ export async function generateSlideshowVideo(slides: string[], narrationBuffer: 
         // Add silent audio track
         ffmpegArgs.push(
           '-f', 'lavfi',
-          '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100:duration=60'
+          '-i', `anullsrc=channel_layout=stereo:sample_rate=44100:duration=${totalDuration}`
         );
       }
       
@@ -99,7 +100,7 @@ export async function generateSlideshowVideo(slides: string[], narrationBuffer: 
         '-ar', '44100',
         '-ac', '2',
         '-movflags', '+faststart',
-        '-t', '60',  // Duration: 60 seconds
+        '-t', `${totalDuration}`,  // Duration: 90 seconds for more content
         '-y',  // Overwrite output
         tempVideoFile
       );

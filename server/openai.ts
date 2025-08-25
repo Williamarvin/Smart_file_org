@@ -255,34 +255,41 @@ export async function generateVideo(content: string, style: string = "natural", 
 // Process content into slides for slideshow
 async function processContentForSlides(content: string, fileContext?: any): Promise<string[]> {
   try {
-    // Use GPT to create PowerPoint-style slide content
+    // Use MORE content for richer slides - increase from 3000 to 8000 characters
+    const expandedContent = content.substring(0, 8000);
+    
+    // Use GPT to create PowerPoint-style slide content with more detail
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `Create a professional PowerPoint-style presentation with 7 slides. 
+          content: `Create a comprehensive PowerPoint-style presentation with 8-10 slides. 
 Format EXACTLY as:
 SLIDE 1: [Title]
-• [Bullet point 1 - max 40 chars]
-• [Bullet point 2 - max 40 chars]
-• [Bullet point 3 - max 40 chars]
+• [Bullet point 1 - max 45 chars]
+• [Bullet point 2 - max 45 chars]
+• [Bullet point 3 - max 45 chars]
+• [Bullet point 4 - max 45 chars]
 
 Requirements:
-- Keep titles under 30 characters
-- Keep bullet points under 40 characters each
+- Create 8-10 slides for more comprehensive coverage
+- Keep titles under 35 characters
+- Include 3-4 bullet points per slide (max 45 chars each)
+- Extract key facts, data, and insights from the content
 - Use simple, clear language
 - No special characters except bullets
-- Structure: Title Slide, Overview, 3-4 Content Slides, Key Takeaways, Conclusion
-- Make it professional and educational`
+- Structure: Title, Overview, 5-6 detailed Content Slides, Key Takeaways, Conclusion
+- Include specific details and examples from the source material
+- Make it information-rich and educational`
         },
         {
           role: "user",
-          content: `Create a PowerPoint presentation from this content:\n${content.substring(0, 3000)}`
+          content: `Create a detailed PowerPoint presentation with specific facts and examples from this content:\n${expandedContent}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 1500  // Increased for more content
     });
     
     const slidesText = response.choices[0].message.content || "";
@@ -333,22 +340,24 @@ async function generateSlideshowNarration(slides: string[]): Promise<Buffer> {
         {
           role: "system",
           content: `You are a friendly, engaging teacher presenting educational content. 
-Create natural, conversational narration that:
-- Elaborates on each bullet point with context and real examples
+Create rich, detailed narration that:
+- Elaborates extensively on each bullet point with context, examples, and explanations
+- Adds relevant background information and insights
 - Flows smoothly without saying "next slide" or "moving on"
-- Speaks as if having a conversation with students
+- Speaks conversationally as if teaching students
 - Uses natural pauses and emphasis
-- Takes about 7-10 seconds per slide
-- Total narration should be 45-60 seconds (about 150-200 words)
-Format: Write continuous, natural speech that flows like a conversation. Don't mention slide numbers or transitions.`
+- Takes about 8-12 seconds per slide
+- Total narration should be 90-120 seconds (about 300-400 words)
+- Includes specific details, facts, and examples that expand on the bullet points
+Format: Write continuous, natural speech that flows like a conversation. Don't mention slide numbers or transitions. Be informative and educational.`
         },
         {
           role: "user",
-          content: `Create natural presentation narration for these slides:\n\n${slides.map((slide, i) => `Slide ${i+1}:\n${slide}`).join('\n\n')}`
+          content: `Create detailed, informative presentation narration for these slides:\n\n${slides.map((slide, i) => `Slide ${i+1}:\n${slide}`).join('\n\n')}`
         }
       ],
       temperature: 0.9, // More natural variation
-      max_tokens: 400
+      max_tokens: 800  // Doubled for more content
     });
     
     const narrationScript = narrationResponse.choices[0].message.content || 
