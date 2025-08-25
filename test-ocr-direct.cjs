@@ -1,50 +1,36 @@
-const { createWorker } = require('tesseract.js');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const fs = require('fs').promises;
-const path = require('path');
+const fs = require('fs');
+const pdfParse = require('pdf-parse');
+const Tesseract = require('tesseract.js');
 
-const execAsync = promisify(exec);
-
-async function testOCR() {
-  console.log('Testing OCR on the PDF...');
-  
+async function extractTextFromScannedPDF() {
   try {
-    // Create temp directory
-    const tempDir = '/tmp/ocr-test';
-    await fs.mkdir(tempDir, { recursive: true });
+    console.log('📷 Processing scanned PDF with Tesseract OCR...\n');
     
-    // Convert first page of PDF to image
-    console.log('Converting PDF to image...');
-    const pdfPath = '/tmp/test-ocr.pdf';
-    const imagePrefix = path.join(tempDir, 'page');
+    const pdfBuffer = fs.readFileSync('/tmp/debating-book.pdf');
+    console.log(`✓ PDF loaded: ${Math.round(pdfBuffer.length / 1024)}KB`);
     
-    // Convert just the first page for testing
-    const convertCommand = `pdftoppm -png -r 150 -f 1 -l 1 "${pdfPath}" "${imagePrefix}"`;
-    
+    // First, try regular text extraction to see if any text is embedded
     try {
-      await execAsync(convertCommand);
-      console.log('PDF converted to image successfully');
+      const pdfData = await pdfParse(pdfBuffer);
+      const embeddedText = pdfData.text.trim();
+      
+      if (embeddedText.length > 100) {
+        console.log('✅ Found embedded text in PDF (no OCR needed):');
+        console.log(embeddedText.substring(0, 1000));
+        return embeddedText;
+      } else {
+        console.log('📷 No embedded text found. This appears to be a scanned PDF.');
+        console.log('Page count:', pdfData.numpages);
+        console.log('Starting OCR processing...\n');
+      }
     } catch (error) {
-      console.error('Error converting PDF:', error);
-      return;
+      console.log('⚠️ Could not extract embedded text, proceeding with OCR...');
     }
     
-    // Get the generated image
-    const files = await fs.readdir(tempDir);
-    const imageFile = files.find(f => f.endsWith('.png'));
+    console.log('Setting up Tesseract OCR...');
     
-    if (!imageFile) {
-      console.error('No image file generated');
-      return;
-    }
-    
-    const imagePath = path.join(tempDir, imageFile);
-    console.log(`Processing image: ${imagePath}`);
-    
-    // Initialize Tesseract
-    console.log('Initializing OCR...');
-    const worker = await createWorker('eng', 1, {
+    // Create a Tesseract worker
+    const worker = await Tesseract.createWorker('eng', 1, {
       logger: m => {
         if (m.status === 'recognizing text') {
           console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
@@ -52,23 +38,39 @@ async function testOCR() {
       }
     });
     
-    // Perform OCR
-    console.log('Performing OCR on the image...');
-    const { data: { text } } = await worker.recognize(imagePath);
-    
-    console.log('\n=== OCR EXTRACTED TEXT (First Page) ===\n');
-    console.log(text);
-    console.log('\n=== END OF EXTRACTED TEXT ===\n');
-    console.log(`Total characters extracted: ${text.length}`);
-    
-    // Clean up
-    await worker.terminate();
-    await fs.unlink(imagePath);
-    await fs.rmdir(tempDir);
+    try {
+      console.log('Attempting OCR on PDF...');
+      
+      // Try to recognize text directly from PDF buffer
+      // Note: Tesseract works best with images, but we can try with PDF
+      const { data: { text } } = await worker.recognize(pdfBuffer);
+      
+      if (text && text.trim().length > 0) {
+        console.log('\n✅ OCR Complete! Extracted text preview:');
+        console.log(text.substring(0, 1000));
+        console.log(`\nTotal characters extracted: ${text.length}`);
+        
+        // Save to file for inspection
+        fs.writeFileSync('/tmp/ocr-result.txt', text);
+        console.log('\nFull text saved to: /tmp/ocr-result.txt');
+        
+        return text;
+      } else {
+        console.log('\n⚠️ No text detected by OCR');
+        console.log('The PDF might need to be converted to images first for better OCR results.');
+      }
+      
+    } catch (error) {
+      console.log('❌ OCR Error:', error.message);
+    } finally {
+      await worker.terminate();
+    }
     
   } catch (error) {
-    console.error('Error during OCR test:', error);
+    console.error('OCR processing failed:', error.message);
+    console.error(error.stack);
   }
 }
 
-testOCR();
+// Run the extraction
+extractTextFromScannedPDF().catch(console.error);
