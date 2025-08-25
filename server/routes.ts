@@ -1778,6 +1778,164 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Re-process error files endpoint
+  app.post("/api/files/reprocess-errors", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { limit = 50 } = req.body;
+      
+      console.log("🔄 Starting to reprocess error files...");
+      
+      // Get files with errors
+      const errorFiles = await storage.getFiles(userId, 1000).then(files => 
+        files.filter(f => f.processingStatus === 'error')
+      );
+      
+      const filesToProcess = errorFiles.slice(0, limit);
+      console.log(`Found ${errorFiles.length} error files, processing first ${filesToProcess.length}`);
+      
+      let successCount = 0;
+      let stillErrorCount = 0;
+      const results: any[] = [];
+      
+      for (const file of filesToProcess) {
+        try {
+          // Mark as processing
+          await storage.updateFileProcessingStatus(file.id, userId, 'processing', null);
+          
+          // Check if object exists in storage
+          const objectPath = file.objectPath;
+          if (objectPath && objectPath.startsWith('/excel-import/')) {
+            // These are Excel-imported files without actual content
+            // Mark them with a more specific error
+            await storage.updateFileProcessingStatus(
+              file.id, 
+              userId, 
+              'error', 
+              'File was imported from Excel but actual file content not uploaded'
+            );
+            stillErrorCount++;
+            results.push({
+              id: file.id,
+              filename: file.filename,
+              status: 'error',
+              reason: 'Excel import - no file content'
+            });
+            continue;
+          }
+          
+          // Try to get the file from object storage
+          const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+          const [exists] = await objectFile.exists();
+          
+          if (!exists) {
+            await storage.updateFileProcessingStatus(
+              file.id,
+              userId,
+              'error',
+              'File not found in object storage'
+            );
+            stillErrorCount++;
+            results.push({
+              id: file.id,
+              filename: file.filename,
+              status: 'error',
+              reason: 'File not found'
+            });
+            continue;
+          }
+          
+          // Download and process the file
+          const [fileData] = await objectFile.download();
+          
+          // Process based on file type
+          let extractedText = '';
+          if (file.mimeType.includes('pdf')) {
+            const { extractTextFromPDF } = await import('./fileExtractor');
+            extractedText = await extractTextFromPDF(fileData);
+          } else if (file.mimeType.includes('text')) {
+            extractedText = fileData.toString('utf-8');
+          } else if (file.mimeType.includes('docx')) {
+            const { extractTextFromDOCX } = await import('./fileExtractor');
+            extractedText = await extractTextFromDOCX(fileData);
+          }
+          
+          if (extractedText && extractedText.length > 10) {
+            // Generate metadata with improved prompt
+            const { extractFileMetadata } = await import('./openai');
+            const metadata = await extractFileMetadata(extractedText, file.filename);
+            
+            // Store metadata
+            await storage.createFileMetadata({
+              fileId: file.id,
+              extractedText: extractedText.slice(0, 50000), // Limit text storage
+              summary: metadata.summary,
+              keywords: metadata.keywords,
+              topics: metadata.topics,
+              categories: metadata.categories,
+              confidence: metadata.confidence,
+            });
+            
+            // Update status to completed
+            await storage.updateFileProcessingStatus(file.id, userId, 'completed', null);
+            successCount++;
+            results.push({
+              id: file.id,
+              filename: file.filename,
+              status: 'success',
+              metadata: metadata
+            });
+          } else {
+            await storage.updateFileProcessingStatus(
+              file.id,
+              userId,
+              'error',
+              'Could not extract text from file'
+            );
+            stillErrorCount++;
+            results.push({
+              id: file.id,
+              filename: file.filename,
+              status: 'error',
+              reason: 'No text extracted'
+            });
+          }
+          
+        } catch (error: any) {
+          console.error(`Error reprocessing file ${file.filename}:`, error);
+          await storage.updateFileProcessingStatus(
+            file.id,
+            userId,
+            'error',
+            error.message || 'Reprocessing failed'
+          );
+          stillErrorCount++;
+          results.push({
+            id: file.id,
+            filename: file.filename,
+            status: 'error',
+            reason: error.message
+          });
+        }
+      }
+      
+      console.log(`✅ Reprocessing complete: ${successCount} success, ${stillErrorCount} errors`);
+      
+      res.json({
+        message: `Reprocessed ${filesToProcess.length} files`,
+        totalErrors: errorFiles.length,
+        processed: filesToProcess.length,
+        success: successCount,
+        stillError: stillErrorCount,
+        results: results
+      });
+      
+    } catch (error) {
+      console.error("Error in reprocess operation:", error);
+      res.status(500).json({ error: "Failed to reprocess error files" });
+    }
+  });
+
   // Generate lesson prompts endpoint
   app.post("/api/generate-lesson-prompts", async (req: any, res) => {
     try {

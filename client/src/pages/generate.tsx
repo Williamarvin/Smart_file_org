@@ -101,6 +101,24 @@ export function Generate() {
     queryKey: ["/api/folders/all"],
   });
 
+  // Helper function to get all files in a folder recursively
+  const getAllFilesInFolderRecursively = (folderId: string, allFolders: any[], allFiles: any[]): any[] => {
+    let folderFiles: any[] = [];
+    
+    // Get files directly in this folder
+    const directFiles = allFiles.filter((f: any) => f.folderId === folderId);
+    folderFiles = [...directFiles];
+    
+    // Get all subfolders and their files recursively
+    const subfolders = allFolders.filter((f: any) => f.parentId === folderId);
+    for (const subfolder of subfolders) {
+      const subfolderFiles = getAllFilesInFolderRecursively(subfolder.id, allFolders, allFiles);
+      folderFiles = [...folderFiles, ...subfolderFiles];
+    }
+    
+    return folderFiles;
+  };
+
   // Content generation mutation
   const generateMutation = useMutation({
     mutationFn: async ({ prompt, fileIds, type, generateAudio, generateVideo, voice, videoStyle }: { 
@@ -222,11 +240,14 @@ export function Generate() {
     // Collect all file IDs (directly selected + files from selected folders)
     let allFileIds = [...selectedFiles];
     
-    // Add files from selected folders (only completed files)
+    // Add files from selected folders recursively (only completed files)
     if (selectedFolders.length > 0) {
-      const folderFiles = files.filter((file: any) => 
-        selectedFolders.includes(file.folderId) && file.processingStatus === "completed"
-      );
+      let folderFiles: any[] = [];
+      for (const folderId of selectedFolders) {
+        const recursiveFiles = getAllFilesInFolderRecursively(folderId, folders as any[], files);
+        const completedFiles = recursiveFiles.filter((f: any) => f.processingStatus === "completed");
+        folderFiles = [...folderFiles, ...completedFiles];
+      }
       const folderFileIds = folderFiles.map((f: any) => f.id);
       allFileIds = Array.from(new Set([...allFileIds, ...folderFileIds]));
     }
@@ -559,9 +580,9 @@ export function Generate() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {(folders as any[]).map((folder: any) => {
-                      // Count all files in the folder, not just processed ones
-                      const folderFiles = files.filter((f: any) => f.folderId === folder.id);
-                      const processedFolderFiles = folderFiles.filter((f: any) => f.processingStatus === "completed");
+                      // Count all files recursively in the folder and subfolders
+                      const allFolderFiles = getAllFilesInFolderRecursively(folder.id, folders as any[], files);
+                      const processedFolderFiles = allFolderFiles.filter((f: any) => f.processingStatus === "completed");
                       const fileCount = processedFolderFiles.length;
                       
                       return (
