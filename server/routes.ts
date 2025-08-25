@@ -3216,6 +3216,26 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
       try {
         const userId = "demo-user";
         
+        // First, mark files stuck for >24 hours as error
+        const stuckFiles = await db.select()
+          .from(files)
+          .where(
+            and(
+              eq(files.processingStatus, 'processing'),
+              sql`${files.uploadedAt} < NOW() - INTERVAL '24 hours'`
+            )
+          );
+        
+        for (const stuckFile of stuckFiles) {
+          console.log(`🔴 Marking file stuck >24h as error: ${stuckFile.originalName}`);
+          await db.update(files)
+            .set({
+              processingStatus: 'error',
+              processingError: 'Processing stuck for more than 24 hours'
+            })
+            .where(eq(files.id, stuckFile.id));
+        }
+        
         // Get files that need processing (pending OR completed with placeholder content)
         // This includes files imported from Excel that have placeholder content
         const pendingFiles = await db
@@ -3255,15 +3275,30 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
                 // Use drive processor for Google Drive files
                 console.log(`  → Using Google Drive processor for ${file.originalName}`);
                 await driveFileProcessor.processFileById(file.id, userId);
+                console.log(`✅ Successfully auto-processed: ${file.originalName}`);
               } else {
                 // Use regular processing for uploaded files (includes OCR)
                 console.log(`  → Using regular processor for ${file.originalName}`);
                 await processFileAsync(file.id, userId);
+                console.log(`✅ Successfully auto-processed: ${file.originalName}`);
               }
+            } catch (error: any) {
+              console.error(`❌ Failed to auto-process ${file.originalName}:`, error.message);
               
-              console.log(`✅ Successfully auto-processed: ${file.originalName}`);
-            } catch (error) {
-              console.error(`❌ Failed to auto-process ${file.originalName}:`, error);
+              // Mark file as error in database
+              try {
+                await db.update(files)
+                  .set({
+                    processingStatus: 'error',
+                    processingError: error?.message || 'Processing failed'
+                  })
+                  .where(eq(files.id, file.id));
+                console.log(`🔴 Marked ${file.originalName} as error in database`);
+              } catch (updateError) {
+                console.error(`Failed to update error status for ${file.originalName}:`, updateError);
+              }
+              // Don't continue processing this file
+              continue;
             }
           }
         }

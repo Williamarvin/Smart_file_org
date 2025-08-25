@@ -92,7 +92,12 @@ export class DriveFileProcessor {
       const fileBuffer = await this.driveService.downloadFile(driveUrl);
       if (!fileBuffer) {
         console.error(`Failed to download ${file.filename}`);
-        return 'failed';
+        // Mark file as error in database
+        await storage.updateFileContent(file.id, {
+          processingStatus: 'error',
+          processingError: 'Failed to download from Google Drive: File not found or no permission'
+        });
+        throw new Error(`Failed to download from Google Drive: File not found or no permission`);
       }
 
       // Save to temp file
@@ -293,19 +298,14 @@ export class DriveFileProcessor {
    * Process a specific file by ID
    */
   public async processFileById(fileId: string, userId: string = "demo-user"): Promise<boolean> {
-    try {
-      const file = await storage.getFile(fileId, userId);
-      if (!file) {
-        console.error(`File ${fileId} not found`);
-        return false;
-      }
-
-      const result = await this.processSingleFile(file);
-      return result === 'processed';
-    } catch (error) {
-      console.error(`Error processing file ${fileId}:`, error);
-      return false;
+    const file = await storage.getFile(fileId, userId);
+    if (!file) {
+      throw new Error(`File ${fileId} not found`);
     }
+
+    const result = await this.processSingleFile(file);
+    // processSingleFile now throws on error, so this will only be reached on success
+    return result === 'processed';
   }
 }
 
