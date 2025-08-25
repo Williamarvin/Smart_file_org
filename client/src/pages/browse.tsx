@@ -46,6 +46,34 @@ interface FolderType {
   files: any[];
 }
 
+// Recursively count all files in a folder and its subfolders
+function countAllFilesInFolder(folder: FolderType, allFolders: FolderType[]): number {
+  // Count files directly in this folder
+  let totalFiles = folder.files.length;
+  
+  // Find all subfolders and count their files recursively
+  const subfolders = allFolders.filter(f => f.parentId === folder.id);
+  for (const subfolder of subfolders) {
+    totalFiles += countAllFilesInFolder(subfolder, allFolders);
+  }
+  
+  return totalFiles;
+}
+
+// Count total folders recursively
+function countAllFoldersInFolder(folder: FolderType, allFolders: FolderType[]): number {
+  // Find all direct subfolders
+  const subfolders = allFolders.filter(f => f.parentId === folder.id);
+  let totalFolders = subfolders.length;
+  
+  // Count subfolders recursively
+  for (const subfolder of subfolders) {
+    totalFolders += countAllFoldersInFolder(subfolder, allFolders);
+  }
+  
+  return totalFolders;
+}
+
 export function Browse() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -674,8 +702,8 @@ export function Browse() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-slate-500">
-                      <span>{folder.children.length} folders</span>
-                      <span>{folder.files.length} files</span>
+                      <span>{countAllFoldersInFolder(folder, allFolders as FolderType[])} folders</span>
+                      <span>{countAllFilesInFolder(folder, allFolders as FolderType[])} files</span>
                     </div>
                   </div>
                   
