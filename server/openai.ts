@@ -392,6 +392,7 @@ async function generateEnhancedAnimatedVideo(content: string, style: string): Pr
           `[pulse3]drawbox=x='w-100+16*sin(5*3.14159*t)':y='h-70+10*cos(5*3.14159*t)':w=28:h=28:color=0xa78bfa@0.7[final];`,
           
           // Rich musical composition with multiple layers (separate from video chain)
+          ``,  // Separator between video and audio chains
           `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.6 0.4[layer1];`,
           `[layer1][3:a]amix=inputs=2:duration=longest:weights=0.7 0.3[layer2];`,
           `[layer2][4:a]amix=inputs=2:duration=longest:weights=0.8 0.2[layer3];`,
@@ -402,6 +403,9 @@ async function generateEnhancedAnimatedVideo(content: string, style: string): Pr
         '-map', '[audio_final]',
         '-c:v', 'libx264',
         '-c:a', 'aac',
+        '-b:a', '192k',  // Ensure audio bitrate
+        '-ar', '44100',   // Audio sample rate
+        '-ac', '2',       // Stereo audio
         '-pix_fmt', 'yuv420p',
         '-preset', 'medium',
         '-crf', '18', // High quality
@@ -476,9 +480,10 @@ async function createFallbackVideo(content: string, style: string): Promise<Buff
           
           // Style and timer
           `[content]drawtext=text='Style\\: ${style}':fontcolor=cyan:fontsize=20:x=(w-text_w)/2:y=400:enable='gte(t,5)'[style_text];`,
-          `[style_text]drawtext=text='🎵 With Audio • %{eif\\:t\\:d}s':fontcolor=lime:fontsize=18:x=(w-text_w)/2:y=500:enable='gte(t,7)'[final]`,
+          `[style_text]drawtext=text='🎵 With Audio • %{eif\\:t\\:d}s':fontcolor=lime:fontsize=18:x=(w-text_w)/2:y=500:enable='gte(t,7)'[final];`,
           
-          // Mix audio
+          // Mix audio (ensure proper separation)
+          ``,
           `[1:a][2:a]amix=inputs=2:duration=longest:weights=0.7 0.3[audio_mix];`,
           `[audio_mix]volume=0.5[audio_final]`
         ].join(''),
@@ -486,6 +491,9 @@ async function createFallbackVideo(content: string, style: string): Promise<Buff
         '-map', '[audio_final]',
         '-c:v', 'libx264',
         '-c:a', 'aac',
+        '-b:a', '128k',  // Ensure audio bitrate
+        '-ar', '44100',  // Audio sample rate
+        '-ac', '2',      // Stereo audio
         '-pix_fmt', 'yuv420p',
         '-preset', 'fast',
         '-crf', '23',
