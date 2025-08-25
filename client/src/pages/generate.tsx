@@ -248,15 +248,33 @@ export function Generate() {
     }
 
     if (allFileIds.length === 0) {
-      // Provide more helpful error message
-      const totalFiles = files.length;
-      const completedCount = files.filter((f: any) => f.processingStatus === "completed").length;
-      
+      // Provide more helpful error message based on what was selected
       let errorMessage = "Please select at least one file or folder to generate content from.";
-      if (selectedFolders.length > 0 && completedCount === 0) {
-        errorMessage = `The selected folder(s) contain ${totalFiles} files, but none are fully processed yet. Please wait for files to complete processing or select different folders.`;
-      } else if (selectedFolders.length > 0) {
-        errorMessage = `No processed files found in the selected folder(s). Try selecting folders with processed content.`;
+      
+      if (selectedFolders.length > 0) {
+        // Get details about selected folders
+        const selectedFolderDetails = selectedFolders.map(folderId => {
+          const folder = folders.find((f: any) => f.id === folderId);
+          const folderFiles = getAllFilesInFolderRecursively(folderId, folders as any[], files);
+          const processedCount = folderFiles.filter((f: any) => f.processingStatus === "completed").length;
+          return {
+            name: folder?.name || "Unknown",
+            totalFiles: folderFiles.length,
+            processedFiles: processedCount
+          };
+        });
+        
+        const totalFilesInFolders = selectedFolderDetails.reduce((sum, f) => sum + f.totalFiles, 0);
+        const totalProcessedInFolders = selectedFolderDetails.reduce((sum, f) => sum + f.processedFiles, 0);
+        
+        if (totalFilesInFolders === 0) {
+          errorMessage = "The selected folder(s) don't contain any files.";
+        } else if (totalProcessedInFolders === 0) {
+          const folderInfo = selectedFolderDetails.map(f => `${f.name}: ${f.totalFiles} files (0 processed)`).join(", ");
+          errorMessage = `No processed files found. ${folderInfo}. Files need to be processed first.`;
+        } else {
+          errorMessage = `No processed files found in the selected folder(s). Try selecting folders with processed content.`;
+        }
       }
       
       toast({
@@ -568,8 +586,11 @@ export function Generate() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Folder className="text-green-600" />
-                  <span>Select Folders ({selectedFolders.length} selected)</span>
+                  <span>Select Parent Folders ({selectedFolders.length} selected)</span>
                 </CardTitle>
+                <p className="text-sm text-slate-600 mt-1">
+                  Selecting a parent folder includes all files from its subfolders
+                </p>
               </CardHeader>
               <CardContent>
                 {foldersLoading ? (
@@ -588,7 +609,9 @@ export function Generate() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {(folders as any[]).map((folder: any) => {
+                    {(folders as any[])
+                      .filter((folder: any) => !folder.parentId) // Only show parent folders
+                      .map((folder: any) => {
                       // Count all files recursively in the folder and subfolders (including all nested levels)
                       const allFolderFiles = getAllFilesInFolderRecursively(folder.id, folders as any[], files);
                       const processedFolderFiles = allFolderFiles.filter((f: any) => f.processingStatus === "completed");
