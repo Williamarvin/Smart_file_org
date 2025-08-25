@@ -255,32 +255,60 @@ export async function generateVideo(content: string, style: string = "natural", 
 // Process content into slides for slideshow
 async function processContentForSlides(content: string, fileContext?: any): Promise<string[]> {
   try {
-    // Use GPT to create slide content
+    // Use GPT to create PowerPoint-style slide content
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "Create 5-8 slides from the content. Each slide should have a title and 2-3 bullet points. Format as: SLIDE 1: [Title]\n- [Point 1]\n- [Point 2]\n\nSLIDE 2: etc. Keep each point under 50 characters."
+          content: `Create a professional PowerPoint-style presentation with 7 slides. 
+Format EXACTLY as:
+SLIDE 1: [Title]
+• [Bullet point 1 - max 40 chars]
+• [Bullet point 2 - max 40 chars]
+• [Bullet point 3 - max 40 chars]
+
+Requirements:
+- Keep titles under 30 characters
+- Keep bullet points under 40 characters each
+- Use simple, clear language
+- No special characters except bullets
+- Structure: Title Slide, Overview, 3-4 Content Slides, Key Takeaways, Conclusion
+- Make it professional and educational`
         },
         {
           role: "user",
-          content: `Create slides from:\n${content.substring(0, 3000)}`
+          content: `Create a PowerPoint presentation from this content:\n${content.substring(0, 3000)}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 800
+      max_tokens: 1000
     });
     
     const slidesText = response.choices[0].message.content || "";
-    const slides = slidesText.split(/SLIDE \d+:/).filter(s => s.trim());
+    // Clean and parse slides
+    const slides = slidesText
+      .split(/SLIDE \d+:/)
+      .filter(s => s.trim())
+      .map(slide => {
+        // Clean the slide text - remove special characters that break FFmpeg
+        return slide
+          .replace(/['"]/g, '') // Remove quotes
+          .replace(/[:;]/g, '-') // Replace colons and semicolons
+          .replace(/[^\w\s•\-\n]/g, '') // Keep only alphanumeric, spaces, bullets, hyphens, newlines
+          .trim();
+      });
     
-    // Ensure we have at least 3 slides
-    if (slides.length < 3) {
+    // Ensure we have at least 5 slides for a proper presentation
+    if (slides.length < 5) {
       return [
-        "Introduction\n• Overview of content\n• Key objectives",
-        "Main Points\n• " + content.substring(0, 100) + "\n• Additional details",
-        "Conclusion\n• Summary\n• Next steps"
+        "Title Slide\n• AI Generated Presentation\n• Educational Content",
+        "Overview\n• What we will cover\n• Key learning objectives\n• Important concepts",
+        "Main Content\n• First key point\n• Supporting details\n• Examples and context",
+        "Additional Points\n• Secondary information\n• Related concepts\n• Applications",
+        "Key Takeaways\n• Summary of main points\n• Important to remember\n• Action items",
+        "Questions and Next Steps\n• Review materials\n• Further reading\n• Contact information",
+        "Thank You\n• End of presentation\n• Questions welcome"
       ];
     }
     
@@ -295,23 +323,47 @@ async function processContentForSlides(content: string, fileContext?: any): Prom
   }
 }
 
-// Generate narration for each slide
+// Generate narration for each slide - PowerPoint style with elaboration
 async function generateSlideshowNarration(slides: string[]): Promise<Buffer> {
   try {
-    // Create narration script
-    const narrationScript = slides.map((slide, index) => {
-      const lines = slide.split('\n').filter(l => l.trim());
-      const title = lines[0] || `Slide ${index + 1}`;
-      const points = lines.slice(1).join('. ').replace(/[•\-]/g, '');
-      return `${title}. ${points}`;
-    }).join(' Next slide. ');
+    // Use GPT to create detailed, elaborative narration for each slide
+    const narrationResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a professional presenter giving a PowerPoint presentation. 
+Create natural, engaging narration that:
+- Elaborates on each bullet point with context and examples
+- Transitions smoothly between slides
+- Speaks conversationally as if to an audience
+- Takes about 7-10 seconds per slide
+- Total narration should be 45-60 seconds (about 150-200 words)
+Format: Write continuous narration that flows naturally, mentioning slide transitions.`
+        },
+        {
+          role: "user",
+          content: `Create presentation narration for these slides:\n\n${slides.map((slide, i) => `Slide ${i+1}:\n${slide}`).join('\n\n')}`
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 400
+    });
     
-    // Generate speech using OpenAI TTS
+    const narrationScript = narrationResponse.choices[0].message.content || 
+      slides.map((slide, index) => {
+        const lines = slide.split('\n').filter(l => l.trim());
+        const title = lines[0] || `Slide ${index + 1}`;
+        const points = lines.slice(1).join('. ').replace(/[•\-]/g, '');
+        return `${title}. ${points}`;
+      }).join(' Moving to the next slide. ');
+    
+    // Generate speech using OpenAI TTS with professional voice
     const response = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "alloy",
-      input: narrationScript,
-      speed: 1.0
+      voice: "onyx", // Professional narrator voice
+      input: narrationScript.slice(0, 4096), // Ensure within limits
+      speed: 0.95 // Slightly slower for clarity
     });
     
     const audioBuffer = Buffer.from(await response.arrayBuffer());
