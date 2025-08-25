@@ -91,9 +91,9 @@ export function Generate() {
     }
   }, [toast]);
 
-  // Fetch all available files (no limit)
+  // Fetch all available files (with high limit to get all files)
   const { data: files = [], isLoading: filesLoading } = useQuery<any[]>({
-    queryKey: ["/api/files?limit=1000"],
+    queryKey: ["/api/files?limit=5000"],
   });
 
   // Fetch all folders
@@ -580,10 +580,11 @@ export function Generate() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {(folders as any[]).map((folder: any) => {
-                      // Count all files recursively in the folder and subfolders
+                      // Count all files recursively in the folder and subfolders (including all nested levels)
                       const allFolderFiles = getAllFilesInFolderRecursively(folder.id, folders as any[], files);
                       const processedFolderFiles = allFolderFiles.filter((f: any) => f.processingStatus === "completed");
-                      const fileCount = processedFolderFiles.length;
+                      const totalFileCount = allFolderFiles.length;
+                      const processedCount = processedFolderFiles.length;
                       
                       return (
                         <div
@@ -605,7 +606,7 @@ export function Generate() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-slate-800 truncate">{folder.name}</p>
                                 <p className="text-xs text-slate-500">
-                                  {fileCount} processed {fileCount === 1 ? 'file' : 'files'}
+                                  {processedCount} processed / {totalFileCount} total {totalFileCount === 1 ? 'file' : 'files'}
                                 </p>
                               </div>
                             </div>

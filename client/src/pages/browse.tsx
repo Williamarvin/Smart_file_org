@@ -46,15 +46,15 @@ interface FolderType {
   files: any[];
 }
 
-// Recursively count all files in a folder and its subfolders
-function countAllFilesInFolder(folder: FolderType, allFolders: FolderType[]): number {
-  // Count files directly in this folder (with null check)
-  let totalFiles = folder.files ? folder.files.length : 0;
+// Recursively count all files in a folder and its subfolders using actual file data
+function countAllFilesInFolder(folder: FolderType, allFolders: FolderType[], allFiles: any[]): number {
+  // Count files directly in this folder by checking folderId
+  let totalFiles = allFiles.filter(f => f && f.folderId === folder.id).length;
   
   // Find all subfolders and count their files recursively
   const subfolders = allFolders.filter(f => f && f.parentId === folder.id);
   for (const subfolder of subfolders) {
-    totalFiles += countAllFilesInFolder(subfolder, allFolders);
+    totalFiles += countAllFilesInFolder(subfolder, allFolders, allFiles);
   }
   
   return totalFiles;
@@ -116,11 +116,11 @@ export function Browse() {
     enabled: !searchQuery, // Only load folder files when not searching
   });
 
-  // Get all files for global select all functionality
+  // Get all files for counting and global operations (with high limit to get all files)
   const { data: allFiles = [] } = useQuery({
-    queryKey: ["/api/files"],
+    queryKey: ["/api/files", "all"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/files");
+      const res = await apiRequest("GET", "/api/files?limit=5000");
       return res.json();
     },
   });
@@ -703,7 +703,7 @@ export function Browse() {
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-slate-500">
                       <span>{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
-                      <span>{Array.isArray(allFolders) ? countAllFilesInFolder(folder, allFolders as FolderType[]) : 0} files</span>
+                      <span>{Array.isArray(allFolders) && Array.isArray(allFiles) ? countAllFilesInFolder(folder, allFolders as FolderType[], allFiles) : 0} files</span>
                     </div>
                   </div>
                   
