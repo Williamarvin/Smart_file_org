@@ -332,21 +332,22 @@ async function generateSlideshowNarration(slides: string[]): Promise<Buffer> {
       messages: [
         {
           role: "system",
-          content: `You are a professional presenter giving a PowerPoint presentation. 
-Create natural, engaging narration that:
-- Elaborates on each bullet point with context and examples
-- Transitions smoothly between slides
-- Speaks conversationally as if to an audience
+          content: `You are a friendly, engaging teacher presenting educational content. 
+Create natural, conversational narration that:
+- Elaborates on each bullet point with context and real examples
+- Flows smoothly without saying "next slide" or "moving on"
+- Speaks as if having a conversation with students
+- Uses natural pauses and emphasis
 - Takes about 7-10 seconds per slide
 - Total narration should be 45-60 seconds (about 150-200 words)
-Format: Write continuous narration that flows naturally, mentioning slide transitions.`
+Format: Write continuous, natural speech that flows like a conversation. Don't mention slide numbers or transitions.`
         },
         {
           role: "user",
-          content: `Create presentation narration for these slides:\n\n${slides.map((slide, i) => `Slide ${i+1}:\n${slide}`).join('\n\n')}`
+          content: `Create natural presentation narration for these slides:\n\n${slides.map((slide, i) => `Slide ${i+1}:\n${slide}`).join('\n\n')}`
         }
       ],
-      temperature: 0.8,
+      temperature: 0.9, // More natural variation
       max_tokens: 400
     });
     
@@ -356,14 +357,14 @@ Format: Write continuous narration that flows naturally, mentioning slide transi
         const title = lines[0] || `Slide ${index + 1}`;
         const points = lines.slice(1).join('. ').replace(/[•\-]/g, '');
         return `${title}. ${points}`;
-      }).join(' Moving to the next slide. ');
+      }).join(' ');
     
-    // Generate speech using OpenAI TTS with professional voice
+    // Generate speech using OpenAI TTS with more natural voice
     const response = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "onyx", // Professional narrator voice
+      voice: "nova", // More natural, conversational voice
       input: narrationScript.slice(0, 4096), // Ensure within limits
-      speed: 0.95 // Slightly slower for clarity
+      speed: 1.0 // Natural speaking pace
     });
     
     const audioBuffer = Buffer.from(await response.arrayBuffer());
