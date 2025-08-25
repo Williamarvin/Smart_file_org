@@ -56,8 +56,26 @@ export class EnhancedPdfExtractor {
       
       if (hasOnlyWhitespace) {
         console.log('⚠️ PDF contains only whitespace - likely a scanned document');
+        console.log('🔍 Attempting OCR with Google Cloud Vision API...');
         
-        // Return detailed fallback with metadata
+        try {
+          // Use Google Cloud Vision API for OCR
+          const ocrText = await googleVisionOCR.extractTextFromPDF(pdfBuffer, filename);
+          
+          if (ocrText && ocrText.trim().length > 50) {
+            console.log(`✅ OCR successfully extracted ${ocrText.length} characters`);
+            return ocrText;
+          }
+        } catch (ocrError: any) {
+          console.error(`OCR failed: ${ocrError.message}`);
+          
+          // If it's a credentials issue, provide helpful message
+          if (ocrError.message.includes('GOOGLE_CLOUD_CREDENTIALS')) {
+            console.log('⚠️ Google Cloud Vision API not configured');
+          }
+        }
+        
+        // If OCR failed, return detailed fallback with metadata
         const pageInfo = basicData.numpages ? `${basicData.numpages} pages` : 'unknown pages';
         const title = basicData.info?.Title || filename;
         const author = basicData.info?.Author || 'Unknown author';
@@ -68,7 +86,7 @@ Pages: ${pageInfo}
 
 📷 This PDF appears to be a scanned document containing images of text rather than searchable text.
 
-To extract the text from this document, OCR (Optical Character Recognition) processing is required.
+OCR processing was attempted but failed. The document may need manual processing.
 
 Suggested Actions:
 1. Use an online OCR service like Adobe Acrobat Online or SmallPDF

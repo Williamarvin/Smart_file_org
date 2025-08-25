@@ -78,21 +78,27 @@ export class GoogleVisionOCR {
       let fullText = '';
       
       if (filesResponse.responses && filesResponse.responses.length > 0) {
-        const response = filesResponse.responses[0];
-        
-        if (response.responses) {
-          for (let i = 0; i < response.responses.length; i++) {
-            const pageResponse = response.responses[i];
-            
-            if (pageResponse.fullTextAnnotation) {
-              const pageText = pageResponse.fullTextAnnotation.text || '';
-              if (pageText) {
-                fullText += pageText + '\n\n';
-                console.log(`✅ Extracted text from page ${i + 1}: ${pageText.length} characters`);
+        for (const response of filesResponse.responses) {
+          // The response contains an outputConfig and the actual text responses
+          const annotateResponse = response as any;
+          
+          // Check if we have the text annotations
+          if (annotateResponse.responses) {
+            for (let i = 0; i < annotateResponse.responses.length; i++) {
+              const pageResponse = annotateResponse.responses[i];
+              
+              if (pageResponse.fullTextAnnotation) {
+                const pageText = pageResponse.fullTextAnnotation.text || '';
+                if (pageText) {
+                  fullText += pageText + '\n\n';
+                  console.log(`✅ Extracted text from page ${i + 1}: ${pageText.length} characters`);
+                }
+              } else if (pageResponse.error) {
+                console.error(`❌ Error on page ${i + 1}:`, pageResponse.error.message);
               }
-            } else if (pageResponse.error) {
-              console.error(`❌ Error on page ${i + 1}:`, pageResponse.error.message);
             }
+          } else if (annotateResponse.error) {
+            console.error(`❌ Error processing PDF:`, annotateResponse.error.message);
           }
         }
       }
