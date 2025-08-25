@@ -36,14 +36,41 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
   try {
     switch (mimeType) {
       case "application/pdf":
-        const pdfData = await PDFParse(buffer);
+        // Try different parsing options for better text extraction
+        const pdfOptions = {
+          max: 0, // Parse all pages (0 = no limit)
+          version: 'v2.0.550', // Use latest parser version
+          // Try to normalize whitespace and combine text better
+          normalizeWhitespace: true,
+          disableCombineTextItems: false,
+        };
+        
+        const pdfData = await PDFParse(buffer, pdfOptions);
         let extractedText = pdfData.text || '';
+        
+        // Also try to get text from pages array if main text is empty
+        if (!extractedText.trim() && pdfData.pages) {
+          console.log(`Attempting to extract text from ${pdfData.pages.length} pages individually...`);
+          extractedText = pdfData.pages.map((page: any) => page.text || '').join('\n\n');
+        }
+        
+        // Clean up the text - remove excessive whitespace but preserve structure
+        extractedText = extractedText
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .replace(/(\r\n|\n|\r){3,}/g, '\n\n') // Replace excessive line breaks
+          .trim();
         
         // Check if we got meaningful text (not just whitespace)
         const cleanedText = extractedText.trim();
         if (cleanedText.length < 10) {
           console.warn(`PDF extraction returned minimal text (${cleanedText.length} chars) for ${filename}`);
           console.log(`PDF info - Pages: ${pdfData.numpages}, Version: ${pdfData.version}, Info:`, pdfData.info);
+          console.log(`Raw text length: ${pdfData.text?.length}, Pages: ${pdfData.pages?.length}`);
+          
+          // Log first 500 chars of raw text to debug
+          if (pdfData.text) {
+            console.log(`First 500 chars of raw text: "${pdfData.text.substring(0, 500)}"`);
+          }
           
           // If no meaningful text extracted, provide fallback info
           const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
