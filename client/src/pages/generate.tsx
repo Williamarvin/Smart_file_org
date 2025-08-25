@@ -441,8 +441,8 @@ export function Generate() {
                           <SelectItem value="documentary">Documentary</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-green-600 mt-2">
-                        ✅ Video generation powered by Hugging Face (free, no API key required)
+                      <p className="text-xs text-blue-600 mt-2">
+                        🎥 Video generation via Hugging Face (free, may take 1-2 minutes)
                       </p>
                     </div>
                   )}

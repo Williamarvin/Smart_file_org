@@ -18,7 +18,6 @@ import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 import { ocrService } from "./ocrService";
-import { enhancedPdfExtractor } from "./enhancedPdfExtractor";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -38,9 +37,70 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
   try {
     switch (mimeType) {
       case "application/pdf":
-        // Use enhanced PDF extraction with OCR support
-        const extractedText = await enhancedPdfExtractor.extractText(buffer, filename);
-        console.log(`✅ Enhanced extraction got ${extractedText.length} characters from PDF: ${filename}`);
+        // Try different parsing options for better text extraction
+        const pdfOptions = {
+          max: 0, // Parse all pages (0 = no limit)
+          // Try to normalize whitespace and combine text better
+          normalizeWhitespace: true,
+        };
+        
+        const pdfData = await PDFParse(buffer, pdfOptions);
+        let extractedText = pdfData.text || '';
+        
+        // Clean up the text - remove excessive whitespace but preserve structure
+        if (extractedText) {
+          // First, try to preserve paragraph structure by replacing single newlines with spaces
+          // but keeping double newlines as paragraph breaks
+          extractedText = extractedText
+            .replace(/([^\n])\n([^\n])/g, '$1 $2') // Single newlines become spaces
+            .replace(/\s+/g, ' ') // Multiple spaces become single space
+            .replace(/\n{3,}/g, '\n\n') // Multiple newlines become double newlines
+            .trim();
+        }
+        
+        // Check if we got meaningful text (not just whitespace)
+        const cleanedText = extractedText.trim();
+        
+        // More detailed debugging
+        console.log(`PDF Debug for ${filename}:`);
+        console.log(`- Raw text length: ${pdfData.text?.length}`);
+        console.log(`- Cleaned text length: ${cleanedText.length}`);
+        console.log(`- Number of pages: ${pdfData.numpages}`);
+        console.log(`- PDF Version: ${pdfData.version}`);
+        
+        if (cleanedText.length < 10) {
+          console.warn(`PDF extraction returned minimal text for ${filename}`);
+          
+          // Log first 500 chars of raw text to debug
+          if (pdfData.text) {
+            const rawSample = pdfData.text.substring(0, 500);
+            console.log(`First 500 chars of raw text (char codes):`, 
+              Array.from(rawSample).map(c => c.charCodeAt(0)));
+            console.log(`Raw text sample: "${rawSample}"`);
+          }
+          
+          // Try alternative extraction if main text failed
+          if (pdfData.text && pdfData.text.length > 80) {
+            // Sometimes PDFs have text but it's all whitespace characters
+            // Try to extract any visible characters
+            const visibleChars = pdfData.text.match(/[^\s]/g);
+            if (visibleChars && visibleChars.length > 10) {
+              console.log(`Found ${visibleChars.length} visible characters, attempting recovery...`);
+              extractedText = pdfData.text;
+            }
+          }
+          
+          // If still no text, provide fallback
+          if (extractedText.trim().length < 10) {
+            const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
+            const title = pdfData.info?.Title || filename;
+            const author = pdfData.info?.Author || 'Unknown author';
+            
+            return `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. The document may need OCR processing to extract text from images.`;
+          }
+        }
+        
+        console.log(`✅ Extracted ${cleanedText.length} characters from PDF: ${filename}`);
         return extractedText;
       
       case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -1318,15 +1378,39 @@ ${file.fileContent.toString()}`;
       
       if (generateVideo) {
         try {
+          console.log("Starting video generation process...");
           const { generateVideo: generateVideoFunc } = await import('./openai');
-          videoBuffer = await generateVideoFunc(generatedContent, videoStyle || "natural");
-        } catch (videoError) {
+          
+          // Add timeout to prevent hanging
+          const videoPromise = generateVideoFunc(generatedContent, videoStyle || "natural");
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Video generation timeout after 60 seconds")), 60000)
+          );
+          
+          videoBuffer = await Promise.race([videoPromise, timeoutPromise]) as Buffer;
+          console.log("Video generation completed successfully");
+          
+        } catch (videoError: any) {
           console.error("Video generation failed:", videoError);
-          // Return content with error message but don't fail completely
+          
+          // Check if it's a timeout or model availability issue
+          const errorMessage = videoError?.message || "Unknown error";
+          let suggestion = "Please try again in a few minutes, or use audio generation instead.";
+          
+          if (errorMessage.includes("timeout")) {
+            suggestion = "Video generation timed out. The models may be busy. Please try again with a shorter prompt or use audio generation.";
+          } else if (errorMessage.includes("503") || errorMessage.includes("loading")) {
+            suggestion = "The video generation models are currently loading. Please try again in 2-3 minutes.";
+          } else if (errorMessage.includes("unavailable")) {
+            suggestion = "Video generation is temporarily unavailable. Try audio generation instead.";
+          }
+          
+          // Return content with detailed error but don't fail the entire request
           return res.json({ 
             content: generatedContent,
-            error: "Video generation failed: " + (videoError?.message || "Unknown error"),
-            suggestion: "The Hugging Face models may be loading. Please try again in a few minutes, or use audio generation instead."
+            error: `Video generation failed: ${errorMessage}`,
+            suggestion,
+            videoGenerationAvailable: false
           });
         }
       }
