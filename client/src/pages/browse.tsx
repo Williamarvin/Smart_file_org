@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter } from "lucide-react";
 import SearchBar from "@/components/search-bar";
@@ -85,6 +85,12 @@ export function Browse() {
   const [selectedMoveFolder, setSelectedMoveFolder] = useState<string>("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [folderFileCounts, setFolderFileCounts] = useState<Record<string, {
+    totalFiles: number;
+    processedFiles: number;
+    errorFiles: number;
+    folderName: string;
+  }>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,6 +130,34 @@ export function Browse() {
       return res.json();
     },
   });
+
+  // Fetch folder file counts
+  useEffect(() => {
+    const fetchFolderCounts = async () => {
+      if (folders.length === 0) return;
+      
+      try {
+        const response = await fetch("/api/folders/file-counts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            folderIds: folders.map((f: any) => f.id)
+          }),
+        });
+        
+        if (response.ok) {
+          const counts = await response.json();
+          setFolderFileCounts(counts);
+        }
+      } catch (error) {
+        console.error("Error fetching folder counts:", error);
+      }
+    };
+    
+    fetchFolderCounts();
+  }, [folders]);
 
   // Search files across all folders
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
@@ -701,9 +735,30 @@ export function Browse() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4 text-sm text-slate-500">
-                      <span>{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
-                      <span>{Array.isArray(allFolders) && Array.isArray(allFiles) ? countAllFilesInFolder(folder, allFolders as FolderType[], allFiles) : 0} files</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {folderFileCounts[folder.id] ? (
+                        <>
+                          <Badge variant="outline" className="text-xs">
+                            {folderFileCounts[folder.id].totalFiles} files
+                          </Badge>
+                          {folderFileCounts[folder.id].processedFiles > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {folderFileCounts[folder.id].processedFiles} processed
+                            </Badge>
+                          )}
+                          {folderFileCounts[folder.id].errorFiles > 0 && (
+                            <Badge variant="destructive" className="text-xs">
+                              {folderFileCounts[folder.id].errorFiles} errors
+                            </Badge>
+                          )}
+                          <span className="text-slate-500">{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-slate-500">{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
+                          <span className="text-slate-500">{Array.isArray(allFolders) && Array.isArray(allFiles) ? countAllFilesInFolder(folder, allFolders as FolderType[], allFiles) : 0} files</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   
