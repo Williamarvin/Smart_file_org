@@ -148,10 +148,12 @@ export function Browse() {
     },
   });
 
-  // Fetch folder file counts
+  // Fetch folder file counts for ALL folders
   useEffect(() => {
     const fetchFolderCounts = async () => {
-      if (folders.length === 0) return;
+      // Use allFolders if available, otherwise use current level folders
+      const foldersToCount = allFolders.length > 0 ? allFolders : folders;
+      if (foldersToCount.length === 0) return;
       
       try {
         const response = await fetch("/api/folders/file-counts", {
@@ -160,7 +162,7 @@ export function Browse() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            folderIds: folders.map((f: any) => f.id),
+            folderIds: foldersToCount.map((f: any) => f.id),
             filter: activeFilter
           }),
         });
@@ -175,7 +177,7 @@ export function Browse() {
     };
     
     fetchFolderCounts();
-  }, [folders, activeFilter]);
+  }, [folders, allFolders, activeFilter]);
 
   // Search files across all folders
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
@@ -944,7 +946,7 @@ export function Browse() {
                       ) : (
                         <>
                           <span className="text-slate-500">{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
-                          <span className="text-slate-500">{Array.isArray(allFolders) && Array.isArray(allFiles) ? countAllFilesInFolder(folder, allFolders as FolderType[], allFiles) : 0} files</span>
+                          <span className="text-slate-500">{folderFileCounts[folder.id]?.totalFiles || 0} files</span>
                         </>
                       )}
                     </div>
