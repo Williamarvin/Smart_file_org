@@ -1708,7 +1708,7 @@ ${file.fileContent.toString()}`;
       const { folderIds = [], filter = "all" } = req.body;
       
       const allFiles = await storage.getFiles(userId, 1000);
-      const folders = await storage.getFolders(userId);
+      const folders = await storage.getAllFolders(userId);
       
       // Function to filter files based on the selected filter
       const applyFilter = (files: any[]) => {
@@ -1757,7 +1757,15 @@ ${file.fileContent.toString()}`;
         folderName: string;
       }> = {};
       
-      for (const folderId of folderIds) {
+      // Handle special case where folderIds contains "all" - get all root folders
+      let actualFolderIds = folderIds;
+      if (folderIds.includes("all")) {
+        // Get all root folders (folders with no parent)
+        const rootFolders = folders.filter(f => !f.parentId);
+        actualFolderIds = rootFolders.map(f => f.id);
+      }
+      
+      for (const folderId of actualFolderIds) {
         const allFolderIds = await getAllSubfolderIds(folderId);
         const folderFiles = allFiles.filter(file => 
           file.folderId && allFolderIds.includes(file.folderId)
