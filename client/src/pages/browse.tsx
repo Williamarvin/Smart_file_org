@@ -34,6 +34,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 interface FolderType {
   id: string;
@@ -95,6 +100,14 @@ export function Browse() {
     filteredFiles: number;
     folderName: string;
   }>>({});
+  const [isProblematicDialogOpen, setIsProblematicDialogOpen] = useState(false);
+  const [problematicFiles, setProblematicFiles] = useState<any>({ 
+    total: 0, 
+    files: [], 
+    categories: {} 
+  });
+  const [isLoadingProblematic, setIsLoadingProblematic] = useState(false);
+  const [isFixingProblematic, setIsFixingProblematic] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -393,6 +406,62 @@ export function Browse() {
     setActiveFilter("all"); // Reset filter when navigating
   };
 
+  // Fetch problematic files
+  const fetchProblematicFiles = async () => {
+    setIsLoadingProblematic(true);
+    try {
+      const response = await fetch("/api/files/problematic");
+      if (!response.ok) throw new Error("Failed to fetch problematic files");
+      const data = await response.json();
+      setProblematicFiles(data);
+    } catch (error) {
+      console.error("Error fetching problematic files:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch problematic files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingProblematic(false);
+    }
+  };
+
+  // Fix all problematic files
+  const handleFixAllProblematic = async () => {
+    setIsFixingProblematic(true);
+    try {
+      const response = await fetch("/api/files/fix-problematic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fixAll: true }),
+      });
+      
+      if (!response.ok) throw new Error("Failed to fix problematic files");
+      
+      const result = await response.json();
+      toast({
+        title: "Success",
+        description: result.message,
+      });
+      
+      // Close dialog and refresh files
+      setIsProblematicDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    } catch (error) {
+      console.error("Error fixing problematic files:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fix problematic files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFixingProblematic(false);
+    }
+  };
+
   // Build breadcrumb path
   const buildBreadcrumb = () => {
     if (!currentFolderId) return [{ name: "Root", id: null }];
@@ -578,6 +647,20 @@ export function Browse() {
               </>
             )}
             
+            {/* Fix Problematic Files Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchProblematicFiles();
+                setIsProblematicDialogOpen(true);
+              }}
+              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border-yellow-300"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Fix Files
+            </Button>
+
             {/* Delete All Button */}
             <Button
               variant="outline"
@@ -715,6 +798,80 @@ export function Browse() {
             >
               {moveFilesMutation.isPending ? "Moving..." : `Move ${selectedFileIds.size} File${selectedFileIds.size > 1 ? 's' : ''}`}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Problematic Files Dialog */}
+      <Dialog open={isProblematicDialogOpen} onOpenChange={setIsProblematicDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Fix Problematic Files</DialogTitle>
+            <DialogDescription>
+              Files with incomplete or placeholder content detected. These files need to be re-processed to extract their actual content.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingProblematic ? (
+            <div className="py-8 text-center text-gray-500">
+              Loading problematic files...
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {problematicFiles.total > 0 ? (
+                <>
+                  <Alert>
+                    <AlertTitle>Found {problematicFiles.total} problematic files</AlertTitle>
+                    <AlertDescription className="mt-2 space-y-1">
+                      <div>• Files with placeholder text: {problematicFiles.categories?.placeholderText || 0}</div>
+                      <div>• Files with empty extraction: {problematicFiles.categories?.emptyExtraction || 0}</div>
+                      <div>• Google Drive files needing re-download: {problematicFiles.categories?.googleDriveFiles || 0}</div>
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="border rounded-lg p-4 space-y-2">
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">Files to be fixed:</h4>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {problematicFiles.files?.slice(0, 20).map((file: any) => (
+                        <div key={file.id} className="text-sm text-gray-600 flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {file.processingStatus}
+                          </Badge>
+                          <span className="truncate" title={file.filename}>{file.filename}</span>
+                        </div>
+                      ))}
+                      {problematicFiles.total > 20 && (
+                        <div className="text-sm text-gray-500 italic">
+                          ...and {problematicFiles.total - 20} more files
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Alert>
+                  <AlertTitle>No problematic files found</AlertTitle>
+                  <AlertDescription>
+                    All files appear to have been processed correctly.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProblematicDialogOpen(false)}>
+              Close
+            </Button>
+            {problematicFiles.total > 0 && (
+              <Button 
+                onClick={handleFixAllProblematic}
+                disabled={isFixingProblematic}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isFixingProblematic ? "Fixing Files..." : `Fix All ${problematicFiles.total} Files`}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

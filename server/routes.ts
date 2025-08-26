@@ -1863,6 +1863,127 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Identify and fix problematic Excel-imported files
+  app.get("/api/files/problematic", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Find files with poor extraction quality
+      const allFiles = await db
+        .select({
+          id: files.id,
+          filename: files.filename,
+          mimeType: files.mimeType,
+          processingStatus: files.processingStatus,
+          googleDriveId: files.googleDriveId,
+          extractedText: fileMetadata.extractedText,
+          summary: fileMetadata.summary
+        })
+        .from(files)
+        .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+        .where(eq(files.userId, userId));
+      
+      const problematicFiles = allFiles.filter(file => {
+        // Check if file has placeholder text or empty extraction
+        const hasPlaceholderText = file.extractedText && 
+          (file.extractedText.startsWith('File reference:') || 
+           file.extractedText.length < 50);
+        
+        // Check if file is marked as completed but has poor extraction
+        const isPoorlyProcessed = file.processingStatus === 'completed' && 
+          (!file.extractedText || hasPlaceholderText);
+        
+        // Check if it's a Google Drive file that might need re-downloading
+        const isGoogleDriveFile = !!file.googleDriveId;
+        
+        return isPoorlyProcessed || (hasPlaceholderText && isGoogleDriveFile);
+      });
+      
+      res.json({
+        total: problematicFiles.length,
+        files: problematicFiles,
+        categories: {
+          placeholderText: problematicFiles.filter(f => 
+            f.extractedText?.startsWith('File reference:')).length,
+          emptyExtraction: problematicFiles.filter(f => 
+            !f.extractedText || f.extractedText.length < 50).length,
+          googleDriveFiles: problematicFiles.filter(f => 
+            f.googleDriveId).length
+        }
+      });
+    } catch (error) {
+      console.error("Error finding problematic files:", error);
+      res.status(500).json({ error: "Failed to find problematic files" });
+    }
+  });
+
+  // Fix problematic files by re-processing them properly
+  app.post("/api/files/fix-problematic", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { fileIds, fixAll = false } = req.body;
+      
+      let filesToFix = [];
+      
+      if (fixAll) {
+        // Get all problematic files
+        const allFiles = await db
+          .select({
+            id: files.id,
+            filename: files.filename,
+            googleDriveId: files.googleDriveId,
+            extractedText: fileMetadata.extractedText
+          })
+          .from(files)
+          .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+          .where(eq(files.userId, userId));
+        
+        filesToFix = allFiles.filter(file => {
+          const hasPlaceholderText = file.extractedText && 
+            (file.extractedText.startsWith('File reference:') || 
+             file.extractedText.length < 50);
+          return hasPlaceholderText;
+        }).map(f => f.id);
+      } else if (fileIds && Array.isArray(fileIds)) {
+        filesToFix = fileIds;
+      }
+      
+      if (filesToFix.length === 0) {
+        return res.status(400).json({ error: "No files to fix" });
+      }
+      
+      // Update files to pending for re-processing
+      const updatedFiles = [];
+      for (const fileId of filesToFix) {
+        const [file] = await db
+          .update(files)
+          .set({ 
+            processingStatus: 'pending',
+            processingError: null
+          })
+          .where(eq(files.id, fileId))
+          .returning();
+        
+        if (file) {
+          updatedFiles.push(file);
+          console.log(`Queued ${file.filename} for proper processing`);
+        }
+      }
+      
+      res.json({ 
+        message: `Queued ${updatedFiles.length} problematic files for re-processing`,
+        files: updatedFiles.map(f => ({
+          id: f.id,
+          filename: f.filename,
+          status: f.processingStatus
+        }))
+      });
+    } catch (error) {
+      console.error("Error fixing problematic files:", error);
+      res.status(500).json({ error: "Failed to fix problematic files" });
+    }
+  });
+
   // Reprocess files in error status
   app.post("/api/reprocess-error-files", async (req: any, res) => {
     try {
