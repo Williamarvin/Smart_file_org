@@ -21,7 +21,8 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: Express.js with TypeScript.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
 - **File Processing**: Asynchronous pipeline for document and video content extraction and transcription, including automatic OCR for scanned PDFs and Whisper AI for video transcription.
-- **AI Integration**: OpenAI GPT-4o for metadata and embeddings.
+- **AI Integration**: Flexible provider system supporting both OpenAI GPT-4o and Dify MCP (Model Context Protocol) with user-selectable providers and seamless switching.
+- **MCP Support**: Full integration with Dify's Model Context Protocol enabling access to 7000+ external tools through standardized interfaces (Zapier, Linear, Gmail, etc).
 - **Object Storage**: Google Cloud Storage with custom ACL.
 
 ## Data Storage Architecture
@@ -44,6 +45,8 @@ Preferred communication style: Simple, everyday language.
 - **Optimized Performance**: Non-blocking storage implementation, optimized queries, caching, and fixed N+1 query problems.
 - **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, and text-to-speech integration.
 - **Validation Report System**: Generates PDF reports comparing teacher chat session parameters with original request parameters, including compliance scoring.
+- **Flexible AI Provider System**: User-selectable AI providers (OpenAI or Dify) with seamless switching and per-request provider selection.
+- **Dify MCP Integration**: Full support for Model Context Protocol enabling access to 7000+ external tools (Zapier, Linear, Gmail) through standardized interfaces.
 
 # External Dependencies
 

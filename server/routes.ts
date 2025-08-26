@@ -6,6 +6,8 @@ import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { GoogleDriveService } from "./googleDriveService";
 import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech } from "./openai";
+import { aiProvider } from "./aiProvider";
+import { difyService } from "./difyService";
 import { db } from "./db";
 import { files, folders, fileMetadata } from "@shared/schema";
 import { eq, sql, desc, and, or } from "drizzle-orm";
@@ -172,6 +174,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
       lastName: "User",
       profileImageUrl: null
     });
+  });
+
+  // ============= AI Provider Configuration Endpoints =============
+  
+  // Get provider status
+  app.get('/api/providers/status', async (req: any, res) => {
+    try {
+      const status = aiProvider.getProviderStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Error getting provider status:", error);
+      res.status(500).json({ error: "Failed to get provider status" });
+    }
+  });
+
+  // Configure a provider (Dify or OpenAI)
+  app.post('/api/providers/configure', async (req: any, res) => {
+    try {
+      const { provider, config } = req.body;
+      
+      if (provider === 'dify') {
+        if (!config.baseUrl || !config.apiKey) {
+          return res.status(400).json({ error: "Dify requires baseUrl and apiKey" });
+        }
+        
+        // Initialize Dify service
+        aiProvider.initializeDify({
+          baseUrl: config.baseUrl,
+          apiKey: config.apiKey
+        });
+        
+        res.json({ 
+          success: true, 
+          message: "Dify configured successfully",
+          status: aiProvider.getProviderStatus()
+        });
+      } else if (provider === 'openai') {
+        // OpenAI is configured via environment variable
+        if (!process.env.OPENAI_API_KEY) {
+          return res.status(400).json({ 
+            error: "OpenAI API key not found in environment variables" 
+          });
+        }
+        
+        res.json({ 
+          success: true, 
+          message: "OpenAI is configured via environment variables",
+          status: aiProvider.getProviderStatus()
+        });
+      } else {
+        res.status(400).json({ error: "Invalid provider. Use 'dify' or 'openai'" });
+      }
+    } catch (error) {
+      console.error("Error configuring provider:", error);
+      res.status(500).json({ error: "Failed to configure provider" });
+    }
+  });
+
+  // Switch default provider
+  app.post('/api/providers/switch', async (req: any, res) => {
+    try {
+      const { provider, userId } = req.body;
+      
+      if (!['openai', 'dify'].includes(provider)) {
+        return res.status(400).json({ error: "Invalid provider. Use 'dify' or 'openai'" });
+      }
+      
+      // Check if provider is configured
+      const status = aiProvider.getProviderStatus();
+      if (provider === 'dify' && !status.providers.dify.configured) {
+        return res.status(400).json({ 
+          error: "Dify is not configured. Please configure it first." 
+        });
+      }
+      
+      if (userId) {
+        // Set user-specific provider preference
+        aiProvider.setUserProvider(userId, provider as 'openai' | 'dify');
+      } else {
+        // Set default provider
+        aiProvider.setDefaultProvider(provider as 'openai' | 'dify');
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Switched to ${provider}`,
+        currentProvider: provider,
+        status: aiProvider.getProviderStatus()
+      });
+    } catch (error) {
+      console.error("Error switching provider:", error);
+      res.status(500).json({ error: "Failed to switch provider" });
+    }
+  });
+
+  // Get available MCP tools from Dify
+  app.get('/api/providers/mcp-tools', async (req: any, res) => {
+    try {
+      const tools = await aiProvider.getMCPTools();
+      res.json({ tools });
+    } catch (error) {
+      console.error("Error fetching MCP tools:", error);
+      res.status(500).json({ error: "Failed to fetch MCP tools" });
+    }
+  });
+
+  // Execute MCP tool through Dify
+  app.post('/api/providers/mcp-tool', async (req: any, res) => {
+    try {
+      const { toolName, parameters, userId } = req.body;
+      
+      if (!toolName) {
+        return res.status(400).json({ error: "toolName is required" });
+      }
+      
+      const result = await aiProvider.executeMCPTool(
+        toolName,
+        parameters || {},
+        userId || "demo-user"
+      );
+      
+      res.json({ result });
+    } catch (error) {
+      console.error("Error executing MCP tool:", error);
+      res.status(500).json({ error: "Failed to execute MCP tool" });
+    }
   });
 
   const objectStorageService = new ObjectStorageService();
@@ -1495,14 +1623,15 @@ ${file.fileContent.toString()}`;
   app.post("/api/chat", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { message, fileIds, chatHistory = [], conversationContext } = z.object({
+      const { message, fileIds, chatHistory = [], conversationContext, provider } = z.object({
         message: z.string(),
         fileIds: z.array(z.string()).optional().default([]),
         chatHistory: z.array(z.object({
           role: z.string(),
           content: z.string()
         })).optional().default([]),
-        conversationContext: z.any().optional()
+        conversationContext: z.any().optional(),
+        provider: z.enum(['openai', 'dify']).optional()
       }).parse(req.body);
 
       // Process with oversight agent
@@ -1513,16 +1642,48 @@ ${file.fileContent.toString()}`;
         conversationContext
       );
 
+      // Set provider if specified for this request
+      if (provider) {
+        aiProvider.setUserProvider(userId, provider);
+      }
+
       // Get context files
       const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
       
-      // Generate response using AI with oversight
-      const response = await chatWithFiles(message, files, oversightInstructions);
+      // Extract file contents for the AI provider
+      const fileContents = files.map(file => {
+        const text = file.extractedText || "";
+        const summary = file.metadata?.summary || "";
+        const keywords = file.metadata?.keywords?.join(", ") || "";
+        
+        return `=== ${file.filename || file.originalName} ===
+Summary: ${summary}
+Keywords: ${keywords}
+Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
+      });
+      
+      // Build chat messages array
+      const messages = [
+        ...chatHistory.map(msg => ({
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: msg.content
+        })),
+        { role: 'user' as const, content: message }
+      ];
+      
+      // Generate response using AI provider with oversight
+      const response = await aiProvider.chatWithFiles(
+        messages,
+        fileContents,
+        oversightInstructions,
+        userId
+      );
       
       res.json({ 
         response,
         relatedFiles: fileIds,
-        conversationContext: updatedContext
+        conversationContext: updatedContext,
+        provider: aiProvider.getProvider(userId)
       });
     } catch (error) {
       console.error("Error in chat:", error);
