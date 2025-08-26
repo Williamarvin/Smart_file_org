@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
+import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter, Loader2 } from "lucide-react";
 import SearchBar from "@/components/search-bar";
 import FileGrid from "@/components/file-grid";
 import { useToast } from "@/hooks/use-toast";
@@ -129,7 +129,7 @@ export function Browse() {
     },
   });
 
-  // Get files in current folder
+  // Get files in current folder with pagination
   const { data: folderFiles = [], isLoading: filesLoading } = useQuery({
     queryKey: ["/api/folders", currentFolderId, "files"],
     queryFn: async () => {
@@ -139,14 +139,51 @@ export function Browse() {
     enabled: !searchQuery, // Only load folder files when not searching
   });
 
-  // Get all files for counting and global operations (with high limit to get all files)
-  const { data: allFiles = [] } = useQuery({
-    queryKey: ["/api/files", "all"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/files?limit=5000");
+  // Get all files with infinite scroll
+  const {
+    data: allFilesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: allFilesLoading,
+  } = useInfiniteQuery({
+    queryKey: ["/api/files", "infinite", activeFilter],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await apiRequest("GET", `/api/files?limit=50&offset=${pageParam}`);
       return res.json();
     },
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page has 50 items, there might be more
+      if (lastPage.length === 50) {
+        return allPages.length * 50;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
   });
+
+  // Flatten all pages of files into a single array
+  const allFiles = allFilesData?.pages?.flat() || [];
+
+  // Observer for infinite scroll
+  const observerTarget = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Fetch folder file counts for ALL folders
   useEffect(() => {
@@ -502,9 +539,14 @@ export function Browse() {
     }
   };
 
-  const rawDisplayFiles = searchQuery ? searchResults : folderFiles;
+  // Use allFiles when not searching and not in a specific folder
+  const rawDisplayFiles = searchQuery 
+    ? searchResults 
+    : (currentFolderId ? folderFiles : allFiles);
   const displayFiles = applyFilters(rawDisplayFiles);
-  const isLoading = searchQuery ? searchLoading : (foldersLoading || filesLoading);
+  const isLoading = searchQuery 
+    ? searchLoading 
+    : (currentFolderId ? (foldersLoading || filesLoading) : allFilesLoading);
 
   return (
     <div className="p-8">
@@ -1006,6 +1048,36 @@ export function Browse() {
           selectedFileIds={selectedFileIds}
           onSelectFile={handleSelectFile}
         />
+        
+        {/* Infinite Scroll Trigger - only show when not searching and not in a specific folder */}
+        {!searchQuery && !currentFolderId && (
+          <>
+            {/* Loading more indicator */}
+            {isFetchingNextPage && (
+              <div className="mt-4 flex justify-center items-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500 mr-2" />
+                <span className="text-slate-600">Loading more files...</span>
+              </div>
+            )}
+            
+            {/* Load More Button (manual trigger) */}
+            {hasNextPage && !isFetchingNextPage && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  onClick={() => fetchNextPage()}
+                  variant="outline"
+                  size="lg"
+                  className="px-8"
+                >
+                  Load More Files
+                </Button>
+              </div>
+            )}
+            
+            {/* Invisible scroll trigger */}
+            <div ref={observerTarget} className="h-10" />
+          </>
+        )}
       </div>
     </div>
   );
