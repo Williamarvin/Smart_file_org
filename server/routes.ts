@@ -1652,7 +1652,7 @@ ${file.fileContent.toString()}`;
       
       // Extract file contents for the AI provider
       const fileContents = files.map(file => {
-        const text = file.extractedText || "";
+        const text = file.metadata?.extractedText || "";
         const summary = file.metadata?.summary || "";
         const keywords = file.metadata?.keywords?.join(", ") || "";
         
