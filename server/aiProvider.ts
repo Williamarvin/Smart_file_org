@@ -19,7 +19,7 @@ export interface AIProviderConfig {
   };
 }
 
-class AIProviderService {
+export class AIProviderService {
   private currentProvider: AIProvider = 'openai';
   private userProviderPreferences: Map<string, AIProvider> = new Map();
 

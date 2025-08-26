@@ -99,6 +99,17 @@ export default function GenerateLessons() {
   
   const queryClient = useQueryClient();
   
+  // Get current AI provider status
+  const { data: providerStatus } = useQuery<{
+    currentProvider: 'openai' | 'dify';
+    providers: {
+      openai: { available: boolean; configured: boolean; };
+      dify: { available: boolean; configured: boolean; };
+    };
+  }>({
+    queryKey: ['/api/providers/status'],
+  });
+  
   // Auto-speak teacher responses
   const speakTeacherResponse = async (text: string) => {
     try {
@@ -399,7 +410,8 @@ export default function GenerateLessons() {
         folderIds: selectedFolders,
         additionalContext,
         courseTitle,
-        targetAudience
+        targetAudience,
+        provider: providerStatus?.currentProvider || 'openai' // Include current provider
       });
       return response.json();
     },
@@ -428,7 +440,8 @@ export default function GenerateLessons() {
   const executeTeacherPromptMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/execute-teacher-prompt", {
-        teacherPrompt: teacherPromptWithContent // Use the version with full content
+        teacherPrompt: teacherPromptWithContent, // Use the version with full content
+        provider: providerStatus?.currentProvider || 'openai' // Include current provider
       });
       return response.json();
     },
@@ -445,7 +458,8 @@ export default function GenerateLessons() {
         chatHistory: chatMessages,
         teacherContext: teacherContent,
         fileIds: selectedFiles,
-        folderIds: selectedFolders
+        folderIds: selectedFolders,
+        provider: providerStatus?.currentProvider || 'openai' // Include current provider
       });
       return response.json();
     },

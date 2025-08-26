@@ -2328,12 +2328,15 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       // Combine all content for context
       const combinedContent = contentSources.join("\n\n---\n\n");
       
-      // Generate structured lesson prompts using OpenAI
+      // Generate structured lesson prompts using AI Provider
+      const { AIProviderService } = await import("./aiProvider");
+      const aiProvider = new AIProviderService();
+      
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -2421,7 +2424,7 @@ Do not forget to include these format specifications in each individual prompt y
   // Generate consolidated teacher agent prompt
   app.post("/api/generate-teacher-prompt", async (req: any, res) => {
     try {
-      const { fileIds = [], folderIds = [], additionalContext, courseTitle, targetAudience } = req.body;
+      const { fileIds = [], folderIds = [], additionalContext, courseTitle, targetAudience, provider = 'openai' } = req.body;
 
       const userId = "demo-user";
       let contentSources: string[] = [];
@@ -2706,31 +2709,22 @@ Please provide content for each section in the following format:
   // Execute teacher agent prompt
   app.post("/api/execute-teacher-prompt", async (req: any, res) => {
     try {
-      const { teacherPrompt } = req.body;
+      const { teacherPrompt, provider = 'openai' } = req.body;
       
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { AIProviderService } = await import("./aiProvider");
+      const aiProvider = new AIProviderService();
       
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [
-          {
-            role: "system",
-            content: "You are a master teacher and curriculum designer with expertise in creating comprehensive educational experiences. Generate complete, structured educational content following the specified format requirements."
-          },
-          {
-            role: "user",
-            content: teacherPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000
-      });
-
-      const result = completion.choices[0].message.content;
-      if (!result) {
-        throw new Error("No response from OpenAI");
-      }
+      const systemPrompt = "You are a master teacher and curriculum designer with expertise in creating comprehensive educational experiences. Generate complete, structured educational content following the specified format requirements.";
+      
+      // Set the provider
+      aiProvider.setDefaultProvider(provider as "openai" | "dify");
+      
+      const result = await aiProvider.chatWithFiles(
+        [{ role: "user" as "user", content: teacherPrompt }],
+        [], // No files
+        systemPrompt,
+        "demo-user"
+      );
 
       res.json({ content: result });
 
@@ -2746,7 +2740,7 @@ Please provide content for each section in the following format:
   // Chat with teacher agent
   app.post("/api/chat-teacher-agent", async (req: any, res) => {
     try {
-      const { message, chatHistory = [], teacherContext, fileIds = [], folderIds = [] } = req.body;
+      const { message, chatHistory = [], teacherContext, fileIds = [], folderIds = [], provider = 'openai' } = req.body;
       
       // Get actual file and folder content if provided
       let fileContent = "";
@@ -2779,9 +2773,6 @@ Please provide content for each section in the following format:
           }
         }
       }
-      
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
       // Build conversation history
       const messages = [
@@ -2854,18 +2845,37 @@ Remember:
         }
       ];
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages,
-        temperature: 0.7,
-        max_tokens: 2000
-      });
-
-      const result = completion.choices[0].message.content;
-      if (!result) {
-        throw new Error("No response from OpenAI");
-      }
-
+      // Use AI provider service instead of direct OpenAI
+      const { AIProviderService } = await import("./aiProvider");
+      const aiProvider = new AIProviderService();
+      
+      // Build messages array for AI provider
+      const aiMessages = [
+        ...chatHistory.map((msg: any) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content
+        })),
+        {
+          role: "user" as "user",
+          content: message
+        }
+      ];
+      
+      const systemPrompt = messages[0].content; // Extract system prompt
+      
+      // Get file contents 
+      const fileContentArray = fileContent ? [fileContent] : [];
+      
+      // Set the provider
+      aiProvider.setDefaultProvider(provider as "openai" | "dify");
+      
+      const result = await aiProvider.chatWithFiles(
+        aiMessages,
+        fileContentArray,
+        systemPrompt,
+        "demo-user"
+      );
+      
       res.json({ response: result });
 
     } catch (error) {

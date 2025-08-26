@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: Express.js with TypeScript.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
 - **File Processing**: Asynchronous pipeline for document and video content extraction and transcription, including automatic OCR for scanned PDFs and Whisper AI for video transcription.
-- **AI Integration**: Flexible provider system supporting both OpenAI GPT-4o and Dify MCP (Model Context Protocol) with user-selectable providers and seamless switching.
+- **AI Integration**: Flexible provider system supporting both OpenAI GPT-4o and Dify MCP (Model Context Protocol) with user-selectable providers and seamless switching across all AI features including teacher agents.
 - **MCP Support**: Full integration with Dify's Model Context Protocol enabling access to 7000+ external tools through standardized interfaces (Zapier, Linear, Gmail, etc).
 - **Object Storage**: Google Cloud Storage with custom ACL.
 
@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Content Generation**: Support for selecting entire folders and up to 1000 files for content creation, with automatic deduplication.
 - **Automatic OCR**: Background OCR processing for scanned PDFs using Tesseract.js with Google Vision fallback, integrated directly into the file processing pipeline.
 - **Optimized Performance**: Non-blocking storage implementation, optimized queries, caching, and fixed N+1 query problems.
-- **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, and text-to-speech integration.
+- **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, text-to-speech integration, and full dual-provider support (OpenAI/Dify) for all teacher agent functionalities.
 - **Validation Report System**: Generates PDF reports comparing teacher chat session parameters with original request parameters, including compliance scoring.
 - **Flexible AI Provider System**: User-selectable AI providers (OpenAI or Dify) with seamless switching and per-request provider selection.
 - **Dify MCP Integration**: Full support for Model Context Protocol enabling access to 7000+ external tools (Zapier, Linear, Gmail) through standardized interfaces.
