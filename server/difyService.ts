@@ -205,22 +205,23 @@ export class DifyService {
     const query = lastMessage?.content || '';
 
     // Build inputs including context and previous messages
-    const inputs: Record<string, any> = {
-      context: context,
-      chat_history: messages.slice(0, -1).map(m => ({
+    const inputs: Record<string, any> = {};
+    
+    // Only add context if we have file contents
+    if (context && context.trim()) {
+      inputs.context = context;
+    }
+    
+    // Add chat history if present
+    if (messages.length > 1) {
+      inputs.chat_history = messages.slice(0, -1).map(m => ({
         role: m.role,
         content: m.content
-      }))
-    };
+      }));
+    }
 
     if (systemPrompt) {
       inputs.system_prompt = systemPrompt;
-    }
-
-    // Add MCP configuration to inputs if enabled
-    if (enableMCP) {
-      inputs.enable_mcp = true;
-      inputs.mcp_tools = 'auto'; // Let Dify auto-select appropriate MCP tools
     }
 
     const result = await this.chatCompletion({
