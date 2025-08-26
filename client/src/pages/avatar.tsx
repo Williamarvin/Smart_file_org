@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Mic, MicOff, Bot, User, Sparkles, Zap, Heart, Brain, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
 
 interface Message {
   id: string;
@@ -463,8 +464,9 @@ export default function AvatarPage() {
                     </div>
                   </div>
                   
-                  {/* Voice Controls */}
+                  {/* Voice Controls and Provider Toggle */}
                   <div className="flex items-center gap-2">
+                    <AIProviderToggle />
                     <Button
                       variant="outline"
                       size="sm"
@@ -486,6 +488,9 @@ export default function AvatarPage() {
                       </Button>
                     )}
                   </div>
+                </div>
+                <div className="mt-3">
+                  <AIProviderInfo />
                 </div>
               </CardHeader>
               

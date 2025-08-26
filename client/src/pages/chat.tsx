@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Send, Bot, User, FileText, Sparkles, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
 
 interface ChatMessage {
   id: string;
@@ -205,16 +206,22 @@ export function Chat() {
           <div className="lg:col-span-3">
             <Card className="h-full flex flex-col">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="text-green-600" />
-                  <span>AI Assistant</span>
-                  {chatMutation.isPending && (
-                    <div className="flex items-center space-x-2 text-blue-600">
-                      <Clock className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Thinking...</span>
-                    </div>
-                  )}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center space-x-2">
+                    <MessageCircle className="text-green-600" />
+                    <span>AI Assistant</span>
+                    {chatMutation.isPending && (
+                      <div className="flex items-center space-x-2 text-blue-600">
+                        <Clock className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Thinking...</span>
+                      </div>
+                    )}
+                  </CardTitle>
+                  <AIProviderToggle />
+                </div>
+                <div className="mt-3">
+                  <AIProviderInfo />
+                </div>
               </CardHeader>
               
               <CardContent className="flex-1 flex flex-col p-0">

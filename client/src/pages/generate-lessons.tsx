@@ -13,6 +13,7 @@ import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pa
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
+import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
 
 interface File {
   id: string;
@@ -1079,19 +1080,23 @@ export default function GenerateLessons() {
                   {/* Chat Interface - Only available after content is generated */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        Chat with Teacher
-                        {isGeneratingSpeech && (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Generating speech...
-                          </span>
-                        )}
-                        {currentAudio && !isGeneratingSpeech && (
-                          <Volume2 className="h-4 w-4 text-blue-500 animate-pulse" />
-                        )}
-                      </CardTitle>
-                      <CardDescription className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
+                        <CardTitle className="flex items-center gap-2">
+                          Chat with Teacher
+                          {isGeneratingSpeech && (
+                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Generating speech...
+                            </span>
+                          )}
+                          {currentAudio && !isGeneratingSpeech && (
+                            <Volume2 className="h-4 w-4 text-blue-500 animate-pulse" />
+                          )}
+                        </CardTitle>
+                        <AIProviderToggle />
+                      </div>
+                      <AIProviderInfo />
+                      <CardDescription className="flex items-center justify-between mt-3">
                         <span>Now you can chat with the teacher agent. Teacher responses are automatically read aloud.</span>
                         <div className="flex gap-2">
                           <Button
