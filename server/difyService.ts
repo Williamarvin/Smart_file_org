@@ -63,16 +63,21 @@ export class DifyService {
     const url = `${this.config.baseUrl}/chat-messages`;
     
     try {
+      // Use streaming mode for agent chat apps
+      const requestBody = {
+        ...options,
+        response_mode: 'streaming' 
+      };
+      
+      console.log('Sending to Dify:', JSON.stringify(requestBody, null, 2));
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...options,
-          response_mode: options.response_mode || 'blocking'
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -80,8 +85,36 @@ export class DifyService {
         throw new Error(`Dify API error: ${response.status} - ${error}`);
       }
 
-      const data = await response.json();
-      return data;
+      // Handle streaming response for agent chat
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/event-stream')) {
+        // Parse SSE stream
+        const text = await response.text();
+        const lines = text.split('\n');
+        let fullAnswer = '';
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.answer) {
+                fullAnswer += parsed.answer;
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          }
+        }
+        
+        return { answer: fullAnswer || 'No response generated' };
+      } else {
+        // Handle regular JSON response
+        const data = await response.json();
+        return data;
+      }
     } catch (error: any) {
       console.error('Dify chat completion error:', error);
       throw new Error(`Failed to get Dify response: ${error.message}`);
@@ -207,6 +240,9 @@ export class DifyService {
     // Build inputs including context and previous messages
     const inputs: Record<string, any> = {};
     
+    // Add required folder_file_materials field for Dify app
+    inputs.folder_file_materials = context || '';
+    
     // Only add context if we have file contents
     if (context && context.trim()) {
       inputs.context = context;
@@ -224,11 +260,18 @@ export class DifyService {
       inputs.system_prompt = systemPrompt;
     }
 
+    // For Dify agent chat apps, we need to ensure required fields exist
+    const difyInputs = {
+      folder_file_materials: inputs.folder_file_materials || '',
+      ai_tutor_prompt: systemPrompt || 'You are a helpful AI assistant that can answer questions and help with various tasks.',
+      ...inputs
+    };
+    
     const result = await this.chatCompletion({
       query,
-      inputs,
-      response_mode: 'blocking',
+      inputs: difyInputs,
       user: userId || 'default-user'
+      // response_mode is now handled in chatCompletion method
     });
 
     // Handle MCP tool execution results if present
