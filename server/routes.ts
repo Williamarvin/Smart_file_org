@@ -1705,10 +1705,32 @@ ${file.fileContent.toString()}`;
   app.post("/api/folders/file-counts", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { folderIds = [] } = req.body;
+      const { folderIds = [], filter = "all" } = req.body;
       
       const allFiles = await storage.getFiles(userId, 1000);
       const folders = await storage.getFolders(userId);
+      
+      // Function to filter files based on the selected filter
+      const applyFilter = (files: any[]) => {
+        switch (filter) {
+          case "transcribed":
+            return files.filter(file => 
+              file.metadata?.extractedText && 
+              !file.metadata.extractedText.startsWith('File reference:') &&
+              file.metadata.extractedText.length > 100 &&
+              file.processingStatus === 'completed'
+            );
+          case "pending":
+            return files.filter(file => file.processingStatus === 'pending');
+          case "processing":
+            return files.filter(file => file.processingStatus === 'processing');
+          case "failed":
+            return files.filter(file => file.processingStatus === 'error' || file.processingStatus === 'failed');
+          case "all":
+          default:
+            return files;
+        }
+      };
       
       // Function to get all folder IDs recursively
       const getAllSubfolderIds = async (parentId: string): Promise<string[]> => {
@@ -1728,6 +1750,10 @@ ${file.fileContent.toString()}`;
         totalFiles: number; 
         processedFiles: number;
         errorFiles: number;
+        transcribedFiles: number;
+        pendingFiles: number;
+        processingFiles: number;
+        filteredFiles: number;
         folderName: string;
       }> = {};
       
@@ -1737,11 +1763,18 @@ ${file.fileContent.toString()}`;
           file.folderId && allFolderIds.includes(file.folderId)
         );
         
+        // Get filtered files for the current filter
+        const filteredFiles = applyFilter(folderFiles);
+        
         const folder = folders.find(f => f.id === folderId);
         folderCounts[folderId] = {
           totalFiles: folderFiles.length,
           processedFiles: folderFiles.filter(f => f.processingStatus === 'completed').length,
           errorFiles: folderFiles.filter(f => f.processingStatus === 'error').length,
+          transcribedFiles: applyFilter(folderFiles.filter(f => filter === "transcribed")).length,
+          pendingFiles: folderFiles.filter(f => f.processingStatus === 'pending').length,
+          processingFiles: folderFiles.filter(f => f.processingStatus === 'processing').length,
+          filteredFiles: filteredFiles.length,
           folderName: folder?.name || 'Unknown'
         };
       }

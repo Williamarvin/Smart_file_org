@@ -89,6 +89,10 @@ export function Browse() {
     totalFiles: number;
     processedFiles: number;
     errorFiles: number;
+    transcribedFiles: number;
+    pendingFiles: number;
+    processingFiles: number;
+    filteredFiles: number;
     folderName: string;
   }>>({});
   const { toast } = useToast();
@@ -143,7 +147,8 @@ export function Browse() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            folderIds: folders.map((f: any) => f.id)
+            folderIds: folders.map((f: any) => f.id),
+            filter: activeFilter
           }),
         });
         
@@ -157,7 +162,7 @@ export function Browse() {
     };
     
     fetchFolderCounts();
-  }, [folders]);
+  }, [folders, activeFilter]);
 
   // Search files across all folders
   const { data: searchResults = [], isLoading: searchLoading } = useQuery({
@@ -738,18 +743,44 @@ export function Browse() {
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       {folderFileCounts[folder.id] ? (
                         <>
-                          <Badge variant="outline" className="text-xs">
-                            {folderFileCounts[folder.id].totalFiles} files
-                          </Badge>
-                          {folderFileCounts[folder.id].processedFiles > 0 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {folderFileCounts[folder.id].processedFiles} processed
-                            </Badge>
-                          )}
-                          {folderFileCounts[folder.id].errorFiles > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              {folderFileCounts[folder.id].errorFiles} errors
-                            </Badge>
+                          {activeFilter === "all" ? (
+                            // Show regular counts when no filter is active
+                            <>
+                              <Badge variant="outline" className="text-xs">
+                                {folderFileCounts[folder.id].totalFiles} files
+                              </Badge>
+                              {folderFileCounts[folder.id].processedFiles > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {folderFileCounts[folder.id].processedFiles} processed
+                                </Badge>
+                              )}
+                              {folderFileCounts[folder.id].errorFiles > 0 && (
+                                <Badge variant="destructive" className="text-xs">
+                                  {folderFileCounts[folder.id].errorFiles} errors
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            // Show filtered counts when a filter is active
+                            <>
+                              <Badge 
+                                variant={activeFilter === "transcribed" ? "secondary" : 
+                                        activeFilter === "pending" ? "outline" :
+                                        activeFilter === "processing" ? "outline" :
+                                        "destructive"}
+                                className={activeFilter === "transcribed" ? "bg-green-100 text-green-800" :
+                                          activeFilter === "pending" ? "bg-yellow-100 text-yellow-800" :
+                                          activeFilter === "processing" ? "bg-blue-100 text-blue-800" :
+                                          "bg-red-100 text-red-800"}
+                              >
+                                {folderFileCounts[folder.id].filteredFiles} 
+                                {activeFilter === "transcribed" ? " transcribed" :
+                                 activeFilter === "pending" ? " pending" :
+                                 activeFilter === "processing" ? " processing" :
+                                 " failed"}
+                              </Badge>
+                              <span className="text-slate-400">of {folderFileCounts[folder.id].totalFiles} total</span>
+                            </>
                           )}
                           <span className="text-slate-500">{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
                         </>
