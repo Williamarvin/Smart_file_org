@@ -164,6 +164,15 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize Dify automatically if API key is in environment
+  if (process.env.DIFY_API_KEY) {
+    aiProvider.initializeDify({
+      baseUrl: process.env.DIFY_BASE_URL || 'https://api.dify.ai/v1',
+      apiKey: process.env.DIFY_API_KEY
+    });
+    console.log('✓ Dify service automatically initialized from environment variables');
+  }
+  
   // Mock user endpoint - no authentication
   app.get('/api/auth/user', async (req: any, res) => {
     // Return a mock user for testing
