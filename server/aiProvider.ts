@@ -96,7 +96,9 @@ class AIProviderService {
       return await difyService.chatWithFiles(
         messages,
         fileContents,
-        systemPrompt
+        systemPrompt,
+        true, // Enable MCP by default
+        userId
       );
     } else {
       // Use OpenAI directly with proper format
@@ -129,7 +131,7 @@ ${context}`;
       // Add conversation messages
       messages.forEach(msg => {
         openAIMessages.push({ 
-          role: msg.role as any, 
+          role: msg.role as 'user' | 'assistant' | 'system', 
           content: msg.content 
         });
       });

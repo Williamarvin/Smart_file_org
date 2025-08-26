@@ -184,11 +184,14 @@ export class DifyService {
 
   /**
    * Convert chat format for compatibility with OpenAI-style API
+   * Now with full MCP tool support
    */
   async chatWithFiles(
     messages: DifyMessage[], 
     fileContents: string[],
-    systemPrompt?: string
+    systemPrompt?: string,
+    enableMCP: boolean = true,
+    userId?: string
   ): Promise<string> {
     if (!this.config) {
       throw new Error('Dify service not configured');
@@ -214,11 +217,23 @@ export class DifyService {
       inputs.system_prompt = systemPrompt;
     }
 
+    // Add MCP configuration to inputs if enabled
+    if (enableMCP) {
+      inputs.enable_mcp = true;
+      inputs.mcp_tools = 'auto'; // Let Dify auto-select appropriate MCP tools
+    }
+
     const result = await this.chatCompletion({
       query,
       inputs,
-      response_mode: 'blocking'
+      response_mode: 'blocking',
+      user: userId || 'default-user'
     });
+
+    // Handle MCP tool execution results if present
+    if (result.mcp_tool_results) {
+      console.log('MCP tools executed:', result.mcp_tool_results);
+    }
 
     return result.answer || result.text || '';
   }
