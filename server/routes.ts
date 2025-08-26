@@ -1701,6 +1701,58 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Get file counts for folders including subfolders
+  app.post("/api/folders/file-counts", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const { folderIds = [] } = req.body;
+      
+      const allFiles = await storage.getFiles(userId, 1000);
+      const folders = await storage.getFolders(userId);
+      
+      // Function to get all folder IDs recursively
+      const getAllSubfolderIds = async (parentId: string): Promise<string[]> => {
+        let allIds = [parentId];
+        const subfolders = folders.filter(f => f.parentId === parentId);
+        
+        for (const subfolder of subfolders) {
+          const deeperIds = await getAllSubfolderIds(subfolder.id);
+          allIds = [...allIds, ...deeperIds];
+        }
+        
+        return allIds;
+      };
+      
+      // Calculate file counts for each requested folder
+      const folderCounts: Record<string, { 
+        totalFiles: number; 
+        processedFiles: number;
+        errorFiles: number;
+        folderName: string;
+      }> = {};
+      
+      for (const folderId of folderIds) {
+        const allFolderIds = await getAllSubfolderIds(folderId);
+        const folderFiles = allFiles.filter(file => 
+          file.folderId && allFolderIds.includes(file.folderId)
+        );
+        
+        const folder = folders.find(f => f.id === folderId);
+        folderCounts[folderId] = {
+          totalFiles: folderFiles.length,
+          processedFiles: folderFiles.filter(f => f.processingStatus === 'completed').length,
+          errorFiles: folderFiles.filter(f => f.processingStatus === 'error').length,
+          folderName: folder?.name || 'Unknown'
+        };
+      }
+      
+      res.json(folderCounts);
+    } catch (error) {
+      console.error("Error getting folder file counts:", error);
+      res.status(500).json({ error: "Failed to get folder file counts" });
+    }
+  });
+
   app.put("/api/files/:fileId/move", async (req: any, res) => {
     try {
       const userId = "demo-user";

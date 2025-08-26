@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +57,12 @@ export default function GenerateLessons() {
   const [additionalContext, setAdditionalContext] = useState<string>("");
   const [generatedPrompts, setGeneratedPrompts] = useState<LessonPrompt[]>([]);
   const [executingPrompts, setExecutingPrompts] = useState<string[]>([]);
+  const [folderFileCounts, setFolderFileCounts] = useState<Record<string, {
+    totalFiles: number;
+    processedFiles: number;
+    errorFiles: number;
+    folderName: string;
+  }>>({});
   
   // Teacher Agent states
   const [teacherMode, setTeacherMode] = useState<boolean>(false);
@@ -211,6 +217,34 @@ export default function GenerateLessons() {
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ["/api/folders"],
   });
+
+  // Fetch folder file counts
+  useEffect(() => {
+    const fetchFolderCounts = async () => {
+      if (folders.length === 0) return;
+      
+      try {
+        const response = await fetch("/api/folders/file-counts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            folderIds: folders.map((f: any) => f.id)
+          }),
+        });
+        
+        if (response.ok) {
+          const counts = await response.json();
+          setFolderFileCounts(counts);
+        }
+      } catch (error) {
+        console.error("Error fetching folder counts:", error);
+      }
+    };
+    
+    fetchFolderCounts();
+  }, [folders]);
 
   // Generate lesson prompts mutation
   const generatePromptsMutation = useMutation({
@@ -515,25 +549,51 @@ export default function GenerateLessons() {
                   <div>
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <FolderOpen className="h-4 w-4" />
-                      Folders ({selectedFolders.length} selected)
+                      Folders ({selectedFolders.length} selected{selectedFolders.length > 0 && folderFileCounts && 
+                        ` - ${selectedFolders.reduce((total, id) => 
+                          total + (folderFileCounts[id]?.totalFiles || 0), 0)} files total`})
                     </h4>
-                    <ScrollArea className="h-32 border rounded-md p-2">
+                    <ScrollArea className="h-48 border rounded-md p-2">
                       <div className="space-y-2">
-                        {(folders as Folder[]).map((folder: Folder) => (
-                          <div key={folder.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`folder-${folder.id}`}
-                              checked={selectedFolders.includes(folder.id)}
-                              onCheckedChange={() => handleFolderToggle(folder.id)}
-                            />
-                            <label
-                              htmlFor={`folder-${folder.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                            >
-                              {folder.name}
-                            </label>
-                          </div>
-                        ))}
+                        {(folders as Folder[]).map((folder: Folder) => {
+                          const counts = folderFileCounts[folder.id];
+                          const isSelected = selectedFolders.includes(folder.id);
+                          
+                          return (
+                            <div key={folder.id} className={`flex items-center justify-between p-2 rounded-lg hover:bg-muted ${isSelected ? 'bg-muted' : ''}`}>
+                              <div className="flex items-center space-x-2 flex-1">
+                                <Checkbox
+                                  id={`folder-${folder.id}`}
+                                  checked={isSelected}
+                                  onCheckedChange={() => handleFolderToggle(folder.id)}
+                                />
+                                <label
+                                  htmlFor={`folder-${folder.id}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                                >
+                                  {folder.name}
+                                </label>
+                              </div>
+                              {counts && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <Badge variant="outline" className="text-xs">
+                                    {counts.totalFiles} files
+                                  </Badge>
+                                  {counts.processedFiles > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {counts.processedFiles} processed
+                                    </Badge>
+                                  )}
+                                  {counts.errorFiles > 0 && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      {counts.errorFiles} errors
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </ScrollArea>
                   </div>
