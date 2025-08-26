@@ -1778,6 +1778,76 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Reprocess files in error status
+  app.post("/api/reprocess-error-files", async (req: any, res) => {
+    try {
+      const { folderIds = [] } = req.body;
+      const userId = "demo-user";
+      
+      // Get all files
+      const allFiles = await storage.getFiles(userId, 1000);
+      
+      let filesToReprocess = [];
+      
+      if (folderIds.length > 0) {
+        // Get all folder IDs including subfolders
+        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+          let allFolderIds = [...parentIds];
+          const folders = await storage.getFolders(userId);
+          
+          for (const parentId of parentIds) {
+            const subfolders = folders.filter(f => f.parentId === parentId);
+            if (subfolders.length > 0) {
+              const subfolderIds = subfolders.map(f => f.id);
+              allFolderIds = [...allFolderIds, ...subfolderIds];
+              const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
+              allFolderIds = [...allFolderIds, ...deeperSubfolders];
+            }
+          }
+          
+          return Array.from(new Set(allFolderIds));
+        };
+        
+        const allFolderIds = await getAllSubfolderIds(folderIds);
+        filesToReprocess = allFiles.filter(file => 
+          file.processingStatus === "error" && 
+          file.folderId && 
+          allFolderIds.includes(file.folderId)
+        );
+      } else {
+        // Reprocess all error files
+        filesToReprocess = allFiles.filter(file => file.processingStatus === "error");
+      }
+      
+      console.log(`Found ${filesToReprocess.length} files to reprocess`);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const file of filesToReprocess) {
+        try {
+          await storage.updateFileProcessingStatus(file.id, "pending", userId);
+          successCount++;
+          console.log(`Queued ${file.originalName} for reprocessing`);
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to queue ${file.originalName}:`, error);
+        }
+      }
+      
+      res.json({
+        message: `Reprocessing queued: ${successCount} files`,
+        success: successCount,
+        failed: errorCount,
+        total: filesToReprocess.length
+      });
+      
+    } catch (error) {
+      console.error("Error reprocessing files:", error);
+      res.status(500).json({ error: "Failed to reprocess error files" });
+    }
+  });
+
   // Generate lesson prompts endpoint
   app.post("/api/generate-lesson-prompts", async (req: any, res) => {
     try {
@@ -1794,20 +1864,21 @@ ${file.fileContent.toString()}`;
         contentSources.push(`Additional Context: ${additionalContext.trim()}`);
       }
       
-      // Get content from selected files (only include fully processed files)
+      // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
-        const files = await storage.getFiles(userId, 100);
-        const selectedFiles = files.filter(file => 
-          fileIds.includes(file.id) && 
-          file.processingStatus === "completed" && 
-          file.processedAt !== null
-        );
+        const files = await storage.getFiles(userId, 500); // Increased limit
+        const selectedFiles = files.filter(file => fileIds.includes(file.id));
+        
+        console.log(`Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
         
         for (const file of selectedFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
+              // Include content regardless of processing status if we have extracted text
               contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            } else if (file.processingStatus === "error") {
+              console.log(`File ${file.originalName} is in error status with no extracted text`);
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -1815,20 +1886,44 @@ ${file.fileContent.toString()}`;
         }
       }
 
-      // Get content from selected folders (only include fully processed files)
+      // Get content from selected folders - including subfolders recursively
       if (folderIds.length > 0) {
-        const files = await storage.getFiles(userId, 100);
-        const folderFiles = files.filter(file => 
-          file.folderId && 
-          folderIds.includes(file.folderId) &&
-          file.processingStatus === "completed" && 
-          file.processedAt !== null
+        const allFiles = await storage.getFiles(userId, 1000); // Get more files
+        
+        // Function to get all folder IDs recursively
+        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+          let allFolderIds = [...parentIds];
+          const folders = await storage.getFolders(userId);
+          
+          for (const parentId of parentIds) {
+            const subfolders = folders.filter(f => f.parentId === parentId);
+            if (subfolders.length > 0) {
+              const subfolderIds = subfolders.map(f => f.id);
+              allFolderIds = [...allFolderIds, ...subfolderIds];
+              // Recursively get subfolders of subfolders
+              const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
+              allFolderIds = [...allFolderIds, ...deeperSubfolders];
+            }
+          }
+          
+          return Array.from(new Set(allFolderIds)); // Remove duplicates
+        };
+        
+        // Get all folder IDs including subfolders
+        const allFolderIds = await getAllSubfolderIds(folderIds);
+        console.log(`Processing ${allFolderIds.length} folders (including subfolders)`);
+        
+        const folderFiles = allFiles.filter(file => 
+          file.folderId && allFolderIds.includes(file.folderId)
         );
+        
+        console.log(`Found ${folderFiles.length} files in selected folders`);
         
         for (const file of folderFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
+              // Include content regardless of processing status if we have extracted text
               contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
             }
           } catch (error) {
@@ -1837,10 +1932,12 @@ ${file.fileContent.toString()}`;
         }
       }
 
+      console.log(`Total content sources found: ${contentSources.length}`);
+
       // If no content found, return error with helpful message
       if (contentSources.length === 0) {
         return res.status(400).json({ 
-          error: "No content found in selected files or folders. Make sure the files have finished processing and contain extractable content." 
+          error: "No content found in selected files or folders. Please select files or folders that have content, or try processing them again." 
         });
       }
 
@@ -1949,20 +2046,21 @@ Do not forget to include these format specifications in each individual prompt y
         contentSources.push(`Additional Context: ${additionalContext.trim()}`);
       }
       
-      // Get content from selected files (only processed ones)
+      // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
-        const files = await storage.getFiles(userId, 100);
-        const selectedFiles = files.filter(file => 
-          fileIds.includes(file.id) && 
-          file.processingStatus === "completed" && 
-          file.processedAt !== null
-        );
+        const files = await storage.getFiles(userId, 500); // Increased limit
+        const selectedFiles = files.filter(file => fileIds.includes(file.id));
+        
+        console.log(`Teacher prompt: Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
         
         for (const file of selectedFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
+              // Include content regardless of processing status if we have extracted text
               contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            } else if (file.processingStatus === "error") {
+              console.log(`File ${file.originalName} is in error status with no extracted text`);
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -1970,20 +2068,44 @@ Do not forget to include these format specifications in each individual prompt y
         }
       }
 
-      // Get content from selected folders (only processed files)
+      // Get content from selected folders - including subfolders recursively
       if (folderIds.length > 0) {
-        const files = await storage.getFiles(userId, 100);
-        const folderFiles = files.filter(file => 
-          file.folderId && 
-          folderIds.includes(file.folderId) &&
-          file.processingStatus === "completed" && 
-          file.processedAt !== null
+        const allFiles = await storage.getFiles(userId, 1000); // Get more files
+        
+        // Function to get all folder IDs recursively
+        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+          let allFolderIds = [...parentIds];
+          const folders = await storage.getFolders(userId);
+          
+          for (const parentId of parentIds) {
+            const subfolders = folders.filter(f => f.parentId === parentId);
+            if (subfolders.length > 0) {
+              const subfolderIds = subfolders.map(f => f.id);
+              allFolderIds = [...allFolderIds, ...subfolderIds];
+              // Recursively get subfolders of subfolders
+              const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
+              allFolderIds = [...allFolderIds, ...deeperSubfolders];
+            }
+          }
+          
+          return Array.from(new Set(allFolderIds)); // Remove duplicates
+        };
+        
+        // Get all folder IDs including subfolders
+        const allFolderIds = await getAllSubfolderIds(folderIds);
+        console.log(`Teacher prompt: Processing ${allFolderIds.length} folders (including subfolders)`);
+        
+        const folderFiles = allFiles.filter(file => 
+          file.folderId && allFolderIds.includes(file.folderId)
         );
+        
+        console.log(`Teacher prompt: Found ${folderFiles.length} files in selected folders`);
         
         for (const file of folderFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
+              // Include content regardless of processing status if we have extracted text
               contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
             }
           } catch (error) {
@@ -1992,9 +2114,11 @@ Do not forget to include these format specifications in each individual prompt y
         }
       }
 
+      console.log(`Teacher prompt: Total content sources found: ${contentSources.length}`);
+
       if (contentSources.length === 0) {
         return res.status(400).json({ 
-          error: "No content found in selected files or folders. Make sure the files have finished processing and contain extractable content." 
+          error: "No content found in selected files or folders. Please select files or folders that have content, or try processing them again." 
         });
       }
 
