@@ -170,7 +170,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       baseUrl: process.env.DIFY_BASE_URL || 'https://api.dify.ai/v1',
       apiKey: process.env.DIFY_API_KEY
     });
+    aiProvider.setDefaultProvider('dify'); // Set Dify as default provider
     console.log('✓ Dify service automatically initialized from environment variables');
+    console.log('✓ Dify MCP set as default AI provider');
   }
   
   // Mock user endpoint - no authentication

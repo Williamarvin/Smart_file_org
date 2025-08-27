@@ -20,7 +20,7 @@ export interface AIProviderConfig {
 }
 
 export class AIProviderService {
-  private currentProvider: AIProvider = 'openai';
+  private currentProvider: AIProvider = 'dify'; // Default to Dify MCP
   private userProviderPreferences: Map<string, AIProvider> = new Map();
   private conversationIds: Map<string, string> = new Map(); // Store conversation IDs for Dify sessions
 

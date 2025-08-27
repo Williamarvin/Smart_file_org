@@ -5,6 +5,7 @@ This is a full-stack file management and search application designed for uploadi
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
+Default AI Provider: Dify MCP (for access to 7000+ external tools).
 
 # System Architecture
 
@@ -21,8 +22,8 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: Express.js with TypeScript.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
 - **File Processing**: Asynchronous pipeline for document and video content extraction and transcription, including automatic OCR for scanned PDFs and Whisper AI for video transcription.
-- **AI Integration**: Flexible provider system supporting both OpenAI GPT-4o and Dify MCP (Model Context Protocol) with user-selectable providers and seamless switching across all AI features including teacher agents.
-- **MCP Support**: Full integration with Dify's Model Context Protocol enabling access to 7000+ external tools through standardized interfaces (Zapier, Linear, Gmail, etc).
+- **AI Integration**: Flexible provider system with **Dify MCP as default**, supporting both Dify (Model Context Protocol) and OpenAI GPT-4o with seamless switching across all AI features including teacher agents.
+- **MCP Support**: Full integration with Dify's Model Context Protocol enabling access to 7000+ external tools through standardized interfaces (Zapier, Linear, Gmail, etc) with conversation memory support.
 - **Object Storage**: Google Cloud Storage with custom ACL.
 
 ## Data Storage Architecture

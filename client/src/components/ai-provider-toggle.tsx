@@ -50,8 +50,8 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/providers/status'] });
       toast({
-        title: "Provider switched",
-        description: `Successfully switched to ${providerStatus?.currentProvider === 'openai' ? 'Dify (with MCP)' : 'OpenAI'}`,
+        title: "Provider switched", 
+        description: `Successfully switched to ${providerStatus?.currentProvider === 'dify' ? 'OpenAI' : 'Dify (with MCP)'}`,
       });
     },
     onError: (error) => {
@@ -64,7 +64,7 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
   });
 
   const handleToggle = (checked: boolean) => {
-    const newProvider = checked ? 'dify' : 'openai';
+    const newProvider = checked ? 'openai' : 'dify';  // Swapped: checked now means OpenAI
     switchProviderMutation.mutate(newProvider);
   };
 
@@ -83,21 +83,7 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-3 p-2 rounded-lg border bg-card ${className}`}>
       <div className="flex items-center gap-2">
-        <Bot className="h-4 w-4 text-muted-foreground" />
-        <Label htmlFor="ai-provider" className="text-sm font-medium cursor-pointer">
-          OpenAI
-        </Label>
-      </div>
-      
-      <Switch
-        id="ai-provider"
-        checked={isDify}
-        onCheckedChange={handleToggle}
-        disabled={switchProviderMutation.isPending || !isConfigured}
-      />
-      
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-muted-foreground" />
+        <Sparkles className="h-4 w-4 text-green-600" />
         <Label htmlFor="ai-provider" className="text-sm font-medium cursor-pointer">
           Dify
         </Label>
@@ -106,6 +92,20 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
             MCP
           </Badge>
         )}
+      </div>
+      
+      <Switch
+        id="ai-provider"
+        checked={!isDify}  // Checked means OpenAI (not default)
+        onCheckedChange={handleToggle}
+        disabled={switchProviderMutation.isPending || !isConfigured}
+      />
+      
+      <div className="flex items-center gap-2">
+        <Bot className="h-4 w-4 text-blue-500" />
+        <Label htmlFor="ai-provider" className="text-sm font-medium cursor-pointer">
+          OpenAI
+        </Label>
       </div>
 
       {!isConfigured && (
@@ -130,14 +130,14 @@ export function AIProviderInfo() {
     <Card className="p-3 bg-muted/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isDify ? <Sparkles className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+          {isDify ? <Sparkles className="h-4 w-4 text-green-600" /> : <Bot className="h-4 w-4 text-blue-500" />}
           <span className="text-sm font-medium">
-            {isDify ? 'Dify AI' : 'OpenAI'}
+            {isDify ? 'Dify MCP (Default)' : 'OpenAI'}
           </span>
         </div>
         {isDify && (
           <Badge variant="secondary" className="text-xs">
-            MCP Tools Enabled
+            7000+ External Tools
           </Badge>
         )}
       </div>
