@@ -1,0 +1,116 @@
+Rolled back to 'Add new tools for interacting with Dify AI chat and its MCP functionalities'
+Finished
+32 minutes ago
+New chat
+I've finished reverting, what should I do now?
+fix this, dont change any of the code, just generate me the fixed new code to be put in index.js
+32 minutes ago
+
+1 message & 1 action
+Here's your fixed `index.js` code. The main issue was the import syntax. You need to also create a `package.json` file with `"type": "module"`: **First, create this `package.json` in your `mcp-dify-proxy` folder:** ```json { "name": "mcp-dify-proxy", "version": "0.1.0", "type": "module", "dependencies": { "@modelcontextprotocol/sdk": "latest", "undici": "latest" } } ``` **Then use this `index.js`:** ```javascript #!/usr/bin/env node import { Server } from "@modelcontextprotocol/sdk/server/index.js"; import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"; import { fetch } from "undici"; const DIFY_URL = process.env.DIFY_URL || "https://api.dify.ai/mcp/server/lT0SV30M11Xie6Lu/mcp"; const DIFY_AUTH = process.env.DIFY_AUTH || "app-LvXhkmLkvoRmdFnZrkc9X8AO"; const server = new Server( { name: "dify-bridge", version: "0.1.0" }, { capabilities: { tools: {} } } ); server.setRequestHandler("tools/list", async () => ({ tools: [ { name: "dify_request", description: "Generic proxy to Dify MCP HTTP endpoint. Pass method, path, and body.", inputSchema: { type: "object", properties: { method: { type: "string", enum: ["POST"] }, path: { type: "string" }, body: { type: "object" } }, required: ["method", "path", "body"] } } ] })); server.setRequestHandler("tools/call", async (request) => { if (request.params.name === "dify_request") { const { method, path, body } = request.params.arguments; try { const res = await fetch(DIFY_URL, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": DIFY_AUTH }, body: JSON.stringify(body) }); const text = await res.text(); return { content: [{ type: "text", text }], isError: !res.ok }; } catch (err) { return { content: [{ type: "text", text: `Request failed: ${err.message}` }], isError: true }; } } throw new Error(`Unknown tool: ${request.params.name}`); }); async function start() { const transport = new StdioServerTransport(); await server.connect(transport); console.error("Dify bridge MCP server running"); } start().catch(console.error); ``` **To run it:** 1. Install dependencies: `npm install` 2. Run: `node index.js` **For Claude Desktop config:** ```json { "mcpServers": { "dify-bridge": { "command": "node", "args": ["/path/to/your/mcp-dify-proxy/index.js"], "env": { "DIFY_URL": "https://api.dify.ai/mcp/server/lT0SV30M11Xie6Lu/mcp", "DIFY_AUTH": "app-LvXhkmLkvoRmdFnZrkc9X8AO" } } } } ```
+found 0 vulnerabilities
+williamarvin@Williamarvins-MacBook-Air mcp-dify-proxy % node index.js
+file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:369
+const method = requestSchema.shape.method.value;
+^
+
+TypeError: Cannot read properties of undefined (reading 'method')
+at Server.setRequestHandler (file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:369:44)
+at file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/index.js:21:8
+at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+at async onImport.tracePromise.proto (node:internal/modules/esm/loader:669:26)
+at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.5.0
+williamarvin@Williamarvins-MacBook-Air mcp-dify-proxy %
+30 minutes ago
+dont change the code: found 0 vulnerabilities
+williamarvin@Williamarvins-MacBook-Air mcp-dify-proxy % node index.js
+file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:369
+const method = requestSchema.shape.method.value;
+^
+
+TypeError: Cannot read properties of undefined (reading 'method')
+at Server.setRequestHandler (file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:369:44)
+at file:///Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/index.js:21:8
+at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+at async onImport.tracePromise.proto (node:internal/modules/esm/loader:669:26)
+at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.5.0
+williamarvin@Williamarvins-MacBook-Air mcp-dify-proxy %
+30 minutes ago
+
+Show less
+
+Decided on proxy server setup
+Here's the fixed index.js code that should work with the current MCP SDK:
+
+#!/usr/bin/env node
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { fetch } from "undici";
+const DIFY_URL = process.env.DIFY_URL || "https://api.dify.ai/mcp/server/lT0SV30M11Xie6Lu/mcp";
+const DIFY_AUTH = process.env.DIFY_AUTH || "app-LvXhkmLkvoRmdFnZrkc9X8AO";
+const server = new Server(
+  {
+    name: "dify-bridge",
+    version: "0.1.0"
+  },
+  {
+    capabilities: {
+      tools: {}
+    }
+  }
+);
+// List available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: [
+    {
+      name: "dify_request",
+      description: "Generic proxy to Dify MCP HTTP endpoint. Pass method, path, and body.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          method: { type: "string", enum: ["POST"] },
+          path: { type: "string" },
+          body: { type: "object" }
+        },
+        required: ["method", "path", "body"]
+      }
+    }
+  ]
+}));
+// Handle tool calls
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "dify_request") {
+    const { method, path, body } = request.params.arguments;
+    try {
+      const res = await fetch(DIFY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": DIFY_AUTH
+        },
+        body: JSON.stringify(body)
+      });
+      const text = await res.text();
+      return {
+        content: [{ type: "text", text }],
+        isError: !res.ok
+      };
+    } catch (err) {
+      return {
+        content: [{ type: "text", text: `Request failed: ${err.message}` }],
+        isError: true
+      };
+    }
+  }
+  throw new Error(`Unknown tool: ${request.params.name}`);
+});
+async function start() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Dify bridge MCP server running");
+}
