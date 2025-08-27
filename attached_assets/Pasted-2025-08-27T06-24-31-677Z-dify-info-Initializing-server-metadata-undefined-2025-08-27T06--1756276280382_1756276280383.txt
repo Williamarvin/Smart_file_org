@@ -1,0 +1,154 @@
+2025-08-27T06:24:31.677Z [dify] [info] Initializing server... { metadata: undefined }
+2025-08-27T06:24:31.685Z [dify] [info] Using MCP server command: /opt/homebrew/bin/npx with args and path: {
+  metadata: {
+    args: [ '-y', '@modelcontextprotocol/server-dify', [length]: 2 ],
+    paths: [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/usr/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+      [length]: 7
+    ]
+  }
+} %o
+2025-08-27T06:24:31.687Z [dify] [info] Server started and connected successfully { metadata: undefined }
+2025-08-27T06:24:31.701Z [dify] [info] Message from client: {"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0} { metadata: undefined }
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@modelcontextprotocol%2fserver-dify - Not found
+npm error 404
+npm error 404  The requested resource '@modelcontextprotocol/server-dify@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm notice
+npm notice New patch version of npm available! 11.5.1 -> 11.5.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.5.2
+npm notice To update run: npm install -g npm@11.5.2
+npm notice
+npm error A complete log of this run can be found in: /Users/williamarvin/.npm/_logs/2025-08-27T06_24_33_248Z-debug-0.log
+2025-08-27T06:24:41.927Z [dify] [info] Server transport closed { metadata: undefined }
+2025-08-27T06:24:41.927Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:24:41.928Z [dify] [info] Server transport closed unexpectedly, this is likely due to the process exiting early. If you are developing this MCP server you can add output to stderr (i.e. `console.error('...')` in JavaScript, `print('...', file=sys.stderr)` in python) and it will appear in this log. { metadata: undefined }
+2025-08-27T06:24:41.928Z [dify] [error] Server disconnected. For troubleshooting guidance, please visit our [debugging documentation](https://modelcontextprotocol.io/docs/tools/debugging) { metadata: { context: 'connection', stack: undefined } }
+2025-08-27T06:24:41.928Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:29:16.962Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:29:16.962Z [dify] [info] Shutting down server... { metadata: undefined }
+2025-08-27T06:29:16.997Z [dify] [info] Initializing server... { metadata: undefined }
+2025-08-27T06:29:17.001Z [dify] [info] Using MCP server command: /opt/homebrew/bin/npx with args and path: {
+  metadata: {
+    args: [ '-y', '@modelcontextprotocol/server-dify', [length]: 2 ],
+    paths: [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/usr/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+      [length]: 7
+    ]
+  }
+} %o
+2025-08-27T06:29:17.003Z [dify] [info] Server started and connected successfully { metadata: undefined }
+2025-08-27T06:29:17.010Z [dify] [info] Message from client: {"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0} { metadata: undefined }
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@modelcontextprotocol%2fserver-dify - Not found
+npm error 404
+npm error 404  The requested resource '@modelcontextprotocol/server-dify@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /Users/williamarvin/.npm/_logs/2025-08-27T06_29_17_211Z-debug-0.log
+2025-08-27T06:29:26.416Z [dify] [info] Initializing server... { metadata: undefined }
+2025-08-27T06:29:26.425Z [dify] [info] Using MCP server command: /opt/homebrew/bin/npx with args and path: {
+  metadata: {
+    args: [ '-y', '@modelcontextprotocol/server-dify', [length]: 2 ],
+    paths: [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/usr/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+      [length]: 7
+    ]
+  }
+} %o
+2025-08-27T06:29:26.427Z [dify] [info] Server started and connected successfully { metadata: undefined }
+2025-08-27T06:29:26.441Z [dify] [info] Message from client: {"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0} { metadata: undefined }
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@modelcontextprotocol%2fserver-dify - Not found
+npm error 404
+npm error 404  The requested resource '@modelcontextprotocol/server-dify@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /Users/williamarvin/.npm/_logs/2025-08-27T06_29_26_613Z-debug-0.log
+2025-08-27T06:29:36.384Z [dify] [info] Server transport closed { metadata: undefined }
+2025-08-27T06:29:36.385Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:29:36.385Z [dify] [info] Server transport closed unexpectedly, this is likely due to the process exiting early. If you are developing this MCP server you can add output to stderr (i.e. `console.error('...')` in JavaScript, `print('...', file=sys.stderr)` in python) and it will appear in this log. { metadata: undefined }
+2025-08-27T06:29:36.385Z [dify] [error] Server disconnected. For troubleshooting guidance, please visit our [debugging documentation](https://modelcontextprotocol.io/docs/tools/debugging) { metadata: { context: 'connection', stack: undefined } }
+2025-08-27T06:29:36.385Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:30:39.970Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:30:39.969Z [dify] [info] Shutting down server... { metadata: undefined }
+2025-08-27T06:30:40.025Z [dify] [info] Initializing server... { metadata: undefined }
+2025-08-27T06:30:40.029Z [dify] [info] Using MCP server command: /opt/homebrew/bin/npx with args and path: {
+  metadata: {
+    args: [ '-y', '@modelcontextprotocol/server-dify', [length]: 2 ],
+    paths: [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/usr/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+      [length]: 7
+    ]
+  }
+} %o
+2025-08-27T06:30:40.032Z [dify] [info] Server started and connected successfully { metadata: undefined }
+2025-08-27T06:30:40.037Z [dify] [info] Message from client: {"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0} { metadata: undefined }
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@modelcontextprotocol%2fserver-dify - Not found
+npm error 404
+npm error 404  The requested resource '@modelcontextprotocol/server-dify@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /Users/williamarvin/.npm/_logs/2025-08-27T06_30_40_247Z-debug-0.log
+2025-08-27T06:30:51.351Z [dify] [info] Initializing server... { metadata: undefined }
+2025-08-27T06:30:51.365Z [dify] [info] Using MCP server command: /opt/homebrew/bin/npx with args and path: {
+  metadata: {
+    args: [ '-y', '@modelcontextprotocol/server-fetch', [length]: 2 ],
+    paths: [
+      '/usr/local/bin',
+      '/opt/homebrew/bin',
+      '/usr/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+      [length]: 7
+    ]
+  }
+} %o
+2025-08-27T06:30:51.367Z [dify] [info] Server started and connected successfully { metadata: undefined }
+2025-08-27T06:30:51.381Z [dify] [info] Message from client: {"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0} { metadata: undefined }
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@modelcontextprotocol%2fserver-fetch - Not found
+npm error 404
+npm error 404  The requested resource '@modelcontextprotocol/server-fetch@*' could not be found or you do not have permission to access it.
+npm error 404
+npm error 404 Note that you can also install from a
+npm error 404 tarball, folder, http url, or git url.
+npm error A complete log of this run can be found in: /Users/williamarvin/.npm/_logs/2025-08-27T06_30_51_535Z-debug-0.log
+2025-08-27T06:31:01.385Z [dify] [info] Server transport closed { metadata: undefined }
+2025-08-27T06:31:01.386Z [dify] [info] Client transport closed { metadata: undefined }
+2025-08-27T06:31:01.386Z [dify] [info] Server transport closed unexpectedly, this is likely due to the process exiting early. If you are developing this MCP server you can add output to stderr (i.e. `console.error('...')` in JavaScript, `print('...', file=sys.stderr)` in python) and it will appear in this log. { metadata: undefined }
+2025-08-27T06:31:01.386Z [dify] [error] Server disconnected. For troubleshooting guidance, please visit our [debugging documentation](https://modelcontextprotocol.io/docs/tools/debugging) { metadata: { context: 'connection', stack: undefined } }
+2025-08-27T06:31:01.387Z [dify] [info] Client transport closed { metadata: undefined }
