@@ -10,10 +10,10 @@
 
 ## ✅ Database Status
 - [x] Database provisioned and ready
-- [x] 491 total files in system
-- [x] 114 successfully processed files
-- [x] 377 error files (from Excel imports awaiting retry)
-- [x] 137 folders created
+- [x] 343 total files in system
+- [x] 121 successfully processed files
+- [x] 0 files currently processing
+- [x] 142 folders created
 
 ## ✅ Object Storage Status
 - [x] Bucket ID: replit-objstore-66462a0e-61f7-48ee-844e-b50098909575
