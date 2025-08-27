@@ -1,0 +1,14 @@
+{
+  "name": "mcp-dify-proxy",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP bridge for Dify",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "undici": "latest"
+  }
+}
