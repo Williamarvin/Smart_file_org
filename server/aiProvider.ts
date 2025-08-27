@@ -22,6 +22,7 @@ export interface AIProviderConfig {
 export class AIProviderService {
   private currentProvider: AIProvider = 'openai';
   private userProviderPreferences: Map<string, AIProvider> = new Map();
+  private conversationIds: Map<string, string> = new Map(); // Store conversation IDs for Dify sessions
 
   /**
    * Set the default provider
@@ -76,14 +77,31 @@ export class AIProviderService {
   }
 
   /**
+   * Get or create conversation ID for a user
+   */
+  private getConversationId(userId?: string): string | undefined {
+    const key = userId || 'default';
+    return this.conversationIds.get(key);
+  }
+
+  /**
+   * Store conversation ID for a user
+   */
+  private setConversationId(userId: string | undefined, conversationId: string) {
+    const key = userId || 'default';
+    this.conversationIds.set(key, conversationId);
+  }
+
+  /**
    * Chat with files using the selected provider
    */
   async chatWithFiles(
     messages: ChatMessage[],
     fileContents: string[],
     systemPrompt?: string,
-    userId?: string
-  ): Promise<string> {
+    userId?: string,
+    conversationId?: string
+  ): Promise<{ response: string; conversationId?: string }> {
     const provider = this.getProvider(userId);
     
     console.log(`Using ${provider} provider for chat`);
@@ -93,13 +111,24 @@ export class AIProviderService {
         throw new Error('Dify is not configured. Please provide API credentials or switch to OpenAI.');
       }
       
-      return await difyService.chatWithFiles(
+      // Use provided conversation ID or get stored one for this user
+      const currentConversationId = conversationId || this.getConversationId(userId);
+      
+      const result = await difyService.chatWithFiles(
         messages,
         fileContents,
         systemPrompt,
         true, // Enable MCP by default
-        userId
+        userId,
+        currentConversationId
       );
+      
+      // Store conversation ID for future messages
+      if (result.conversationId) {
+        this.setConversationId(userId, result.conversationId);
+      }
+      
+      return result;
     } else {
       // Use OpenAI directly with proper format
       const openai = getOpenAIClient();
@@ -143,7 +172,11 @@ ${context}`;
         max_tokens: 1000,
       });
       
-      return response.choices[0].message.content || "I apologize, but I couldn't generate a response. Please try again.";
+      // Return in same format as Dify for consistency
+      return {
+        response: response.choices[0].message.content || "I apologize, but I couldn't generate a response. Please try again.",
+        conversationId: undefined // OpenAI doesn't use conversation IDs
+      };
     }
   }
 

@@ -224,8 +224,9 @@ export class DifyService {
     fileContents: string[],
     systemPrompt?: string,
     enableMCP: boolean = true,
-    userId?: string
-  ): Promise<string> {
+    userId?: string,
+    conversationId?: string
+  ): Promise<{ response: string; conversationId?: string }> {
     if (!this.config) {
       throw new Error('Dify service not configured');
     }
@@ -267,19 +268,33 @@ export class DifyService {
       ...inputs
     };
     
-    const result = await this.chatCompletion({
+    // Build completion options with conversation ID if provided
+    const completionOptions: DifyCompletionOptions = {
       query,
       inputs: difyInputs,
       user: userId || 'default-user'
       // response_mode is now handled in chatCompletion method
-    });
+    };
+    
+    // Add conversation_id if provided to maintain chat context
+    if (conversationId) {
+      completionOptions.conversation_id = conversationId;
+    }
+    
+    const result = await this.chatCompletion(completionOptions);
 
     // Handle MCP tool execution results if present
     if (result.mcp_tool_results) {
       console.log('MCP tools executed:', result.mcp_tool_results);
     }
 
-    return result.answer || result.text || '';
+    // Extract conversation ID from response for maintaining context
+    const responseConversationId = result.conversation_id || conversationId;
+
+    return {
+      response: result.answer || result.text || '',
+      conversationId: responseConversationId
+    };
   }
 
   /**

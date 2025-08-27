@@ -30,6 +30,7 @@ export function Chat() {
   const [inputMessage, setInputMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [conversationContext, setConversationContext] = useState<any>(null);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -49,7 +50,8 @@ export function Chat() {
         message, 
         fileIds, 
         chatHistory: chatHistory.slice(-10), // Send last 10 messages for context
-        conversationContext: conversationContext
+        conversationContext: conversationContext,
+        conversationId: conversationId // Pass conversation ID for Dify MCP memory
       });
       return response.json();
     },
@@ -66,6 +68,11 @@ export function Chat() {
       // Update conversation context from oversight agent
       if (data.conversationContext) {
         setConversationContext(data.conversationContext);
+      }
+      
+      // Store conversation ID for Dify MCP memory
+      if (data.conversationId) {
+        setConversationId(data.conversationId);
       }
     },
     onError: (error) => {

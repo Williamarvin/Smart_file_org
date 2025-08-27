@@ -1632,7 +1632,7 @@ ${file.fileContent.toString()}`;
   app.post("/api/chat", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { message, fileIds, chatHistory = [], conversationContext, provider } = z.object({
+      const { message, fileIds, chatHistory = [], conversationContext, provider, conversationId } = z.object({
         message: z.string(),
         fileIds: z.array(z.string()).optional().default([]),
         chatHistory: z.array(z.object({
@@ -1640,7 +1640,8 @@ ${file.fileContent.toString()}`;
           content: z.string()
         })).optional().default([]),
         conversationContext: z.any().optional(),
-        provider: z.enum(['openai', 'dify']).optional()
+        provider: z.enum(['openai', 'dify']).optional(),
+        conversationId: z.string().optional()
       }).parse(req.body);
 
       // Process with oversight agent
@@ -1680,19 +1681,21 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         { role: 'user' as const, content: message }
       ];
       
-      // Generate response using AI provider with oversight
-      const response = await aiProvider.chatWithFiles(
+      // Generate response using AI provider with oversight and conversation ID
+      const result = await aiProvider.chatWithFiles(
         messages,
         fileContents,
         oversightInstructions,
-        userId
+        userId,
+        conversationId
       );
       
       res.json({ 
-        response,
+        response: result.response,
         relatedFiles: fileIds,
         conversationContext: updatedContext,
-        provider: aiProvider.getProvider(userId)
+        provider: aiProvider.getProvider(userId),
+        conversationId: result.conversationId // Return conversation ID for Dify sessions
       });
     } catch (error) {
       console.error("Error in chat:", error);
