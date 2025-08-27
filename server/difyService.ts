@@ -265,6 +265,7 @@ export class DifyService {
     const difyInputs = {
       folder_file_materials: inputs.folder_file_materials || '',
       ai_tutor_prompt: systemPrompt || 'You are a helpful AI assistant that can answer questions and help with various tasks.',
+      system_prompt: systemPrompt || 'You are a helpful AI assistant that can answer questions and help with various tasks.',
       ...inputs
     };
     

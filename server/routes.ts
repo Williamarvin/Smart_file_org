@@ -1646,13 +1646,18 @@ ${file.fileContent.toString()}`;
         conversationId: z.string().optional()
       }).parse(req.body);
 
-      // Process with oversight agent
-      const { processWithOversight } = await import("./oversightAgent");
-      const { oversightInstructions, updatedContext } = await processWithOversight(
-        message,
-        chatHistory,
-        conversationContext
-      );
+      // Skip oversight agent for Chat with Files page - allow natural conversation
+      // The oversight agent was causing the "generate new prompt" issue
+      let systemPrompt = `You are a helpful AI assistant with access to the user's uploaded documents.
+You can answer questions, provide summaries, extract information, and have natural conversations about the content.
+Remember context from previous messages in this conversation.
+
+When responding:
+- Be conversational and natural
+- Reference specific documents when relevant
+- Remember what was discussed earlier in the conversation
+- If asked about something not in the provided files, you can still respond helpfully
+- Don't redirect or suggest generating new prompts`;
 
       // Set provider if specified for this request
       if (provider) {
@@ -1683,11 +1688,11 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         { role: 'user' as const, content: message }
       ];
       
-      // Generate response using AI provider with oversight and conversation ID
+      // Generate response using AI provider with simple prompt and conversation ID
       const result = await aiProvider.chatWithFiles(
         messages,
         fileContents,
-        oversightInstructions,
+        systemPrompt,
         userId,
         conversationId
       );
@@ -1695,7 +1700,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       res.json({ 
         response: result.response,
         relatedFiles: fileIds,
-        conversationContext: updatedContext,
+        conversationContext: { topic: "General conversation", messages: chatHistory.length },
         provider: aiProvider.getProvider(userId),
         conversationId: result.conversationId // Return conversation ID for Dify sessions
       });
