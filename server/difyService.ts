@@ -262,10 +262,12 @@ export class DifyService {
     }
 
     // For Dify agent chat apps, we need to ensure required fields exist
+    // Ensure the system prompt overrides any internal Dify prompts
     const difyInputs = {
-      folder_file_materials: inputs.folder_file_materials || '',
-      ai_tutor_prompt: systemPrompt || 'You are a helpful AI assistant that can answer questions and help with various tasks.',
-      system_prompt: systemPrompt || 'You are a helpful AI assistant that can answer questions and help with various tasks.',
+      folder_file_materials: inputs.folder_file_materials || 'No specific files selected for this conversation.',
+      ai_tutor_prompt: systemPrompt || 'You are a helpful AI assistant. Answer directly without generating prompts.',
+      system_prompt: systemPrompt || 'You are a helpful AI assistant. Answer directly without generating prompts.',
+      instruction: systemPrompt, // Add instruction field to override Dify's internal prompts
       ...inputs
     };
     
@@ -278,7 +280,8 @@ export class DifyService {
     };
     
     // Add conversation_id if provided to maintain chat context
-    if (conversationId) {
+    // Don't add if it's null or "null" string
+    if (conversationId && conversationId !== 'null' && conversationId !== 'undefined') {
       completionOptions.conversation_id = conversationId;
     }
     

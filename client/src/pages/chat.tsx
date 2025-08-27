@@ -31,6 +31,7 @@ export function Chat() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [conversationContext, setConversationContext] = useState<any>(null);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  const currentProviderRef = useRef<'openai' | 'dify'>('dify');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -51,7 +52,7 @@ export function Chat() {
         fileIds, 
         chatHistory: chatHistory.slice(-10), // Send last 10 messages for context
         conversationContext: conversationContext,
-        conversationId: conversationId // Pass conversation ID for Dify MCP memory
+        conversationId: conversationId && conversationId !== 'null' ? conversationId : undefined // Pass conversation ID for Dify MCP memory
       });
       return response.json();
     },
@@ -71,8 +72,13 @@ export function Chat() {
       }
       
       // Store conversation ID for Dify MCP memory
-      if (data.conversationId) {
+      if (data.conversationId && data.conversationId !== 'null') {
         setConversationId(data.conversationId);
+      }
+      
+      // Store current provider
+      if (data.provider) {
+        currentProviderRef.current = data.provider;
       }
     },
     onError: (error) => {

@@ -1643,21 +1643,23 @@ ${file.fileContent.toString()}`;
         })).optional().default([]),
         conversationContext: z.any().optional(),
         provider: z.enum(['openai', 'dify']).optional(),
-        conversationId: z.string().optional()
+        conversationId: z.string().nullable().optional()
       }).parse(req.body);
 
       // Skip oversight agent for Chat with Files page - allow natural conversation
       // The oversight agent was causing the "generate new prompt" issue
-      let systemPrompt = `You are a helpful AI assistant with access to the user's uploaded documents.
-You can answer questions, provide summaries, extract information, and have natural conversations about the content.
-Remember context from previous messages in this conversation.
+      let systemPrompt = `You are a helpful AI assistant having a natural conversation. 
 
-When responding:
-- Be conversational and natural
-- Reference specific documents when relevant
-- Remember what was discussed earlier in the conversation
-- If asked about something not in the provided files, you can still respond helpfully
-- Don't redirect or suggest generating new prompts`;
+IMPORTANT INSTRUCTIONS:
+- NEVER suggest generating prompts or ask for file identifiers
+- NEVER say things like "I need to access the contents" or "provide me with identifiers"
+- You already have access to all the information from previous messages
+- When the user says "tell me more", continue expanding on the topic you were just discussing
+- Remember everything from the conversation history
+- Answer questions directly without redirecting
+- Be conversational and helpful
+
+You have access to the user's uploaded documents and can discuss them naturally.`;
 
       // Set provider if specified for this request
       if (provider) {
@@ -1667,8 +1669,13 @@ When responding:
       // Get context files
       const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
       
+      // Always include information about available files even if none selected
+      // This helps maintain context about what files exist
+      const allFiles = await storage.getFiles(userId, 100);
+      const fileListContext = allFiles.map(f => f.filename).join(', ');
+      
       // Extract file contents for the AI provider
-      const fileContents = files.map(file => {
+      const fileContents = files.length > 0 ? files.map(file => {
         const text = file.metadata?.extractedText || "";
         const summary = file.metadata?.summary || "";
         const keywords = file.metadata?.keywords?.join(", ") || "";
@@ -1677,7 +1684,7 @@ When responding:
 Summary: ${summary}
 Keywords: ${keywords}
 Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
-      });
+      }) : [`Available files in system: ${fileListContext}`];
       
       // Build chat messages array
       const messages = [
