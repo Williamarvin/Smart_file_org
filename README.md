@@ -7,10 +7,13 @@ An advanced AI-powered document management and lesson generation platform with s
 ### Core Capabilities
 - **📁 Smart File Management**: Upload, organize, and manage documents and videos with folder hierarchy
 - **🔍 AI-Powered Search**: Semantic similarity search using OpenAI embeddings with title priority matching
-- **💬 Document Chat**: Conversational AI interface with oversight agent for context management
+- **💬 Document Chat**: Conversational AI interface with dual-provider support (OpenAI/Dify)
 - **🤖 Avatar System**: AI personas with distinct personalities and database access
 - **📚 Lesson Generation**: Multi-agent system creating PowerPoints, flashcards, and quizzes
 - **🎬 Slideshow Video Generation**: Create MP4 videos with AI-generated slides and OpenAI TTS narration
+- **🔄 Provider Switching**: Seamlessly switch between OpenAI and Dify providers across all AI features
+- **🌐 MCP Integration**: Connect to 7000+ external tools through Dify's Model Context Protocol
+- **👨‍🏫 Teacher Agent**: Full dual-provider support for interactive teaching sessions
 - **📊 Excel Import System**: Automatic folder/file structure creation from curriculum spreadsheets
 - **🔄 Automatic OCR**: Background OCR processing for scanned PDFs using Tesseract.js
 - **⚡ Hybrid Storage**: Optimized performance with PostgreSQL BYTEA (≤10MB) + Google Cloud Storage
@@ -45,12 +48,14 @@ An advanced AI-powered document management and lesson generation platform with s
 - **pgvector** for vector similarity search
 
 ### AI Integration
-- **OpenAI GPT-5**: Content analysis, chat, and generation (latest model)
+- **Dual Provider System**: Seamlessly switch between OpenAI and Dify providers
+- **OpenAI GPT-4o**: Content analysis, chat, and generation
+- **Dify MCP Integration**: Access to 7000+ external tools (Zapier, Linear, Gmail, etc.)
 - **OpenAI TTS**: Multiple voice options for slideshow narration (alloy, echo, fable, onyx, nova, shimmer)
 - **Whisper**: Video/audio transcription
 - **Tesseract.js**: Local OCR for scanned PDFs
 - **Google Vision API**: Fallback OCR for enhanced accuracy
-- **Custom Agents**: Specialized lesson creation agents
+- **Custom Agents**: Specialized lesson creation agents with dual-provider support
 
 ## 📦 Installation
 
@@ -73,6 +78,9 @@ PGPORT=5432
 
 # OpenAI
 OPENAI_API_KEY=sk-...
+
+# Dify (optional - for MCP features)
+DIFY_API_KEY=app-...
 
 # Optional: Google Cloud Storage
 GCS_BUCKET_NAME=your-bucket
