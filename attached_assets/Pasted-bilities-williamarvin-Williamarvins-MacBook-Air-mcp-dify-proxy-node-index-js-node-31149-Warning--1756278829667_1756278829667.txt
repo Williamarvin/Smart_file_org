@@ -1,0 +1,70 @@
+bilities
+williamarvin@Williamarvins-MacBook-Air mcp-dify-proxy % node index.js
+(node:31149) Warning: Failed to load the ES module: /Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/index.js. Make sure to set "type": "module" in the nearest package.json file or use the .mjs extension.
+(Use node --trace-warnings ... to show where the warning was created)
+/Users/williamarvin/Documents/work_chunwo/dify-claude/mcp-dify-proxy/index.js:2
+import { StdioServer } from "@modelcontextprotocol/sdk/server/stdio.js";
+^^^^^^
+
+SyntaxError: Cannot use import statement outside a module
+at wrapSafe (node:internal/modules/cjs/loader:1669:18)
+at Module._compile (node:internal/modules/cjs/loader:1712:20)
+at Object..js (node:internal/modules/cjs/loader:1871:10)
+at Module.load (node:internal/modules/cjs/loader:1470:32)
+at Module._load (node:internal/modules/cjs/loader:1290:12)
+at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+at node:internal/main/run_main_module:33:47
+
+Node.js v24.5.0 can you help me fix #!/usr/bin/env node
+import { StdioServer } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fetch } from "undici";
+
+const DIFY_URL = process.env.DIFY_URL || "https://api.dify.ai/mcp/server/lT0SV30M11Xie6Lu/mcp";
+const DIFY_AUTH = process.env.DIFY_AUTH || "app-LvXhkmLkvoRmdFnZrkc9X8AO";
+
+const server = new StdioServer({
+name: "dify-bridge",
+version: "0.1.0",
+});
+
+server.tool(
+"dify_request",
+{
+description: "Generic proxy to Dify MCP HTTP endpoint. Pass method, path, and body.",
+inputSchema: {
+type: "object",
+properties: {
+method: { type: "string", enum: ["POST"] },
+path: { type: "string" },
+body: { type: "object" }
+},
+required: ["method", "path", "body"]
+}
+},
+async ({ method, path, body }) => {
+try {
+const res = await fetch(DIFY_URL, {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+"Authorization": DIFY_AUTH
+},
+body: JSON.stringify(body)
+});
+const text = await res.text();
+return {
+content: [{ type: "text", text }],
+isError: !res.ok
+};
+} catch (err) {
+return {
+content: [{ type: "text", text: Request failed: ${err.message} }],
+isError: true
+};
+}
+}
+);
+
+server.start();
