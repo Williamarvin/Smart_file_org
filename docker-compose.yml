@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: file-manager-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: filemanager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: file-manager-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/filemanager
+      # Add your environment variables here or use .env file
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DIFY_API_KEY: ${DIFY_API_KEY}
+      GOOGLE_CLOUD_CREDENTIALS: ${GOOGLE_CLOUD_CREDENTIALS}
+      PUBLIC_OBJECT_SEARCH_PATHS: /app/public
+      PRIVATE_OBJECT_DIR: /app/.private
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
+        npm run db:push &&
+        npm start
+      "
+
+volumes:
+  postgres_data:
