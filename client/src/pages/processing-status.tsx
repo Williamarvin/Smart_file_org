@@ -562,7 +562,7 @@ export default function ProcessingStatus() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => navigate(`/metadata/${file.id}`)}
+                        onClick={() => navigate(`/file/${file.id}`)}
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         Details
