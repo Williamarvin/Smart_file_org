@@ -201,7 +201,7 @@ Focus on extracting actionable insights and content that would be valuable for s
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4.1", // Using GPT-4.1 for better temperature parameter support
         messages: [
           {
             role: "system",
@@ -213,7 +213,7 @@ Focus on extracting actionable insights and content that would be valuable for s
           }
         ],
         response_format: { type: "json_object" },
-        // GPT-5 only supports temperature=1, removed custom temperature
+        temperature: 0.3
       });
 
       return JSON.parse(response.choices[0].message.content || "{}");
@@ -458,7 +458,7 @@ Respond in JSON format:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4.1", // Using GPT-4.1 for better temperature parameter support
         messages: [
           {
             role: "system",
@@ -470,7 +470,7 @@ Respond in JSON format:
           }
         ],
         response_format: { type: "json_object" },
-        // GPT-5 only supports temperature=1, removed custom temperature
+        temperature: 0.3
       });
 
       const searchResults = JSON.parse(response.choices[0].message.content || '{"results":[],"searchIntent":"","totalResults":0}');
