@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle, User, BookOpen, Bot } from "lucide-react";
+import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle, User, BookOpen, Bot, Activity } from "lucide-react";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -19,6 +19,7 @@ export function MobileNavigation() {
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/browse", icon: FolderOpen, label: "Browse Files" },
     { path: "/upload", icon: Upload, label: "Upload Files" },
+    { path: "/processing-status", icon: Activity, label: "Processing Status" },
     { path: "/analysis", icon: BarChart3, label: "Analysis" },
     { path: "/generate", icon: Sparkles, label: "Generate Content" },
     { path: "/generate-lessons", icon: BookOpen, label: "Generate Lessons" },
@@ -100,8 +101,8 @@ export function MobileNavigation() {
 
       {/* Bottom Navigation Bar for Mobile */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40">
-        <div className="grid grid-cols-6 gap-1 p-2">
-          {navItems.map((item) => {
+        <div className="grid grid-cols-3 gap-1 p-2">
+          {navItems.slice(0, 3).map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path;
             

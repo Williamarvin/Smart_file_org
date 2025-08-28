@@ -1191,6 +1191,14 @@ ${file.fileContent.toString()}`;
       
       for (const file of filesToUpdate) {
         try {
+          // Set status to processing to make it visible in Processing Status page
+          await db.update(files)
+            .set({ 
+              processingStatus: 'processing',
+              processedAt: null  // Clear processed timestamp during reprocessing
+            })
+            .where(eq(files.id, file.id as string));
+            
           const content = file.file_content?.toString() || '';
           if (content && content.length > 0 && !content.startsWith('File reference:')) {
             // Generate AI metadata from the content
@@ -1205,11 +1213,31 @@ ${file.fileContent.toString()}`;
               categories: aiMetadata.categories || ['Education']
             });
             
+            // Set status back to completed after successful processing
+            await db.update(files)
+              .set({ 
+                processingStatus: 'completed',
+                processedAt: new Date()
+              })
+              .where(eq(files.id, file.id as string));
+            
             console.log(`✅ Updated metadata for ${file.original_name}`);
             updated++;
+          } else {
+            // Set back to completed if no content to process
+            await db.update(files)
+              .set({ processingStatus: 'completed' })
+              .where(eq(files.id, file.id as string));
           }
         } catch (error) {
           console.error(`Failed to update metadata for ${file.original_name}:`, error);
+          // Set status to error on failure
+          await db.update(files)
+            .set({ 
+              processingStatus: 'error',
+              processingError: error instanceof Error ? error.message : 'Metadata update failed'
+            })
+            .where(eq(files.id, file.id as string));
           failed++;
         }
       }

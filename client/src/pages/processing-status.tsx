@@ -284,12 +284,11 @@ export default function ProcessingStatus() {
               variant="default"
               onClick={async () => {
                 try {
-                  const response = await apiRequest('/api/files/retry-processing', {
-                    method: 'POST'
-                  });
+                  const response = await apiRequest('POST', '/api/files/retry-processing');
+                  const data = await response.json();
                   toast({
                     title: "Retrying Stuck Files",
-                    description: `Retrying ${response.count} stuck processing files.`
+                    description: `Retrying ${data.count || processingFiles.length} stuck processing files.`
                   });
                   queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
                   queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
@@ -309,12 +308,11 @@ export default function ProcessingStatus() {
               variant="destructive"
               onClick={async () => {
                 try {
-                  const response = await apiRequest('/api/files/stop-processing', {
-                    method: 'POST'
-                  });
+                  const response = await apiRequest('POST', '/api/files/stop-processing');
+                  const data = await response.json();
                   toast({
                     title: "Processing Stopped",
-                    description: `Stopped ${response.count} files. You can retry them later.`
+                    description: `Stopped ${data.count || processingFiles.length} files. You can retry them later.`
                   });
                   queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
                   queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
@@ -338,12 +336,11 @@ export default function ProcessingStatus() {
             variant="outline"
             onClick={async () => {
               try {
-                const response = await apiRequest('/api/files/retry-all-errors', {
-                  method: 'POST'
-                });
+                const response = await apiRequest('POST', '/api/files/retry-all-errors');
+                const data = await response.json();
                 toast({
                   title: "Retry Started",
-                  description: `Retrying ${response.count} errored files.`
+                  description: `Retrying ${data.count || errorFiles.length} errored files.`
                 });
                 queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
@@ -367,12 +364,11 @@ export default function ProcessingStatus() {
             onClick={async () => {
               if (confirm(`This will permanently delete ${errorFiles.length} files that can't be found. Continue?`)) {
                 try {
-                  const response = await apiRequest('/api/files/cleanup-missing', {
-                    method: 'DELETE'
-                  });
+                  const response = await apiRequest('DELETE', '/api/files/cleanup-missing');
+                  const data = await response.json();
                   toast({
                     title: "Cleanup Complete",
-                    description: `Removed ${response.count} missing files from the database.`
+                    description: `Removed ${data.count || errorFiles.length} missing files from the database.`
                   });
                   queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
                   queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
