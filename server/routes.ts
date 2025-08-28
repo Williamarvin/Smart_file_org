@@ -1881,6 +1881,8 @@ You have access to the user's uploaded documents and can discuss them naturally.
         aiProvider.setUserProvider(userId, provider);
       }
 
+      console.log(`Processing chat request with provider: ${aiProvider.getProvider(userId)}, message length: ${message.length}, files: ${fileIds.length}, conversationId: ${conversationId}`);
+
       // Get context files
       const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
       
@@ -1910,6 +1912,8 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         { role: 'user' as const, content: message }
       ];
       
+      console.log(`Sending to AI provider with ${messages.length} messages, ${fileContents.length} file contexts`);
+
       // Generate response using AI provider with simple prompt and conversation ID
       const result = await aiProvider.chatWithFiles(
         messages,
@@ -1919,6 +1923,8 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         conversationId
       );
       
+      console.log(`Received response from AI provider, length: ${result.response?.length || 0}, conversationId: ${result.conversationId}`);
+      
       res.json({ 
         response: result.response,
         relatedFiles: fileIds,
@@ -1926,9 +1932,29 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         provider: aiProvider.getProvider(userId),
         conversationId: result.conversationId // Return conversation ID for Dify sessions
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in chat:", error);
-      res.status(500).json({ error: "Failed to process chat message" });
+      console.error("Error stack:", error?.stack);
+      console.error("Error details:", {
+        message: error?.message,
+        name: error?.name,
+        response: error?.response,
+        status: error?.status
+      });
+      
+      // Provide more detailed error information
+      const errorMessage = error?.message || "Failed to process chat message";
+      const isApiKeyError = errorMessage.includes("API") || errorMessage.includes("credentials") || errorMessage.includes("configured");
+      const isDifyError = errorMessage.includes("Dify");
+      
+      res.status(500).json({ 
+        error: isApiKeyError 
+          ? "AI service not configured. Please check your API credentials."
+          : isDifyError 
+            ? "Failed to connect to Dify. Please ensure DIFY_API_KEY is configured correctly."
+            : "Failed to process chat message. Please try again or switch AI providers.",
+        details: error?.message || undefined
+      });
     }
   });
 

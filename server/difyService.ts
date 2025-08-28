@@ -81,8 +81,27 @@ export class DifyService {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Dify API error: ${response.status} - ${error}`);
+        const errorText = await response.text();
+        console.error(`Dify API error: ${response.status} - ${errorText}`);
+        
+        // Parse error message if it's JSON
+        let errorMessage = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || errorText;
+        } catch (e) {
+          // Keep as text if not JSON
+        }
+        
+        if (response.status === 401) {
+          throw new Error('Invalid Dify API key. Please check your DIFY_API_KEY configuration.');
+        } else if (response.status === 404) {
+          throw new Error('Dify API endpoint not found. Please check your configuration.');
+        } else if (response.status === 500 || response.status === 503) {
+          throw new Error('Dify service is currently unavailable. Please try again later.');
+        }
+        
+        throw new Error(`Dify API error (${response.status}): ${errorMessage}`);
       }
 
       // Handle streaming response for agent chat

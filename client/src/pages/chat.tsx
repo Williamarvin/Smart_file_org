@@ -81,11 +81,14 @@ export function Chat() {
         currentProviderRef.current = data.provider;
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Chat error:", error);
+      const errorMessage = error?.response?.data?.error || error?.message || "Failed to get response. Please try again.";
+      const errorDetails = error?.response?.data?.details || "";
+      
       toast({
         title: "Chat Error",
-        description: "Failed to get response. Please try again.",
+        description: errorMessage + (errorDetails ? ` (${errorDetails})` : ""),
         variant: "destructive",
       });
     },
