@@ -1781,6 +1781,39 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Force reprocess a file (even if completed) to test new vector storage
+  app.post("/api/files/:id/reprocess", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const fileId = req.params.id;
+      
+      const file = await storage.getFile(fileId, userId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      console.log(`🔄 Force reprocessing ${file.originalName} to test new vector storage system`);
+      
+      // Reset status to processing
+      await storage.updateFileProcessingStatus(fileId, userId, "processing", "Force reprocessing to test OpenAI vector storage");
+      
+      // Process file asynchronously with new vector storage
+      processFileAsync(fileId, userId).catch(err => {
+        console.error(`Failed to reprocess ${fileId}:`, err);
+      });
+      
+      res.json({ 
+        message: "Force reprocessing initiated", 
+        fileId, 
+        filename: file.originalName,
+        reason: "Testing new OpenAI vector storage system"
+      });
+    } catch (error) {
+      console.error("Error force reprocessing file:", error);
+      res.status(500).json({ error: "Failed to force reprocess file" });
+    }
+  });
+
   // Generate content using existing files
   app.post("/api/generate-content", async (req: any, res) => {
     try {
@@ -2092,22 +2125,50 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       // 📊 STEP 4: VECTOR STORAGE (OpenAI Vector Store API)
       // ========================================================================================
       console.log(`📊 Step 4/5: Vector Storage using OpenAI Vector Store API`);
-      let vectorMetadata;
-      try {
-        vectorMetadata = await vectorIndexManager.addFileToIndex(
-          extractedText,
-          file.originalName,
-          {
-            fileId: file.id,
-            mimeType: file.mimeType,
-            size: file.size,
-            uploadedAt: file.uploadedAt
+      let vectorMetadata = null;
+      
+      // Only attempt vector storage if we have sufficient content
+      if (extractedText && extractedText.trim().length >= 100) {
+        try {
+          console.log(`🚀 Attempting to add ${file.originalName} to OpenAI Vector Store...`);
+          
+          vectorMetadata = await vectorIndexManager.addFileToIndex(
+            extractedText,
+            file.originalName,
+            {
+              fileId: file.id,
+              mimeType: file.mimeType,
+              size: file.size,
+              uploadedAt: file.uploadedAt
+            }
+          );
+          
+          console.log(`✅ Step 4 SUCCESSFUL: Added to OpenAI vector store with ID ${vectorMetadata.openaiFileId}`);
+          console.log(`📊 Vector storage details:`, {
+            openaiFileId: vectorMetadata.openaiFileId,
+            vectorStoreId: vectorMetadata.vectorStoreId,
+            hasAiAnalysis: !!vectorMetadata.aiAnalysis,
+            hasCategorization: !!vectorMetadata.categorization,
+            namedEntitiesCount: vectorMetadata.namedEntities?.length || 0,
+            actionItemsCount: vectorMetadata.actionItems?.length || 0
+          });
+          
+        } catch (error: any) {
+          console.error(`❌ Step 4 FAILED: Vector storage error for ${file.originalName}:`, error?.message);
+          console.error(`🔧 Continuing with legacy approach (pgvector only)`);
+          
+          // Don't fail the entire processing - continue with legacy approach
+          vectorMetadata = null;
+          
+          // Log the specific error for debugging
+          if (error?.message?.includes('authentication')) {
+            console.error(`🔑 OpenAI API authentication issue detected`);
+          } else if (error?.message?.includes('quota')) {
+            console.error(`💳 OpenAI API quota/billing issue detected`);
           }
-        );
-        console.log(`✅ Step 4 complete: Added to OpenAI vector store with ID ${vectorMetadata.openaiFileId}`);
-      } catch (error) {
-        console.error("Vector storage failed, continuing with legacy approach:", error);
-        vectorMetadata = null;
+        }
+      } else {
+        console.log(`⏭️ Skipping vector storage: insufficient content (${extractedText?.length || 0} chars)`);
       }
 
       // ========================================================================================
