@@ -734,6 +734,112 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Retry all errored files
+  app.post("/api/files/retry-all-errors", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Get all errored files
+      const erroredFiles = await db.select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.processingStatus, 'error')
+          )
+        );
+      
+      console.log(`🔄 Found ${erroredFiles.length} errored files to retry`);
+      
+      // Reset status to pending for retry
+      const fileIds = erroredFiles.map(f => f.id);
+      if (fileIds.length > 0) {
+        await db.update(files)
+          .set({
+            processingStatus: 'pending',
+            processingError: null
+          })
+          .where(
+            and(
+              eq(files.userId, userId),
+              sql`id = ANY(${fileIds})`
+            )
+          );
+        
+        console.log(`✅ Reset ${fileIds.length} files to pending for retry`);
+      }
+      
+      res.json({
+        message: `Retrying ${erroredFiles.length} errored files`,
+        count: erroredFiles.length,
+        files: erroredFiles.map(f => ({
+          id: f.id,
+          filename: f.originalName,
+          previousError: f.processingError
+        }))
+      });
+    } catch (error) {
+      console.error("Error retrying all errored files:", error);
+      res.status(500).json({ error: "Failed to retry errored files" });
+    }
+  });
+
+  // Clean up permanently failed files
+  app.delete("/api/files/cleanup-missing", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Get files with "Object not found" or Google Drive errors
+      const missingFiles = await db.select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.processingStatus, 'error'),
+            or(
+              eq(files.processingError, 'Object not found'),
+              sql`processing_error LIKE 'Failed to download from Google Drive%'`
+            )
+          )
+        );
+      
+      console.log(`🗑️ Found ${missingFiles.length} missing files to clean up`);
+      
+      // Delete these files from the database
+      if (missingFiles.length > 0) {
+        const fileIds = missingFiles.map(f => f.id);
+        
+        // Delete metadata first
+        await db.delete(fileMetadata)
+          .where(sql`file_id = ANY(${fileIds})`);
+        
+        // Delete files
+        await db.delete(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              sql`id = ANY(${fileIds})`
+            )
+          );
+        
+        console.log(`✅ Deleted ${missingFiles.length} missing files from database`);
+      }
+      
+      res.json({
+        message: `Cleaned up ${missingFiles.length} missing files`,
+        count: missingFiles.length,
+        files: missingFiles.map(f => ({
+          id: f.id,
+          filename: f.originalName,
+          error: f.processingError
+        }))
+      });
+    } catch (error) {
+      console.error("Error cleaning up missing files:", error);
+      res.status(500).json({ error: "Failed to clean up missing files" });
+    }
+  });
+
   // Mark stuck files as failed
   app.post("/api/files/:id/mark-failed", async (req: any, res) => {
     try {
@@ -3751,22 +3857,22 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
       try {
         const userId = "demo-user";
         
-        // First, mark files stuck for >24 hours as error
+        // First, mark files stuck for >1 hour as error
         const stuckFiles = await db.select()
           .from(files)
           .where(
             and(
               eq(files.processingStatus, 'processing'),
-              sql`${files.uploadedAt} < NOW() - INTERVAL '24 hours'`
+              sql`${files.uploadedAt} < NOW() - INTERVAL '1 hour'`
             )
           );
         
         for (const stuckFile of stuckFiles) {
-          console.log(`🔴 Marking file stuck >24h as error: ${stuckFile.originalName}`);
+          console.log(`🔴 Marking file stuck >1h as error: ${stuckFile.originalName}`);
           await db.update(files)
             .set({
               processingStatus: 'error',
-              processingError: 'Processing stuck for more than 24 hours'
+              processingError: 'Processing stuck for more than 1 hour'
             })
             .where(eq(files.id, stuckFile.id));
         }
