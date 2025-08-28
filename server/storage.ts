@@ -288,6 +288,15 @@ export class DatabaseStorage implements IStorage {
         createdAt: row.metadataCreatedAt || new Date(),
         embedding: null, // Excluded for performance
         embeddingVector: null, // Excluded for performance
+        openaiFileId: null,
+        openaiVectorStoreId: null,
+        aiAnalysis: null,
+        categorization: null,
+        namedEntities: null,
+        actionItems: null,
+        keyProcesses: null,
+        organizationPriority: null,
+        relevanceScores: null,
       } : undefined,
     }));
 
@@ -521,6 +530,15 @@ export class DatabaseStorage implements IStorage {
         embeddingVector: row.embedding_vector,
         confidence: row.confidence,
         createdAt: row.created_at,
+        openaiFileId: row.openai_file_id || null,
+        openaiVectorStoreId: row.openai_vector_store_id || null,
+        aiAnalysis: row.ai_analysis || null,
+        categorization: row.categorization || null,
+        namedEntities: row.named_entities || null,
+        actionItems: row.action_items || null,
+        keyProcesses: row.key_processes || null,
+        organizationPriority: row.organization_priority || null,
+        relevanceScores: row.relevance_scores || null,
       },
     }));
 
@@ -592,6 +610,15 @@ export class DatabaseStorage implements IStorage {
         embeddingVector: row.embedding_vector,
         confidence: row.confidence,
         createdAt: row.created_at,
+        openaiFileId: row.openai_file_id || null,
+        openaiVectorStoreId: row.openai_vector_store_id || null,
+        aiAnalysis: row.ai_analysis || null,
+        categorization: row.categorization || null,
+        namedEntities: row.named_entities || null,
+        actionItems: row.action_items || null,
+        keyProcesses: row.key_processes || null,
+        organizationPriority: row.organization_priority || null,
+        relevanceScores: row.relevance_scores || null,
       } : undefined,
     }));
   }

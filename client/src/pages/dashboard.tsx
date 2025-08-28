@@ -6,6 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles, PieChart } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
+
+// Define types for API responses
+interface StatsData {
+  totalFiles: number;
+  processedFiles: number;
+  processingFiles: number;
+  errorFiles: number;
+  totalSize: number;
+}
+
+interface CategoryData {
+  category: string;
+  count: number;
+}
+
+interface FileData {
+  id: string;
+  originalName: string;
+  uploadedAt: string;
+  processingStatus: string;
+}
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 export function Dashboard() {
@@ -13,25 +34,25 @@ export function Dashboard() {
   const [categoryFiles, setCategoryFiles] = useState<any[]>([]);
 
   // Fetch files for recent activity
-  const { data: files = [] } = useQuery({
+  const { data: files = [] } = useQuery<FileData[]>({
     queryKey: ["/api/files"],
     refetchInterval: 10000,
   });
 
   // Fetch file stats
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<StatsData>({
     queryKey: ["/api/stats"],
     refetchInterval: 10000,
   });
 
   // Fetch categories
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<CategoryData[]>({
     queryKey: ["/api/categories"],
     refetchInterval: 10000,
   });
 
   // Fetch files by category when category is selected
-  const { data: filesByCategory = [], refetch: refetchCategoryFiles } = useQuery({
+  const { data: filesByCategory = [] } = useQuery<FileData[]>({
     queryKey: ["/api/files/category", selectedCategory],
     enabled: !!selectedCategory,
   });
@@ -60,75 +81,83 @@ export function Dashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href="/upload">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <FileText className="text-blue-600 text-xl" />
+          <div>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-blue-200">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <FileText className="text-blue-600 text-xl" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Upload Files</h3>
+                    <p className="text-sm text-slate-600">Add new documents for AI processing</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800">Upload Files</h3>
-                  <p className="text-sm text-slate-600">Add new documents for AI processing</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
 
         <Link href="/browse">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Zap className="text-green-600 text-xl" />
+          <div>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-green-200">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Zap className="text-green-600 text-xl" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Browse Files</h3>
+                    <p className="text-sm text-slate-600">Explore and search your documents</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800">Browse Files</h3>
-                  <p className="text-sm text-slate-600">Explore and search your documents</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
 
         <Link href="/analysis">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <TrendingUp className="text-purple-600 text-xl" />
+          <div>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-purple-200">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <TrendingUp className="text-purple-600 text-xl" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Analysis</h3>
+                    <p className="text-sm text-slate-600">View insights and statistics</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800">Analysis</h3>
-                  <p className="text-sm text-slate-600">View insights and statistics</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
 
         <Link href="/chat">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-orange-100 rounded-lg">
-                  <MessageCircle className="text-orange-600 text-xl" />
+          <div>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <MessageCircle className="text-orange-600 text-xl" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Chat with Files</h3>
+                    <p className="text-sm text-slate-600">Ask AI about your documents</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800">Chat with Files</h3>
-                  <p className="text-sm text-slate-600">Ask AI about your documents</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
       </div>
 
       {/* AI Processing Bar */}
-      {stats && (stats as any).totalFiles > 0 && (
+      {stats && stats.totalFiles > 0 && (
         <div className="mb-8">
           <AIProcessingBar 
-            stats={stats as any}
+            stats={stats}
             className="max-w-md mx-auto"
           />
         </div>
@@ -137,7 +166,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         {/* Statistics */}
         <div>
-          <QuickStats stats={stats as any} />
+          <QuickStats stats={stats} />
         </div>
 
         {/* Category Distribution Chart */}
@@ -150,7 +179,7 @@ export function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!categories || (categories as any[]).length === 0 ? (
+              {!categories || !Array.isArray(categories) || categories.length === 0 ? (
                 <div className="text-center py-8">
                   <PieChart className="mx-auto text-4xl text-slate-400 mb-2" />
                   <p className="text-slate-500">No data to display</p>
@@ -161,11 +190,14 @@ export function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
                       <Pie
-                        data={(categories as any[]).map((cat: any, index: number) => ({
-                          name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-                          value: cat.count,
-                          percentage: (categories as any[]).length > 0 ? ((cat.count / (categories as any[]).reduce((sum: number, c: any) => sum + c.count, 0)) * 100).toFixed(1) : 0
-                        }))}
+                        data={Array.isArray(categories) ? categories.map((cat: { category: string; count: number }, index: number) => {
+                          const totalCount = categories.reduce((sum: number, c: { count: number }) => sum + c.count, 0);
+                          return {
+                            name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+                            value: cat.count,
+                            percentage: totalCount > 0 ? ((cat.count / totalCount) * 100).toFixed(1) : '0'
+                          };
+                        }) : []}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -174,9 +206,9 @@ export function Dashboard() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {(categories as any[]).map((entry: any, index: number) => (
+                        {Array.isArray(categories) ? categories.map((entry: any, index: number) => (
                           <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'][index % 7]} />
-                        ))}
+                        )) : []}
                       </Pie>
                       <Tooltip />
                       <Legend />

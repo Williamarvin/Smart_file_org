@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import FileUploadZone from "@/components/file-upload-zone";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,11 +13,27 @@ import { useToast } from "@/hooks/use-toast";
 export function Upload() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Cleanup intervals and timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+      }
+    };
+  }, []);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [excelProcessingResult, setExcelProcessingResult] = useState<any>(null);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [aiProcessingProgress, setAiProcessingProgress] = useState(0);
   const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
+  
+  // Refs to store interval and timeout IDs for cleanup
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch files to show recent uploads and processing status
   const { data: files = [] } = useQuery({
@@ -58,11 +74,19 @@ export function Upload() {
         setAiProcessingProgress(0);
         setProcessingStartTime(Date.now());
         
+        // Clear any existing intervals before starting new ones
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+        }
+        
         // Track AI processing progress with real file status
         const totalFiles = data.processingStatus?.total || data.filesCreated || 0;
         let processedCount = 0;
         
-        const progressInterval = setInterval(() => {
+        progressIntervalRef.current = setInterval(() => {
           // Simulate gradual progress (2-3 files per interval)
           const increment = Math.min(Math.random() * 2 + 1, totalFiles - processedCount);
           processedCount += increment;
@@ -70,7 +94,10 @@ export function Upload() {
           setAiProcessingProgress(progress);
           
           if (progress >= 100) {
-            clearInterval(progressInterval);
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
             setTimeout(() => {
               setIsProcessingAI(false);
               setProcessingStartTime(null);
@@ -83,11 +110,15 @@ export function Upload() {
         }, 3000); // Update every 3 seconds
         
         // Fallback: Auto-clear after max 5 minutes
-        setTimeout(() => {
-          clearInterval(progressInterval);
+        fallbackTimeoutRef.current = setTimeout(() => {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
           setIsProcessingAI(false);
           setAiProcessingProgress(100);
           setProcessingStartTime(null);
+          fallbackTimeoutRef.current = null;
         }, 300000);
       }
       
