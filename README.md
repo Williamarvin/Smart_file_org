@@ -21,6 +21,7 @@ An advanced AI-powered document management and lesson generation platform with s
 - **🔧 Processing Management**: Real-time status monitoring with detailed error tracking and retry capabilities
 - **📂 Folder Selection**: Content generation from folders with support for 137+ folders
 - **📈 Scale Support**: Generate content from up to 1000 files simultaneously
+- **🔄 Intelligent Duplicate Handling**: Automatic incremental folder naming (folder_1, folder_2) for Excel uploads
 
 ### Technical Highlights
 - **Vector Search**: PostgreSQL pgvector with HNSW indexing for fast similarity search
