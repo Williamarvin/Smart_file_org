@@ -57,14 +57,18 @@ export function Chat() {
       return response.json();
     },
     onSuccess: (data: any) => {
-      const assistantMessage: ChatMessage = {
-        id: Date.now().toString(),
-        type: "assistant",
-        content: data.response,
-        timestamp: new Date(),
-        relatedFiles: data.relatedFiles || [],
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      // Remove thinking message and add assistant message
+      setMessages(prev => {
+        const filteredMessages = prev.filter(msg => msg.type !== "thinking");
+        const assistantMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: "assistant",
+          content: data.response,
+          timestamp: new Date(),
+          relatedFiles: data.relatedFiles || [],
+        };
+        return [...filteredMessages, assistantMessage];
+      });
       
       // Update conversation context from oversight agent
       if (data.conversationContext) {
@@ -297,46 +301,66 @@ export function Chat() {
                         key={message.id}
                         className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
                       >
-                        <div className={`flex items-start space-x-3 max-w-[80%] ${
-                          message.type === "user" ? "flex-row-reverse space-x-reverse" : ""
-                        }`}>
-                          <div className={`p-2 rounded-full ${
-                            message.type === "user" 
-                              ? "bg-blue-600 text-white" 
-                              : "bg-green-600 text-white"
-                          }`}>
-                            {message.type === "user" ? (
-                              <User className="h-4 w-4" />
-                            ) : (
+                        {message.type === "thinking" ? (
+                          // Thinking animation
+                          <div className="flex items-start space-x-3 max-w-[80%]">
+                            <div className="p-2 rounded-full bg-green-600 text-white">
                               <Bot className="h-4 w-4" />
-                            )}
-                          </div>
-                          <div className={`p-4 rounded-lg ${
-                            message.type === "user"
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-100 text-slate-800"
-                          }`}>
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                            {message.relatedFiles && message.relatedFiles.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-slate-200">
-                                <p className="text-xs text-slate-600 mb-1">Related files:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {message.relatedFiles.map((fileId) => {
-                                    const file = processedFiles.find((f: any) => f.id === fileId);
-                                    return file ? (
-                                      <Badge key={fileId} variant="outline" className="text-xs">
-                                        {file.originalName}
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
+                            </div>
+                            <div className="p-4 rounded-lg bg-slate-100 text-slate-800">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-sm">{message.content}</span>
+                                <span className="inline-flex space-x-1">
+                                  <span className="animate-bounce inline-block" style={{ animationDelay: "0ms" }}>.</span>
+                                  <span className="animate-bounce inline-block" style={{ animationDelay: "150ms" }}>.</span>
+                                  <span className="animate-bounce inline-block" style={{ animationDelay: "300ms" }}>.</span>
+                                </span>
                               </div>
-                            )}
-                            <p className="text-xs mt-2 opacity-70">
-                              {message.timestamp.toLocaleTimeString()}
-                            </p>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          // Regular user or assistant message
+                          <div className={`flex items-start space-x-3 max-w-[80%] ${
+                            message.type === "user" ? "flex-row-reverse space-x-reverse" : ""
+                          }`}>
+                            <div className={`p-2 rounded-full ${
+                              message.type === "user" 
+                                ? "bg-blue-600 text-white" 
+                                : "bg-green-600 text-white"
+                            }`}>
+                              {message.type === "user" ? (
+                                <User className="h-4 w-4" />
+                              ) : (
+                                <Bot className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className={`p-4 rounded-lg ${
+                              message.type === "user"
+                                ? "bg-blue-600 text-white"
+                                : "bg-slate-100 text-slate-800"
+                            }`}>
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                              {message.relatedFiles && message.relatedFiles.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-slate-200">
+                                  <p className="text-xs text-slate-600 mb-1">Related files:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {message.relatedFiles.map((fileId) => {
+                                      const file = processedFiles.find((f: any) => f.id === fileId);
+                                      return file ? (
+                                        <Badge key={fileId} variant="outline" className="text-xs">
+                                          {file.originalName}
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-xs mt-2 opacity-70">
+                                {message.timestamp.toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
