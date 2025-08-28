@@ -806,3 +806,54 @@ ${context}`;
     throw new Error("Failed to process chat message: " + (error?.message || "Unknown error"));
   }
 }
+
+/**
+ * Generate relevance explanation for search results
+ */
+export async function generateRelevanceExplanation(
+  searchQuery: string,
+  filename: string,
+  summary: string,
+  content: string,
+  similarityScore: number
+): Promise<string> {
+  try {
+    const prompt = `
+You are an expert at explaining why search results are relevant to user queries. 
+
+Search Query: "${searchQuery}"
+Filename: "${filename}"
+File Summary: "${summary}"
+Content Sample: "${content.slice(0, 800)}${content.length > 800 ? '...' : ''}"
+Similarity Score: ${Math.round(similarityScore * 100)}%
+
+Please provide a clear, concise explanation (2-3 sentences) of why this file is relevant to the search query. Focus on:
+1. Specific content or topics that match the search
+2. What makes this file useful for the user's query
+3. Key themes or concepts that align with what they're looking for
+
+Be specific and helpful, avoiding generic statements. Make it clear why someone searching for "${searchQuery}" would find this file valuable.
+`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert search relevance analyst who provides clear, helpful explanations for why files match user search queries."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 200
+    });
+
+    return response.choices[0].message.content || `This file contains content related to "${searchQuery}" with ${Math.round(similarityScore * 100)}% relevance.`;
+  } catch (error) {
+    console.error("Failed to generate relevance explanation:", error);
+    return `This file has a ${Math.round(similarityScore * 100)}% similarity match with your search query.`;
+  }
+}

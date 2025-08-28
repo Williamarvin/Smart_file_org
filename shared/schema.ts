@@ -111,6 +111,17 @@ export const fileMetadata = pgTable("file_metadata", {
   embeddingVector: vector("embedding_vector"), // New optimized vector column
   confidence: real("confidence"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // New OpenAI Vector Store fields
+  openaiFileId: varchar("openai_file_id"), // OpenAI file ID for vector store
+  openaiVectorStoreId: varchar("openai_vector_store_id"), // OpenAI vector store ID
+  aiAnalysis: jsonb("ai_analysis"), // Comprehensive AI analysis results
+  categorization: jsonb("categorization"), // AI categorization with confidence scores
+  namedEntities: text("named_entities").array(), // Extracted named entities
+  actionItems: text("action_items").array(), // Extracted action items
+  keyProcesses: text("key_processes").array(), // Identified key processes
+  organizationPriority: real("organization_priority"), // Priority score for organization
+  relevanceScores: jsonb("relevance_scores"), // Cached relevance scores for common queries
 });
 
 export const searchHistory = pgTable("search_history", {

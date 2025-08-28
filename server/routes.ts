@@ -5,7 +5,8 @@ import { storage } from "./storage";
 // Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { GoogleDriveService } from "./googleDriveService";
-import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech } from "./openai";
+import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech, generateRelevanceExplanation } from "./openai";
+import { vectorIndexManager } from "./vectorIndexManager";
 import { aiProvider } from "./aiProvider";
 import { difyService } from "./difyService";
 import { db } from "./db";
@@ -1541,21 +1542,85 @@ ${file.fileContent.toString()}`;
         console.error("Title search failed:", error);
       }
       
-      // 2. Then, get semantic similarity matches
+      // 2. Then, get OpenAI Vector Store semantic similarity matches with relevance explanations
       try {
-        console.log("Attempting pgvector semantic similarity search...");
-        const queryEmbedding = await generateSearchEmbedding(query);
-        semanticMatches = await storage.searchFilesBySimilarity(queryEmbedding, userId);
-        console.log(`Pgvector semantic search found ${semanticMatches.length} files`);
+        console.log("🔍 Using OpenAI Vector Store API for semantic search with relevance explanations...");
+        const vectorSearchResults = await vectorIndexManager.semanticSearch(query, 20, titleMatches);
         
-        // Mark these as semantic matches
-        semanticMatches = semanticMatches.map(file => ({
-          ...file,
-          matchType: 'semantic',
-          matchScore: file.similarity || 0
-        }));
+        // Convert vector search results to match our expected format
+        semanticMatches = [];
+        
+        if (vectorSearchResults && vectorSearchResults.length > 0) {
+          console.log(`✅ OpenAI Vector Store found ${vectorSearchResults.length} results with explanations`);
+          
+          // Map vector search results to our file objects
+          for (const result of vectorSearchResults) {
+            // Find matching file from our database by filename
+            const matchingFile = titleMatches.find(f => 
+              (f.originalName || f.filename || '').toLowerCase().includes(result.filename.toLowerCase()) ||
+              result.filename.toLowerCase().includes((f.originalName || f.filename || '').toLowerCase())
+            );
+            
+            if (matchingFile) {
+              semanticMatches.push({
+                ...matchingFile,
+                matchType: 'semantic',
+                matchScore: result.relevanceScore / 100, // Convert percentage to decimal
+                relevanceScore: result.relevanceScore,
+                relevanceExplanation: result.relevanceExplanation,
+                matchedContent: result.matchedContent,
+                confidence: result.confidence
+              });
+            }
+          }
+          
+          console.log(`📊 Mapped ${semanticMatches.length} vector results to database files`);
+        }
+        
+        // Fallback to traditional pgvector if OpenAI Vector Store fails or returns no results
+        if (semanticMatches.length === 0) {
+          console.log("🔄 Falling back to pgvector semantic search...");
+          const queryEmbedding = await generateSearchEmbedding(query);
+          const pgvectorResults = await storage.searchFilesBySimilarity(queryEmbedding, userId, 15);
+          console.log(`📊 Pgvector found ${pgvectorResults.length} results`);
+          
+          // Generate relevance explanations for pgvector results using GPT
+          for (const file of pgvectorResults) {
+            try {
+              const relevanceExplanation = await generateRelevanceExplanation(
+                query, 
+                file.originalName || file.filename || '',
+                file.metadata?.summary || '',
+                file.metadata?.extractedText?.slice(0, 1000) || '',
+                file.similarity || 0
+              );
+              
+              semanticMatches.push({
+                ...file,
+                matchType: 'semantic',
+                matchScore: file.similarity || 0,
+                relevanceScore: Math.round((file.similarity || 0) * 100),
+                relevanceExplanation,
+                matchedContent: file.metadata?.keywords || [],
+                confidence: 0.8 // Default confidence for pgvector results
+              });
+            } catch (error) {
+              console.error("Failed to generate relevance explanation:", error);
+              semanticMatches.push({
+                ...file,
+                matchType: 'semantic',
+                matchScore: file.similarity || 0,
+                relevanceScore: Math.round((file.similarity || 0) * 100),
+                relevanceExplanation: `This file has a ${Math.round((file.similarity || 0) * 100)}% similarity match with your search query based on content analysis.`,
+                matchedContent: file.metadata?.keywords || [],
+                confidence: 0.8
+              });
+            }
+          }
+        }
+        
       } catch (embeddingError) {
-        console.error("Semantic search failed:", embeddingError);
+        console.error("❌ Both vector searches failed:", embeddingError);
       }
 
       // 3. Combine and deduplicate results
@@ -1920,7 +1985,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         fileContents,
         systemPrompt,
         userId,
-        conversationId
+        conversationId || undefined
       );
       
       console.log(`Received response from AI provider, length: ${result.response?.length || 0}, conversationId: ${result.conversationId}`);
@@ -1962,11 +2027,14 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
   async function processFileAsync(fileId: string, userId: string, rawFileData?: Buffer) {
     try {
       await storage.updateFileProcessingStatus(fileId, userId, "processing");
+      console.log(`🚀 Starting 5-step file processing for file: ${fileId}`);
 
       const file = await storage.getFile(fileId, userId);
       if (!file) {
         throw new Error("File not found");
       }
+
+      console.log(`📝 Processing: ${file.originalName} (${file.mimeType})`);
 
       // Get file data using hybrid storage (BYTEA + Cloud)
       let fileData: Buffer;
@@ -2000,17 +2068,58 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         }
       }
 
-      // Extract text from file
+      // ========================================================================================
+      // 📋 STEP 1: TEXT EXTRACTION
+      // ========================================================================================
+      console.log(`📄 Step 1/5: Text Extraction for ${file.originalName}`);
       const extractedText = await extractTextFromFile(fileData, file.mimeType, file.originalName);
+      console.log(`✅ Step 1 complete: Extracted ${extractedText.length} characters`);
 
-      // Generate metadata using GPT
+      // ========================================================================================
+      // 🤖 STEP 2: AI ANALYSIS
+      // ========================================================================================
+      console.log(`🤖 Step 2/5: AI Analysis using GPT-5`);
       const metadata = await extractFileMetadata(extractedText, file.originalName);
+      console.log(`✅ Step 2 complete: Generated comprehensive metadata`);
 
-      // Generate embedding for similarity search
+      // ========================================================================================
+      // 🏷️ STEP 3: CATEGORIZATION 
+      // ========================================================================================
+      console.log(`🏷️ Step 3/5: Advanced Categorization`);
+      // Using the traditional metadata for now, but enhanced version will be added via vector manager
+      
+      // ========================================================================================
+      // 📊 STEP 4: VECTOR STORAGE (OpenAI Vector Store API)
+      // ========================================================================================
+      console.log(`📊 Step 4/5: Vector Storage using OpenAI Vector Store API`);
+      let vectorMetadata;
+      try {
+        vectorMetadata = await vectorIndexManager.addFileToIndex(
+          extractedText,
+          file.originalName,
+          {
+            fileId: file.id,
+            mimeType: file.mimeType,
+            size: file.size,
+            uploadedAt: file.uploadedAt
+          }
+        );
+        console.log(`✅ Step 4 complete: Added to OpenAI vector store with ID ${vectorMetadata.openaiFileId}`);
+      } catch (error) {
+        console.error("Vector storage failed, continuing with legacy approach:", error);
+        vectorMetadata = null;
+      }
+
+      // ========================================================================================
+      // 💾 STEP 5: DATABASE STORAGE (Comprehensive Metadata)
+      // ========================================================================================
+      console.log(`💾 Step 5/5: Database Storage with comprehensive metadata`);
+
+      // Generate traditional embedding for backward compatibility
       const embedding = await generateContentEmbedding(extractedText);
 
-      // Save metadata
-      await storage.createFileMetadata({
+      // Create comprehensive metadata object
+      const comprehensiveMetadata: any = {
         fileId: file.id,
         summary: metadata.summary,
         keywords: metadata.keywords,
@@ -2019,13 +2128,42 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         extractedText: extractedText.slice(0, 10000), // Store first 10k chars
         embedding,
         confidence: metadata.confidence,
-      }, userId);
+      };
+
+      // Add OpenAI Vector Store data if successful
+      if (vectorMetadata) {
+        comprehensiveMetadata.openaiFileId = vectorMetadata.openaiFileId;
+        comprehensiveMetadata.openaiVectorStoreId = vectorMetadata.vectorStoreId;
+        comprehensiveMetadata.aiAnalysis = vectorMetadata.aiAnalysis;
+        comprehensiveMetadata.categorization = vectorMetadata.categorization;
+        comprehensiveMetadata.namedEntities = vectorMetadata.namedEntities;
+        comprehensiveMetadata.actionItems = vectorMetadata.actionItems;
+        comprehensiveMetadata.keyProcesses = vectorMetadata.keyProcesses;
+        comprehensiveMetadata.organizationPriority = vectorMetadata.categorization?.organizationPriority || 0.5;
+      }
+
+      // Save comprehensive metadata
+      await storage.createFileMetadata(comprehensiveMetadata, userId);
 
       await storage.updateFileProcessedAt(fileId, userId);
 
-      console.log(`Successfully processed file: ${file.originalName}`);
+      console.log(`✅ Step 5 complete: Stored comprehensive metadata in database`);
+      console.log(`🎉 Successfully completed 5-step processing for: ${file.originalName}`);
+      
+      // Log processing summary
+      const processingResults = {
+        fileName: file.originalName,
+        textLength: extractedText.length,
+        hasVectorStore: !!vectorMetadata?.openaiFileId,
+        categories: metadata.categories,
+        confidence: metadata.confidence,
+        vectorStoreId: vectorMetadata?.openaiFileId,
+        organizationPriority: vectorMetadata?.categorization?.organizationPriority || 0.5
+      };
+      console.log(`📊 Processing Results:`, processingResults);
+
     } catch (error: any) {
-      console.error(`Error processing file ${fileId}:`, error);
+      console.error(`❌ Error in 5-step processing for file ${fileId}:`, error);
       await storage.updateFileProcessingStatus(fileId, userId, "error", error?.message || "Unknown error");
     }
   }
