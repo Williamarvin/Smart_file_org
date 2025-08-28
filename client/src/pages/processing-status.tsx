@@ -67,7 +67,27 @@ export default function ProcessingStatus() {
     refetchInterval: autoRefresh ? 5000 : false
   });
 
-  const { data: files = [], isLoading } = useQuery<ProcessingFile[]>({
+  // Fetch ALL files for statistics calculation (unfiltered)
+  const { data: allFiles = [] } = useQuery<ProcessingFile[]>({
+    queryKey: ['/api/files/processing-status', 'all'],
+    queryFn: async () => {
+      const response = await fetch('/api/files/processing-status?status=all', {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch processing status');
+      return response.json();
+    },
+    refetchInterval: autoRefresh ? 5000 : false,
+    staleTime: 0,
+    gcTime: 0
+  });
+
+  // Fetch filtered files for display (based on selected status)
+  const { data: filteredFiles = [], isLoading } = useQuery<ProcessingFile[]>({
     queryKey: ['/api/files/processing-status', selectedStatus],
     queryFn: async () => {
       const response = await fetch(`/api/files/processing-status?status=${selectedStatus}`, {
@@ -82,7 +102,8 @@ export default function ProcessingStatus() {
     },
     refetchInterval: autoRefresh ? 5000 : false,
     staleTime: 0,
-    gcTime: 0
+    gcTime: 0,
+    enabled: selectedStatus !== 'all' // Only fetch filtered data when needed
   });
 
   const retryFile = async (fileId: string) => {
@@ -170,10 +191,13 @@ export default function ProcessingStatus() {
     return (ms / 60000).toFixed(1) + 'min';
   };
 
-  // Categorize files
-  const pendingFiles = files.filter(f => f.processingStatus === 'pending');
-  const processingFiles = files.filter(f => f.processingStatus === 'processing');
-  const stuckFiles = files.filter(f => {
+  // Use the appropriate dataset: filtered for display, all for statistics
+  const displayFiles = selectedStatus === 'all' ? allFiles : filteredFiles;
+
+  // Calculate statistics from ALL files (not filtered)
+  const pendingFiles = allFiles.filter(f => f.processingStatus === 'pending');
+  const processingFiles = allFiles.filter(f => f.processingStatus === 'processing');
+  const stuckFiles = allFiles.filter(f => {
     if ((f.processingStatus === 'processing' || f.processingStatus === 'pending') && f.processingStartedAt) {
       const startTime = new Date(f.processingStartedAt).getTime();
       const now = Date.now();
@@ -181,9 +205,9 @@ export default function ProcessingStatus() {
     }
     return false;
   });
-  const errorFiles = files.filter(f => f.processingStatus === 'error' || f.processingStatus === 'failed');
-  const completedFiles = files.filter(f => f.processingStatus === 'completed');
-  const skippedFiles = files.filter(f => f.processingStatus === 'skipped');
+  const errorFiles = allFiles.filter(f => f.processingStatus === 'error' || f.processingStatus === 'failed');
+  const completedFiles = allFiles.filter(f => f.processingStatus === 'completed');
+  const skippedFiles = allFiles.filter(f => f.processingStatus === 'skipped');
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -477,13 +501,13 @@ export default function ProcessingStatus() {
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ) : files.length === 0 ? (
+          ) : displayFiles.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No files found with selected status
             </div>
           ) : (
             <div className="space-y-2">
-              {files.map(file => {
+              {displayFiles.map(file => {
                 const isStuck = file.processingStatus === 'processing' && 
                   file.processingStartedAt && 
                   (Date.now() - new Date(file.processingStartedAt).getTime()) > 2 * 60 * 60 * 1000;
