@@ -276,6 +276,95 @@ export default function ProcessingStatus() {
         </Card>
       </div>
 
+      {/* Action Buttons for Processing Management */}
+      <div className="flex gap-3 flex-wrap">
+        {processingFiles.length > 0 && (
+          <Button
+            variant="destructive"
+            onClick={async () => {
+              try {
+                const response = await apiRequest('/api/files/stop-processing', {
+                  method: 'POST'
+                });
+                toast({
+                  title: "Processing Stopped",
+                  description: `Stopped ${response.count} files. You can retry them later.`
+                });
+                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+              } catch (error) {
+                toast({
+                  title: "Failed to Stop Processing",
+                  description: "Could not stop the processing files.",
+                  variant: "destructive"
+                });
+              }
+            }}
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Stop All Processing ({processingFiles.length})
+          </Button>
+        )}
+        
+        {errorFiles.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const response = await apiRequest('/api/files/retry-all-errors', {
+                  method: 'POST'
+                });
+                toast({
+                  title: "Retry Started",
+                  description: `Retrying ${response.count} errored files.`
+                });
+                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+              } catch (error) {
+                toast({
+                  title: "Failed to Retry",
+                  description: "Could not retry the errored files.",
+                  variant: "destructive"
+                });
+              }
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry All Errors ({errorFiles.length})
+          </Button>
+        )}
+        
+        {errorFiles.length > 0 && (
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              if (confirm(`This will permanently delete ${errorFiles.length} files that can't be found. Continue?`)) {
+                try {
+                  const response = await apiRequest('/api/files/cleanup-missing', {
+                    method: 'DELETE'
+                  });
+                  toast({
+                    title: "Cleanup Complete",
+                    description: `Removed ${response.count} missing files from the database.`
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                } catch (error) {
+                  toast({
+                    title: "Cleanup Failed",
+                    description: "Could not clean up missing files.",
+                    variant: "destructive"
+                  });
+                }
+              }
+            }}
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Clean Up Missing Files
+          </Button>
+        )}
+      </div>
+
       {/* Files are now processed automatically in the background - no manual processing needed */}
 
       {/* Filter Tabs */}

@@ -734,6 +734,58 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Stop all processing files (mark as error so they can be retried)
+  app.post("/api/files/stop-processing", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Get all files in processing status
+      const processingFiles = await db.select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.processingStatus, 'processing')
+          )
+        );
+      
+      console.log(`⏹️ Found ${processingFiles.length} processing files to stop`);
+      
+      // Mark as error so they can be retried
+      if (processingFiles.length > 0) {
+        const fileIds = processingFiles.map(f => f.id);
+        // Update each file individually to avoid SQL array issues
+        for (const fileId of fileIds) {
+          await db.update(files)
+            .set({
+              processingStatus: 'error',
+              processingError: 'Processing stopped by user'
+            })
+            .where(
+              and(
+                eq(files.userId, userId),
+                eq(files.id, fileId)
+              )
+            );
+        }
+        
+        console.log(`✅ Stopped ${fileIds.length} files`);
+      }
+      
+      res.json({
+        message: `Stopped ${processingFiles.length} processing files`,
+        count: processingFiles.length,
+        files: processingFiles.map(f => ({
+          id: f.id,
+          filename: f.originalName
+        }))
+      });
+    } catch (error) {
+      console.error("Error stopping processing files:", error);
+      res.status(500).json({ error: "Failed to stop processing files" });
+    }
+  });
+
   // Retry all errored files
   app.post("/api/files/retry-all-errors", async (req: any, res) => {
     try {
@@ -754,17 +806,20 @@ ${file.fileContent.toString()}`;
       // Reset status to pending for retry
       const fileIds = erroredFiles.map(f => f.id);
       if (fileIds.length > 0) {
-        await db.update(files)
-          .set({
-            processingStatus: 'pending',
-            processingError: null
-          })
-          .where(
-            and(
-              eq(files.userId, userId),
-              sql`id = ANY(${fileIds})`
-            )
-          );
+        // Update each file individually to avoid SQL array issues
+        for (const fileId of fileIds) {
+          await db.update(files)
+            .set({
+              processingStatus: 'pending',
+              processingError: null
+            })
+            .where(
+              and(
+                eq(files.userId, userId),
+                eq(files.id, fileId)
+              )
+            );
+        }
         
         console.log(`✅ Reset ${fileIds.length} files to pending for retry`);
       }
@@ -809,18 +864,21 @@ ${file.fileContent.toString()}`;
       if (missingFiles.length > 0) {
         const fileIds = missingFiles.map(f => f.id);
         
-        // Delete metadata first
-        await db.delete(fileMetadata)
-          .where(sql`file_id = ANY(${fileIds})`);
-        
-        // Delete files
-        await db.delete(files)
-          .where(
-            and(
-              eq(files.userId, userId),
-              sql`id = ANY(${fileIds})`
-            )
-          );
+        // Delete metadata and files individually to avoid SQL array issues
+        for (const fileId of fileIds) {
+          // Delete metadata first
+          await db.delete(fileMetadata)
+            .where(eq(fileMetadata.fileId, fileId));
+          
+          // Delete file
+          await db.delete(files)
+            .where(
+              and(
+                eq(files.userId, userId),
+                eq(files.id, fileId)
+              )
+            );
+        }
         
         console.log(`✅ Deleted ${missingFiles.length} missing files from database`);
       }
