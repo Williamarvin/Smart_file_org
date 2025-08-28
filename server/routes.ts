@@ -804,14 +804,16 @@ ${file.fileContent.toString()}`;
       
       console.log(`🔄 Found ${processingFiles.length} stuck processing files to retry`);
       
-      // Reset status to pending for retry
+      // Reset status and timestamps to work like new uploads 
       if (processingFiles.length > 0) {
         // Update each file individually to avoid SQL array issues
         for (const file of processingFiles) {
           await db.update(files)
             .set({
               processingStatus: 'pending',
-              processingError: null
+              processingError: null,
+              uploadedAt: new Date(),  // ⭐ Reset upload timestamp - no more "2 days processing"
+              processedAt: null        // ⭐ Clear processed timestamp
             })
             .where(
               and(
@@ -855,7 +857,7 @@ ${file.fileContent.toString()}`;
       
       console.log(`🔄 Found ${erroredFiles.length} errored files to retry`);
       
-      // Reset status to pending for retry
+      // Reset status and timestamps to work like new uploads
       const fileIds = erroredFiles.map(f => f.id);
       if (fileIds.length > 0) {
         // Update each file individually to avoid SQL array issues
@@ -863,7 +865,9 @@ ${file.fileContent.toString()}`;
           await db.update(files)
             .set({
               processingStatus: 'pending',
-              processingError: null
+              processingError: null,
+              uploadedAt: new Date(),  // ⭐ Reset upload timestamp - no more "2 days processing"
+              processedAt: null        // ⭐ Clear processed timestamp
             })
             .where(
               and(
@@ -1200,12 +1204,13 @@ ${file.fileContent.toString()}`;
         try {
           console.log(`🔄 Processing: ${file.original_name}`);
           
-          // Set status to processing to make it visible in Processing Status page
+          // Set status to processing and reset timestamps like new upload
           await db.update(files)
             .set({ 
               processingStatus: 'processing',
-              processedAt: null,  // Clear processed timestamp during reprocessing
-              processingError: null
+              processedAt: null,        // Clear processed timestamp during reprocessing
+              processingError: null,
+              uploadedAt: new Date()    // ⭐ Reset upload timestamp - no more "2 days processing"
             })
             .where(eq(files.id, file.id as string));
             
