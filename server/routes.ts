@@ -1568,10 +1568,10 @@ ${file.fileContent.toString()}`;
                 // Semantic search enrichment
                 searchType: 'semantic',
                 relevanceScore: semanticData?.relevanceScore || 75,
-                searchExplanation: semanticData?.explanation || 'Semantically relevant to your query',
+                searchExplanation: semanticData?.relevanceExplanation || 'Semantically relevant to your query',
                 matchedContent: semanticData?.matchedContent || [],
-                documentType: semanticData?.documentType || 'document',
-                searchIntent: semanticData?.searchIntent || query
+                documentType: 'document',
+                searchIntent: query
               };
             });
             
