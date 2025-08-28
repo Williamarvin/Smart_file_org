@@ -1499,204 +1499,140 @@ ${file.fileContent.toString()}`;
         return;
       }
       
-      console.log(`Searching for: "${query}"`);
-
-      // Perform both title/text search AND semantic search, then combine results
-      let titleMatches: any[] = [];
-      let semanticMatches: any[] = [];
+      console.log(`🔍 Enhanced dual search for: "${query}"`);
       
-      // 1. First, get exact and partial title matches
+      // Layer 1: Semantic Search using OpenAI Vector Store
+      let semanticResults: any[] = [];
       try {
-        console.log("Searching for title/text matches...");
-        titleMatches = await storage.searchFiles(query, userId, 30);
-        console.log(`Found ${titleMatches.length} title/text matches`);
+        console.log("🤖 Layer 1: Performing semantic search...");
+        const semanticSearchResults = await vectorIndexManager.semanticSearch(query, 10);
         
-        // Score title matches based on how well they match
-        titleMatches = titleMatches.map(file => {
-          const filename = (file.originalName || file.filename || '').toLowerCase();
-          const searchTerm = query.toLowerCase();
+        if (semanticSearchResults && semanticSearchResults.length > 0) {
+          console.log(`✅ Semantic search found ${semanticSearchResults.length} results`);
           
-          // Calculate match score
-          let matchScore = 0;
-          if (filename === searchTerm) {
-            matchScore = 1.0; // Exact match
-          } else if (filename.includes(searchTerm)) {
-            // Higher score if match is at the beginning
-            const position = filename.indexOf(searchTerm);
-            matchScore = 0.8 - (position * 0.01); // Score decreases with position
-          } else if (file.metadata?.extractedText?.toLowerCase().includes(searchTerm) || 
-                     file.metadata?.summary?.toLowerCase().includes(searchTerm)) {
-            matchScore = 0.3; // Content match
-          } else {
-            matchScore = 0.1; // Keyword/topic match
-          }
+          // Map semantic results to file IDs and get full file data
+          const openaiFileIds = semanticSearchResults.map(r => r.fileId).filter(Boolean);
           
-          return {
-            ...file,
-            matchType: 'title',
-            matchScore,
-            similarity: matchScore // Use matchScore as similarity for sorting
-          };
-        });
-      } catch (error) {
-        console.error("Title search failed:", error);
-      }
-      
-      // 2. Then, get OpenAI Vector Store semantic similarity matches with relevance explanations
-      try {
-        console.log("🔍 Using OpenAI Vector Store API for semantic search with relevance explanations...");
-        const vectorSearchResults = await vectorIndexManager.semanticSearch(query, 20, titleMatches);
-        
-        // Convert vector search results to match our expected format
-        semanticMatches = [];
-        
-        if (vectorSearchResults && vectorSearchResults.length > 0) {
-          console.log(`✅ OpenAI Vector Store found ${vectorSearchResults.length} results with explanations`);
-          
-          // Map vector search results to our file objects
-          for (const result of vectorSearchResults) {
-            // Find matching file from our database by filename
-            const matchingFile = titleMatches.find(f => 
-              (f.originalName || f.filename || '').toLowerCase().includes(result.filename.toLowerCase()) ||
-              result.filename.toLowerCase().includes((f.originalName || f.filename || '').toLowerCase())
-            );
-            
-            if (matchingFile) {
-              semanticMatches.push({
-                ...matchingFile,
-                matchType: 'semantic',
-                matchScore: result.relevanceScore / 100, // Convert percentage to decimal
-                relevanceScore: result.relevanceScore,
-                relevanceExplanation: result.relevanceExplanation,
-                matchedContent: result.matchedContent,
-                confidence: result.confidence
-              });
-            }
-          }
-          
-          console.log(`📊 Mapped ${semanticMatches.length} vector results to database files`);
-        }
-        
-        // Fallback to traditional pgvector if OpenAI Vector Store fails or returns no results
-        if (semanticMatches.length === 0) {
-          console.log("🔄 Falling back to pgvector semantic search...");
-          const queryEmbedding = await generateSearchEmbedding(query);
-          const pgvectorResults = await storage.searchFilesBySimilarity(queryEmbedding, userId, 15);
-          console.log(`📊 Pgvector found ${pgvectorResults.length} results`);
-          
-          // Generate relevance explanations for pgvector results using GPT
-          for (const file of pgvectorResults) {
-            try {
-              const relevanceExplanation = await generateRelevanceExplanation(
-                query, 
-                file.originalName || file.filename || '',
-                file.metadata?.summary || '',
-                file.metadata?.extractedText?.slice(0, 1000) || '',
-                file.similarity || 0
+          if (openaiFileIds.length > 0) {
+            // Get files that match the OpenAI file IDs  
+            const semanticFiles = await db
+              .select({
+                id: files.id,
+                filename: files.filename,
+                originalName: files.originalName,
+                mimeType: files.mimeType,
+                size: files.size,
+                objectPath: files.objectPath,
+                folderId: files.folderId,
+                uploadedAt: files.uploadedAt,
+                processedAt: files.processedAt,
+                storageType: files.storageType,
+                processingStatus: files.processingStatus,
+                processingError: files.processingError,
+                userId: files.userId,
+                // Metadata
+                metadataId: fileMetadata.id,
+                summary: fileMetadata.summary,
+                categories: fileMetadata.categories,
+                keywords: fileMetadata.keywords,
+                topics: fileMetadata.topics,
+                confidence: fileMetadata.confidence,
+                createdAt: fileMetadata.createdAt,
+                openaiFileId: fileMetadata.openaiFileId
+              })
+              .from(files)
+              .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+              .where(
+                and(
+                  eq(files.userId, userId),
+                  sql`${fileMetadata.openaiFileId} IN (${openaiFileIds.map(id => `'${id}'`).join(',')})`
+                )
               );
-              
-              semanticMatches.push({
+            
+            // Enrich with semantic search data
+            semanticResults = semanticFiles.map(file => {
+              const semanticData = semanticSearchResults.find(sr => sr.fileId === file.openaiFileId);
+              return {
                 ...file,
-                matchType: 'semantic',
-                matchScore: file.similarity || 0,
-                relevanceScore: Math.round((file.similarity || 0) * 100),
-                relevanceExplanation,
-                matchedContent: file.metadata?.keywords || [],
-                confidence: 0.8 // Default confidence for pgvector results
-              });
-            } catch (error) {
-              console.error("Failed to generate relevance explanation:", error);
-              semanticMatches.push({
-                ...file,
-                matchType: 'semantic',
-                matchScore: file.similarity || 0,
-                relevanceScore: Math.round((file.similarity || 0) * 100),
-                relevanceExplanation: `This file has a ${Math.round((file.similarity || 0) * 100)}% similarity match with your search query based on content analysis.`,
-                matchedContent: file.metadata?.keywords || [],
-                confidence: 0.8
-              });
-            }
+                metadata: {
+                  id: file.metadataId,
+                  fileId: file.id,
+                  summary: file.summary,
+                  categories: file.categories,
+                  keywords: file.keywords,
+                  topics: file.topics,
+                  confidence: file.confidence,
+                  createdAt: file.createdAt,
+                  openaiFileId: file.openaiFileId
+                },
+                // Semantic search enrichment
+                searchType: 'semantic',
+                relevanceScore: semanticData?.relevanceScore || 75,
+                searchExplanation: semanticData?.explanation || 'Semantically relevant to your query',
+                matchedContent: semanticData?.matchedContent || [],
+                documentType: semanticData?.documentType || 'document',
+                searchIntent: semanticData?.searchIntent || query
+              };
+            });
+            
+            console.log(`📊 Enriched ${semanticResults.length} semantic results with file data`);
           }
-        }
-        
-      } catch (embeddingError) {
-        console.error("❌ Both vector searches failed:", embeddingError);
-      }
-
-      // 3. Combine and deduplicate results
-      const fileMap = new Map();
-      
-      // Add title matches first (they have priority)
-      titleMatches.forEach(file => {
-        fileMap.set(file.id, file);
-      });
-      
-      // Add semantic matches if not already present
-      semanticMatches.forEach(file => {
-        if (!fileMap.has(file.id)) {
-          fileMap.set(file.id, file);
         } else {
-          // If file exists from title match, update similarity if semantic score is higher
-          const existing = fileMap.get(file.id);
-          if (file.similarity > existing.similarity) {
-            existing.semanticSimilarity = file.similarity;
-          }
+          console.log("⚠️ No semantic results found");
         }
-      });
+      } catch (semanticError) {
+        console.error("❌ Semantic search failed:", semanticError);
+        // Continue with keyword search
+      }
       
-      // Convert map back to array and sort
-      let files = Array.from(fileMap.values());
+      // Layer 2: Keyword Search using SQL
+      console.log("🔍 Layer 2: Performing keyword search...");
+      const keywordFiles = await storage.searchFiles(query, userId, 20);
+      console.log(`✅ Keyword search found ${Array.isArray(keywordFiles) ? keywordFiles.length : 0} results`);
       
-      // Sort by: exact title matches first, then partial title matches, then semantic matches
-      files.sort((a, b) => {
-        // First priority: exact matches in title
-        const aFilename = (a.originalName || a.filename || '').toLowerCase();
-        const bFilename = (b.originalName || b.filename || '').toLowerCase();
-        const searchTerm = query.toLowerCase();
-        
-        const aExact = aFilename === searchTerm;
-        const bExact = bFilename === searchTerm;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        
-        // Second priority: title contains search term
-        const aContains = aFilename.includes(searchTerm);
-        const bContains = bFilename.includes(searchTerm);
-        if (aContains && !bContains) return -1;
-        if (!aContains && bContains) return 1;
-        
-        // Third priority: sort by match score/similarity
-        return (b.matchScore || b.similarity || 0) - (a.matchScore || a.similarity || 0);
-      });
+      // Enrich keyword results with basic search metadata
+      const keywordResults = (keywordFiles || []).map((file: any) => ({
+        ...file,
+        searchType: 'keyword',
+        relevanceScore: 60, // Base relevance for keyword matches
+        searchExplanation: `Contains keywords related to "${query}"`,
+        matchedContent: [query],
+        documentType: 'document',
+        searchIntent: `Files containing "${query}"`
+      }));
       
-      // Limit results
-      files = files.slice(0, 30);
-
-      console.log(`Found ${files.length} total unique files`);
-      console.log(`Top results:`, files.slice(0, 5).map(f => ({ 
-        filename: f.originalName || f.filename,
-        matchType: f.matchType,
-        score: (f.matchScore || f.similarity || 0).toFixed(3)
-      })));
+      // Combine and deduplicate results (semantic results have priority)
+      const combinedResults = [];
+      const seenFileIds = new Set();
       
-      // Store search history
-      if (files.length > 0) {
-        try {
-          await storage.createSearchHistory({
-            query,
-            userId,
-            results: files.map(f => ({ id: f.id, similarity: f.matchScore || f.similarity || 100 })),
-          }, userId);
-        } catch (error) {
-          console.error("Error storing search history:", error);
+      // Add semantic results first (higher priority)
+      for (const result of semanticResults) {
+        if (!seenFileIds.has(result.id)) {
+          combinedResults.push(result);
+          seenFileIds.add(result.id);
         }
       }
-
-      console.log(`Returning ${files.length} files`);
-      res.json(files);
+      
+      // Add keyword results (avoiding duplicates)
+      for (const result of keywordResults) {
+        if (!seenFileIds.has(result.id)) {
+          combinedResults.push(result);
+          seenFileIds.add(result.id);
+        }
+      }
+      
+      // Sort by relevance score (highest first)
+      combinedResults.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+      
+      // Limit results and return
+      const finalResults = combinedResults.slice(0, 30);
+      
+      console.log(`🎯 Dual search completed: ${finalResults.length} total results (${semanticResults.length} semantic + ${keywordResults.length} keyword)`);
+      
+      res.json(finalResults);
     } catch (error) {
-      console.error("Error searching files:", error);
-      res.status(500).json({ error: "Failed to search files" });
+      console.error("❌ Dual search failed:", error);
+      res.status(500).json({ error: "Search failed" });
     }
   });
 

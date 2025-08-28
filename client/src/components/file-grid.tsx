@@ -263,15 +263,54 @@ export default function FileGrid({
                           <h3 className="font-medium text-slate-900 truncate group-hover:text-blue-600">
                             {file.originalName}
                           </h3>
-                          {/* Show similarity percentage for search results */}
-                          {isSearchResults && file.processingStatus === 'completed' && file.similarity && (
-                            <div className="text-xs text-green-600 font-medium flex items-center">
-                              <div className="bg-green-100 px-2 py-1 rounded-full">
-                                {Math.round(file.similarity * 100)}% match
-                              </div>
+                          {/* Enhanced search metadata for dual search results */}
+                          {isSearchResults && file.processingStatus === 'completed' && (
+                            <div className="text-xs flex items-center space-x-2">
+                              {/* Search Type Badge */}
+                              {file.searchType && (
+                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  file.searchType === 'semantic' 
+                                    ? 'bg-purple-100 text-purple-700' 
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {file.searchType === 'semantic' ? '🧠 AI Match' : '🔍 Keyword'}
+                                </div>
+                              )}
+                              
+                              {/* Relevance Score */}
+                              {file.relevanceScore && (
+                                <div className={`px-2 py-1 rounded-full font-medium ${
+                                  file.relevanceScore >= 80 
+                                    ? 'bg-green-100 text-green-700'
+                                    : file.relevanceScore >= 60
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {file.relevanceScore}% relevant
+                                </div>
+                              )}
+                              
+                              {/* Legacy similarity support */}
+                              {!file.relevanceScore && file.similarity && (
+                                <div className="bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                                  {Math.round(file.similarity * 100)}% match
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
+                        
+                        {/* Search Explanation for AI-powered search results */}
+                        {isSearchResults && file.searchExplanation && (
+                          <div className="mt-2 text-sm text-slate-600 italic bg-slate-50 p-2 rounded border-l-2 border-blue-200">
+                            <span className="font-medium text-slate-700">Why this matches:</span> {file.searchExplanation}
+                            {file.matchedContent && file.matchedContent.length > 0 && (
+                              <div className="mt-1 text-xs text-slate-500">
+                                <span className="font-medium">Key terms:</span> {file.matchedContent.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Processing Status */}
                         {file.processingStatus === 'processing' && (
