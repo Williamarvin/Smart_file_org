@@ -178,6 +178,7 @@ export class ObjectStorageService {
     const objectFile = bucket.file(objectName);
     const [exists] = await objectFile.exists();
     if (!exists) {
+      console.warn(`⚠️ Object not found in storage: ${objectPath} - marking for cleanup`);
       throw new ObjectNotFoundError();
     }
     return objectFile;

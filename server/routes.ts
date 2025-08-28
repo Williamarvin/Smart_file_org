@@ -11,7 +11,7 @@ import { aiProvider } from "./aiProvider";
 import { difyService } from "./difyService";
 import { db } from "./db";
 import { files, folders, fileMetadata } from "@shared/schema";
-import { eq, sql, desc, and, or } from "drizzle-orm";
+import { eq, sql, desc, and, or, like } from "drizzle-orm";
 // Removed authentication
 import multer from "multer";
 import PDFParse from "pdf-parse";
@@ -900,14 +900,19 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       
-      // Get all files with "Object not found" errors 
+      // Get all files with "Object not found" or similar storage errors 
       const missingFiles = await db.select()
         .from(files)
         .where(
           and(
             eq(files.userId, userId),
             eq(files.processingStatus, 'error'),
-            eq(files.processingError, 'Object not found')
+            or(
+              like(files.processingError, '%Object not found%'),
+              like(files.processingError, '%not found%'),
+              like(files.processingError, '%404%'),
+              like(files.processingError, '%NoSuchKey%')
+            )
           )
         );
       
@@ -934,10 +939,12 @@ ${file.fileContent.toString()}`;
       res.json({
         message: `🧹 Cleaned up ${deletedCount} missing files from database`,
         count: deletedCount,
+        totalFound: missingFiles.length,
         files: missingFiles.map(f => ({
           id: f.id,
           filename: f.originalName,
-          error: f.processingError
+          error: f.processingError,
+          status: deletedCount > 0 ? 'cleaned' : 'error-during-cleanup'
         }))
       });
     } catch (error) {
@@ -4803,13 +4810,19 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
               
               // Mark file as error in database
               try {
+                const errorMessage = error?.message || 'Processing failed';
                 await db.update(files)
                   .set({
                     processingStatus: 'error',
-                    processingError: error?.message || 'Processing failed'
+                    processingError: errorMessage
                   })
                   .where(eq(files.id, file.id));
                 console.log(`🔴 Marked ${file.originalName} as error in database`);
+                
+                // If it's an "Object not found" error, schedule for automatic cleanup
+                if (errorMessage.includes('Object not found') || errorMessage.includes('not found')) {
+                  console.log(`🧹 File ${file.originalName} marked for cleanup due to missing object`);
+                }
               } catch (updateError) {
                 console.error(`Failed to update error status for ${file.originalName}:`, updateError);
               }
@@ -4832,6 +4845,68 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
   
   // Start the automatic processing loop
   startAutomaticProcessing();
+  
+  // Start automatic cleanup for missing objects
+  const startAutomaticCleanup = () => {
+    const cleanupMissingObjects = async () => {
+      try {
+        const userId = "demo-user";
+        
+        // Find files with "Object not found" or similar storage errors
+        const missingFiles = await db.select()
+          .from(files)
+          .where(
+            and(
+              eq(files.userId, userId),
+              eq(files.processingStatus, 'error'),
+              or(
+                like(files.processingError, '%Object not found%'),
+                like(files.processingError, '%not found%'),
+                like(files.processingError, '%404%'),
+                like(files.processingError, '%NoSuchKey%')
+              )
+            )
+          )
+          .limit(10); // Clean up 10 at a time to avoid overwhelming
+        
+        if (missingFiles.length > 0) {
+          console.log(`🧹 Auto-cleanup: Found ${missingFiles.length} missing files to clean up`);
+          
+          let cleanedCount = 0;
+          for (const file of missingFiles) {
+            try {
+              // Delete file metadata first
+              await db.delete(fileMetadata)
+                .where(eq(fileMetadata.fileId, file.id));
+              
+              // Delete the file record
+              await db.delete(files)
+                .where(eq(files.id, file.id));
+                
+              console.log(`🗑️ Auto-cleaned missing file: ${file.originalName}`);
+              cleanedCount++;
+            } catch (error) {
+              console.error(`Failed to auto-clean file ${file.originalName}:`, error);
+            }
+          }
+          
+          if (cleanedCount > 0) {
+            console.log(`✅ Auto-cleanup completed: removed ${cleanedCount} missing files from database`);
+          }
+        }
+      } catch (error) {
+        console.error('Error in automatic cleanup:', error);
+      }
+    };
+    
+    // Run cleanup every 5 minutes
+    setInterval(cleanupMissingObjects, 5 * 60 * 1000);
+    
+    // Run initial cleanup after 30 seconds
+    setTimeout(cleanupMissingObjects, 30000);
+  };
+  
+  startAutomaticCleanup();
 
   const httpServer = createServer(app);
   return httpServer;

@@ -10,6 +10,9 @@ import { getOpenAIClient } from './openai';
 import { spawn } from 'child_process';
 import ffmpeg from 'ffmpeg-static';
 import { enhancedPdfExtractor } from './enhancedPdfExtractor';
+import { db } from './db';
+import { files } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * Service to download and process files from Google Drive
@@ -92,12 +95,17 @@ export class DriveFileProcessor {
       const fileBuffer = await this.driveService.downloadFile(driveUrl);
       if (!fileBuffer) {
         console.error(`Failed to download ${file.filename}`);
-        // Mark file as error in database
-        await storage.updateFileContent(file.id, {
-          processingStatus: 'error',
-          processingError: 'Failed to download from Google Drive: File not found or no permission'
-        });
-        throw new Error(`Failed to download from Google Drive: File not found or no permission`);
+        // Mark file as error in database with specific error message
+        const errorMessage = 'Object not found: File missing from Google Drive or no access permission';
+        // Update processing status through database directly since storage interface doesn't support error messages
+        await db.update(files)
+          .set({
+            processingStatus: 'error',
+            processingError: errorMessage
+          })
+          .where(eq(files.id, file.id));
+        console.log(`🔍 File ${file.filename} marked for automatic cleanup - object not found in storage`);
+        throw new Error(errorMessage);
       }
 
       // Save to temp file

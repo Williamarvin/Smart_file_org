@@ -109,6 +109,7 @@ export async function setObjectAclPolicy(
 ): Promise<void> {
   const [exists] = await objectFile.exists();
   if (!exists) {
+    console.warn(`⚠️ Object not found in storage: ${objectFile.name} - marking for cleanup`);
     throw new Error(`Object not found: ${objectFile.name}`);
   }
 
