@@ -27,6 +27,11 @@ import { cache } from "./cache";
 
 import type { InsertTeacherChatSession, TeacherChatSession, InsertValidationReport, ValidationReport } from "@shared/schema";
 
+// Utility function to escape special regex characters
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
@@ -695,23 +700,75 @@ export class DatabaseStorage implements IStorage {
   async createFolder(folderData: InsertFolder, userId: string): Promise<Folder> {
     console.log(`Storage: creating folder for user ${userId}`, folderData);
     
-    // Build the full path
-    let fullPath = `/${folderData.name}`;
+    // Generate unique folder name if there are duplicates
+    const uniqueName = await this.generateUniqueFolderName(folderData.name, folderData.parentId || null, userId);
+    
+    // Build the full path with unique name
+    let fullPath = `/${uniqueName}`;
     if (folderData.parentId) {
       const parentPath = await this.getFolderPath(folderData.parentId, userId);
-      fullPath = `${parentPath}/${folderData.name}`;
+      fullPath = `${parentPath}/${uniqueName}`;
     }
     
     const [folder] = await db
       .insert(folders)
       .values({
         ...folderData,
+        name: uniqueName,
         path: fullPath,
         userId,
       })
       .returning();
     
     return folder;
+  }
+
+  /**
+   * Generate a unique folder name by checking for duplicates and adding incremental suffix
+   */
+  async generateUniqueFolderName(baseName: string, parentId: string | null, userId: string): Promise<string> {
+    // Check if base name already exists
+    const existingFolder = await db
+      .select()
+      .from(folders)
+      .where(and(
+        eq(folders.name, baseName),
+        parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
+        eq(folders.userId, userId)
+      ))
+      .limit(1);
+
+    if (existingFolder.length === 0) {
+      // No duplicate, use original name
+      return baseName;
+    }
+
+    // Find the highest numbered duplicate
+    const similarFolders = await db
+      .select()
+      .from(folders)
+      .where(and(
+        parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
+        eq(folders.userId, userId)
+      ));
+
+    const baseFolders = similarFolders.filter(folder => 
+      folder.name === baseName || folder.name.startsWith(`${baseName}_`)
+    );
+
+    let highestNumber = 0;
+    for (const folder of baseFolders) {
+      if (folder.name === baseName) {
+        highestNumber = Math.max(highestNumber, 1);
+      } else {
+        const match = folder.name.match(new RegExp(`^${escapeRegExp(baseName)}_(\\d+)$`));
+        if (match) {
+          highestNumber = Math.max(highestNumber, parseInt(match[1]));
+        }
+      }
+    }
+
+    return `${baseName}_${highestNumber + 1}`;
   }
 
   async getFolder(id: string, userId: string): Promise<Folder | undefined> {

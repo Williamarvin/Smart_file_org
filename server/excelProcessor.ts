@@ -205,8 +205,7 @@ export class ExcelProcessor {
         ? `${summary}. Google Drive file processing started in background.`
         : summary,
       foldersCreated: allFolders.length,
-      filesCreated: allFiles.length,
-      driveProcessingStarted
+      filesCreated: allFiles.length
     };
   }
 
@@ -418,32 +417,28 @@ export class ExcelProcessor {
     
     // First, create parent folder if needed and it has files
     if (parentFolderName && parentFolderName !== '' && foldersWithFiles.has(parentFolderName)) {
-      const existingParent = await db
-        .select()
-        .from(folders)
-        .where(and(eq(folders.name, parentFolderName), isNull(folders.parentId)))
-        .limit(1);
+      // Import storage to use the generateUniqueFolderName method
+      const { storage } = await import('./storage');
       
-      let parentFolder;
-      if (existingParent.length === 0) {
-        console.log(`Creating parent folder: ${parentFolderName}`);
-        const newParent = await db
-          .insert(folders)
-          .values({
-            name: parentFolderName,
-            path: `/${parentFolderName}`,
-            parentId: null,
-            userId: this.userId
-          })
-          .returning();
-        parentFolder = newParent[0];
-        createdFolders.push(parentFolder);
-      } else {
-        console.log(`Parent folder already exists: ${parentFolderName}`);
-        parentFolder = existingParent[0];
-      }
+      // Generate unique name for parent folder to handle duplicates
+      const uniqueParentName = await storage.generateUniqueFolderName(parentFolderName, null, this.userId);
       
+      console.log(`Creating parent folder with unique name: ${uniqueParentName} (original: ${parentFolderName})`);
+      const newParent = await db
+        .insert(folders)
+        .values({
+          name: uniqueParentName,
+          path: `/${uniqueParentName}`,
+          parentId: null,
+          userId: this.userId
+        })
+        .returning();
+      const parentFolder = newParent[0];
+      createdFolders.push(parentFolder);
+      
+      // Map both original and unique names to the folder
       folderMap.set(parentFolderName, parentFolder);
+      folderMap.set(uniqueParentName, parentFolder);
     }
     
     // Create child folders only if they have files
@@ -497,7 +492,7 @@ export class ExcelProcessor {
         } else {
           console.log(`Creating new folder: ${currentPath} with parent ${parentId}`);
           // Create new folder
-          const [newFolder] = await db
+          const newFolderResult = await db
             .insert(folders)
             .values({
               name: part,
@@ -506,6 +501,7 @@ export class ExcelProcessor {
               userId: this.userId
             })
             .returning();
+          const newFolder = newFolderResult[0];
           folderMap.set(currentPath, newFolder);
           createdFolders.push(newFolder);
           parentId = newFolder.id;

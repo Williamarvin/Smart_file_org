@@ -44,6 +44,7 @@ Deployment preference: Multiple options (Replit, Docker, local deployment).
 - **File Management**: Upload, preview, delete, and view detailed metadata with progress tracking.
 - **Content Generation**: Support for selecting entire folders and up to 1000 files for content creation, with automatic deduplication.
 - **Automatic OCR**: Background OCR processing for scanned PDFs using Tesseract.js with Google Vision fallback, integrated directly into the file processing pipeline.
+- **Intelligent Duplicate Folder Handling**: When uploading Excel files or creating folders with the same name, automatically creates incrementally named folders (folder_1, folder_2, etc.) to prevent conflicts and maintain organized file structure.
 - **Optimized Performance**: Non-blocking storage implementation, optimized queries, caching, and fixed N+1 query problems.
 - **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, text-to-speech integration, and full dual-provider support (OpenAI/Dify) for all teacher agent functionalities.
 - **Validation Report System**: Generates PDF reports comparing teacher chat session parameters with original request parameters, including compliance scoring.
