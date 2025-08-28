@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import { File } from "@shared/schema";
+import { File, files, fileMetadata } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 
@@ -211,7 +213,7 @@ Focus on extracting actionable insights and content that would be valuable for s
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3
+        // GPT-5 only supports temperature=1, removed custom temperature
       });
 
       return JSON.parse(response.choices[0].message.content || "{}");
@@ -468,7 +470,7 @@ Respond in JSON format:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3
+        // GPT-5 only supports temperature=1, removed custom temperature
       });
 
       const searchResults = JSON.parse(response.choices[0].message.content || '{"results":[],"searchIntent":"","totalResults":0}');
