@@ -895,53 +895,45 @@ ${file.fileContent.toString()}`;
     }
   });
 
-  // Clean up permanently failed files
+  // Clean up files that don't exist in storage (Object not found errors)
   app.delete("/api/files/cleanup-missing", async (req: any, res) => {
     try {
       const userId = "demo-user";
       
-      // Get files with "Object not found" or Google Drive errors
+      // Get all files with "Object not found" errors 
       const missingFiles = await db.select()
         .from(files)
         .where(
           and(
             eq(files.userId, userId),
             eq(files.processingStatus, 'error'),
-            or(
-              eq(files.processingError, 'Object not found'),
-              sql`processing_error LIKE 'Failed to download from Google Drive%'`
-            )
+            eq(files.processingError, 'Object not found')
           )
         );
       
-      console.log(`🗑️ Found ${missingFiles.length} missing files to clean up`);
+      console.log(`🧹 Found ${missingFiles.length} missing files to clean up`);
       
-      // Delete these files from the database
-      if (missingFiles.length > 0) {
-        const fileIds = missingFiles.map(f => f.id);
-        
-        // Delete metadata and files individually to avoid SQL array issues
-        for (const fileId of fileIds) {
-          // Delete metadata first
+      let deletedCount = 0;
+      for (const file of missingFiles) {
+        try {
+          // Delete file metadata first
           await db.delete(fileMetadata)
-            .where(eq(fileMetadata.fileId, fileId));
+            .where(eq(fileMetadata.fileId, file.id));
           
-          // Delete file
+          // Delete the file record
           await db.delete(files)
-            .where(
-              and(
-                eq(files.userId, userId),
-                eq(files.id, fileId)
-              )
-            );
+            .where(eq(files.id, file.id));
+            
+          console.log(`🗑️ Deleted missing file: ${file.originalName}`);
+          deletedCount++;
+        } catch (error) {
+          console.error(`Failed to delete file ${file.originalName}:`, error);
         }
-        
-        console.log(`✅ Deleted ${missingFiles.length} missing files from database`);
       }
       
       res.json({
-        message: `Cleaned up ${missingFiles.length} missing files`,
-        count: missingFiles.length,
+        message: `🧹 Cleaned up ${deletedCount} missing files from database`,
+        count: deletedCount,
         files: missingFiles.map(f => ({
           id: f.id,
           filename: f.originalName,
