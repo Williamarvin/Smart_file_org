@@ -786,6 +786,57 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Retry all processing files (files stuck in processing state)
+  app.post("/api/files/retry-processing", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      
+      // Get all files stuck in processing status
+      const processingFiles = await db.select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            eq(files.processingStatus, 'processing')
+          )
+        );
+      
+      console.log(`🔄 Found ${processingFiles.length} stuck processing files to retry`);
+      
+      // Reset status to pending for retry
+      if (processingFiles.length > 0) {
+        // Update each file individually to avoid SQL array issues
+        for (const file of processingFiles) {
+          await db.update(files)
+            .set({
+              processingStatus: 'pending',
+              processingError: null
+            })
+            .where(
+              and(
+                eq(files.userId, userId),
+                eq(files.id, file.id)
+              )
+            );
+        }
+        
+        console.log(`✅ Reset ${processingFiles.length} stuck files to pending for retry`);
+      }
+      
+      res.json({
+        message: `Retrying ${processingFiles.length} stuck processing files`,
+        count: processingFiles.length,
+        files: processingFiles.map(f => ({
+          id: f.id,
+          filename: f.originalName
+        }))
+      });
+    } catch (error) {
+      console.error("Error retrying processing files:", error);
+      res.status(500).json({ error: "Failed to retry processing files" });
+    }
+  });
+
   // Retry all errored files
   app.post("/api/files/retry-all-errors", async (req: any, res) => {
     try {

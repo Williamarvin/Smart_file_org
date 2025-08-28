@@ -279,31 +279,58 @@ export default function ProcessingStatus() {
       {/* Action Buttons for Processing Management */}
       <div className="flex gap-3 flex-wrap">
         {processingFiles.length > 0 && (
-          <Button
-            variant="destructive"
-            onClick={async () => {
-              try {
-                const response = await apiRequest('/api/files/stop-processing', {
-                  method: 'POST'
-                });
-                toast({
-                  title: "Processing Stopped",
-                  description: `Stopped ${response.count} files. You can retry them later.`
-                });
-                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
-              } catch (error) {
-                toast({
-                  title: "Failed to Stop Processing",
-                  description: "Could not stop the processing files.",
-                  variant: "destructive"
-                });
-              }
-            }}
-          >
-            <XCircle className="h-4 w-4 mr-2" />
-            Stop All Processing ({processingFiles.length})
-          </Button>
+          <>
+            <Button
+              variant="default"
+              onClick={async () => {
+                try {
+                  const response = await apiRequest('/api/files/retry-processing', {
+                    method: 'POST'
+                  });
+                  toast({
+                    title: "Retrying Stuck Files",
+                    description: `Retrying ${response.count} stuck processing files.`
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                } catch (error) {
+                  toast({
+                    title: "Failed to Retry",
+                    description: "Could not retry the stuck processing files.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Processing ({processingFiles.length})
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  const response = await apiRequest('/api/files/stop-processing', {
+                    method: 'POST'
+                  });
+                  toast({
+                    title: "Processing Stopped",
+                    description: `Stopped ${response.count} files. You can retry them later.`
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                } catch (error) {
+                  toast({
+                    title: "Failed to Stop Processing",
+                    description: "Could not stop the processing files.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Stop All Processing ({processingFiles.length})
+            </Button>
+          </>
         )}
         
         {errorFiles.length > 0 && (
