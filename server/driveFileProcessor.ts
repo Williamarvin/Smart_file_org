@@ -298,6 +298,20 @@ export class DriveFileProcessor {
       return 'processed';
     } catch (error) {
       console.error(`Error processing ${file.filename}:`, error);
+      
+      // Update database to mark file as error
+      try {
+        await db.update(files)
+          .set({
+            processingStatus: 'error',
+            processingError: error instanceof Error ? error.message : 'Unknown processing error'
+          })
+          .where(eq(files.id, file.id));
+        console.log(`📍 File ${file.filename} marked as error in database`);
+      } catch (dbError) {
+        console.error(`Failed to update error status for ${file.filename}:`, dbError);
+      }
+      
       return 'failed';
     }
   }
