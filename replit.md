@@ -6,6 +6,7 @@ This is a full-stack file management and search application designed for uploadi
 
 Preferred communication style: Simple, everyday language.
 Default AI Provider: Dify MCP (for access to 7000+ external tools).
+Deployment preference: Multiple options (Replit, Docker, local deployment).
 
 # System Architecture
 
@@ -46,8 +47,11 @@ Default AI Provider: Dify MCP (for access to 7000+ external tools).
 - **Optimized Performance**: Non-blocking storage implementation, optimized queries, caching, and fixed N+1 query problems.
 - **Teacher Agent Features**: Global configuration for teaching style and expertise, AI pre-filled sections, structured course editor with customizable sections (content, action type, duration, difficulty), chat session management, natural teacher voice, text-to-speech integration, and full dual-provider support (OpenAI/Dify) for all teacher agent functionalities.
 - **Validation Report System**: Generates PDF reports comparing teacher chat session parameters with original request parameters, including compliance scoring.
-- **Flexible AI Provider System**: User-selectable AI providers (OpenAI or Dify) with seamless switching and per-request provider selection.
-- **Dify MCP Integration**: Full support for Model Context Protocol enabling access to 7000+ external tools (Zapier, Linear, Gmail) through standardized interfaces.
+- **Flexible AI Provider System**: User-selectable AI providers (Dify as default or OpenAI) with seamless switching and per-request provider selection.
+- **Dify MCP Integration**: Default provider with full Model Context Protocol support enabling access to 7000+ external tools (Zapier, Linear, Gmail) through standardized interfaces with conversation memory.
+- **CI/CD Pipeline**: GitHub Actions workflow for automated testing, linting, and Docker image building.
+- **Docker Support**: Production-ready Docker configuration with multi-stage builds and Docker Compose for easy deployment.
+- **Multiple Deployment Options**: Support for Replit, Docker, local deployment, and major cloud platforms.
 
 # External Dependencies
 

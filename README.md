@@ -34,28 +34,38 @@ An advanced AI-powered document management and lesson generation platform with s
 ### Frontend
 - **React 18** with TypeScript
 - **Vite** for fast development and optimized builds
+- **Tailwind CSS** with utility-first styling
 - **Shadcn/UI** components (Radix UI + Tailwind CSS)
-- **TanStack Query** for server state management
-- **Wouter** for client-side routing
+- **TanStack Query v5** for server state management
+- **Wouter** for lightweight client-side routing
 - **Uppy.js** for advanced file uploads
+- **React Hook Form** with Zod validation
+- **Lucide React** for icons
 
 ### Backend
-- **Express.js** with TypeScript
+- **Node.js** with Express.js and TypeScript
 - **PostgreSQL** with Neon serverless
 - **Drizzle ORM** for type-safe database operations
-- **OpenAI GPT-4o** for AI features
+- **pgvector** for vector similarity search with HNSW indexing
 - **Google Cloud Storage** for file storage
-- **pgvector** for vector similarity search
+- **Express Session** for session management
+- **Multer** for file upload handling
+- **FFmpeg** for video processing
+- **pdf-parse** for PDF text extraction
+- **mammoth** for Word document processing
+- **xlsx** for Excel file processing
+- **pdfkit** for PDF generation
 
 ### AI Integration
-- **Dual Provider System**: Seamlessly switch between OpenAI and Dify providers
+- **Dual Provider System**: Seamlessly switch between OpenAI and Dify providers (Dify as default)
+- **Dify MCP Integration** (Default): Access to 7000+ external tools through Model Context Protocol
 - **OpenAI GPT-4o**: Content analysis, chat, and generation
-- **Dify MCP Integration**: Access to 7000+ external tools (Zapier, Linear, Gmail, etc.)
 - **OpenAI TTS**: Multiple voice options for slideshow narration (alloy, echo, fable, onyx, nova, shimmer)
 - **Whisper**: Video/audio transcription
 - **Tesseract.js**: Local OCR for scanned PDFs
 - **Google Vision API**: Fallback OCR for enhanced accuracy
 - **Custom Agents**: Specialized lesson creation agents with dual-provider support
+- **Conversation Memory**: Persistent context across chat sessions
 
 ## 📦 Installation
 
@@ -66,25 +76,27 @@ An advanced AI-powered document management and lesson generation platform with s
 - Google Cloud Storage bucket (optional)
 
 ### Environment Variables
-Create a `.env` file:
+Copy `.env.example` to `.env` and configure:
 ```env
 # Database
-DATABASE_URL=postgresql://user:pass@host/dbname
-PGHOST=host
-PGUSER=user
-PGPASSWORD=password
-PGDATABASE=dbname
-PGPORT=5432
+DATABASE_URL=postgresql://user:password@localhost:5432/filemanager
 
-# OpenAI
+# AI Services  
 OPENAI_API_KEY=sk-...
+DIFY_API_KEY=app-...  # Default provider for MCP features
+DIFY_BASE_URL=https://api.dify.ai/v1
 
-# Dify (optional - for MCP features)
-DIFY_API_KEY=app-...
+# Google Cloud Storage
+GOOGLE_CLOUD_CREDENTIALS={"type":"service_account",...}
 
-# Optional: Google Cloud Storage
-GCS_BUCKET_NAME=your-bucket
-GCS_PROJECT_ID=your-project
+# Storage Paths
+PUBLIC_OBJECT_SEARCH_PATHS=/app/public
+PRIVATE_OBJECT_DIR=/app/.private
+
+# Application Settings
+NODE_ENV=production
+PORT=5000
+SESSION_SECRET=your-random-session-secret-here
 ```
 
 ### Setup Steps
@@ -111,6 +123,82 @@ npm run dev
 ```
 
 The application will be available at `http://localhost:5000`
+
+## 🚀 Deployment
+
+### Using Docker (Recommended)
+
+1. **Quick start with Docker Compose**
+```bash
+docker-compose up
+```
+
+2. **Build and run manually**
+```bash
+docker build -t file-manager .
+docker run -p 5000:5000 --env-file .env file-manager
+```
+
+### Using Makefile
+
+```bash
+make install      # Install dependencies
+make dev          # Run development server
+make build        # Build for production
+make docker-run   # Start with Docker Compose
+make check        # Run format, lint, type-check, and tests
+```
+
+### Local Deployment Without Docker
+
+1. **Install PostgreSQL locally with pgvector extension**
+```bash
+# Ubuntu/Debian
+sudo apt-get install postgresql postgresql-contrib
+sudo -u postgres psql -c "CREATE EXTENSION vector;"
+
+# macOS
+brew install postgresql pgvector
+psql -c "CREATE EXTENSION vector;"
+```
+
+2. **Set up database and run**
+```bash
+npm install
+npm run db:push
+npm run build
+npm start
+```
+
+### Production Deployment Options
+
+#### Replit (Current Platform)
+- Simply click the Deploy button in Replit interface
+- All configuration is handled automatically
+
+#### GitHub Actions CI/CD
+The repository includes `.github/workflows/ci.yml` for automated:
+- Code linting and formatting
+- TypeScript type checking
+- Running tests
+- Building Docker images
+- Automated deployment
+
+#### Cloud Platforms
+- **Vercel/Netlify**: Auto-detects Node.js, uses `package.json` scripts
+- **Railway/Render**: Direct GitHub integration, automatic builds
+- **AWS/GCP/Azure**: Use provided Docker image
+- **VPS Hosting**: Use Docker Compose or PM2 process manager
+
+### Process Management (Production)
+
+Using PM2:
+```bash
+npm install -g pm2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
 
 ## 🔌 API Documentation
 
