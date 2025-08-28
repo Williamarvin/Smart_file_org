@@ -1162,7 +1162,130 @@ ${file.fileContent.toString()}`;
     }
   });
 
-  // Regenerate metadata for files that have content but bad metadata
+  // Comprehensive reprocessing for files missing OpenAI IDs - treats them like new uploads
+  app.post('/api/files/reprocess-for-openai', async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      console.log('🔄 Starting comprehensive reprocessing for files missing OpenAI IDs...');
+      
+      // Get files that have content but missing OpenAI file IDs
+      const query = sql`
+        SELECT f.id, f.filename, f.original_name, f.file_content, fm.openai_file_id
+        FROM files f
+        LEFT JOIN file_metadata fm ON f.id = fm.file_id
+        WHERE f.user_id = ${userId}
+        AND f.processing_status = 'completed'
+        AND f.file_content IS NOT NULL
+        AND LENGTH(f.file_content::text) > 50
+        AND (fm.openai_file_id IS NULL OR fm.openai_file_id = '')
+        ORDER BY f.processed_at DESC
+        LIMIT 50
+      `;
+      
+      const result = await db.execute(query);
+      const filesToUpdate = result.rows;
+      
+      console.log(`📊 Found ${filesToUpdate.length} files missing OpenAI IDs for comprehensive reprocessing`);
+      
+      // Import both vectorIndexManager and openai functions
+      const { VectorIndexManager } = await import('./vectorIndexManager');
+      const { extractFileMetadata } = await import('./openai');
+      const vectorManager = new VectorIndexManager();
+      
+      let updated = 0;
+      let failed = 0;
+      
+      // Process files one by one to make it visible in UI
+      for (const file of filesToUpdate) {
+        try {
+          console.log(`🔄 Processing: ${file.original_name}`);
+          
+          // Set status to processing to make it visible in Processing Status page
+          await db.update(files)
+            .set({ 
+              processingStatus: 'processing',
+              processedAt: null,  // Clear processed timestamp during reprocessing
+              processingError: null
+            })
+            .where(eq(files.id, file.id as string));
+            
+          const content = file.file_content?.toString() || '';
+          if (content && content.length > 50 && !content.startsWith('File reference:')) {
+            
+            // 1. Create OpenAI file ID by uploading to OpenAI (like new upload)
+            const processingResult = await vectorManager.addFileToIndex(
+              content,
+              file.original_name as string || file.filename as string,
+              { userId, fileId: file.id }
+            );
+            
+            // 2. Generate comprehensive metadata
+            const aiMetadata = await extractFileMetadata(content, file.original_name as string);
+            
+            // 3. Update with both OpenAI file ID and metadata
+            await storage.updateFileMetadata(file.id as string, userId, {
+              extractedText: content,
+              summary: aiMetadata.summary || content.substring(0, 500),
+              keywords: aiMetadata.keywords || [],
+              topics: aiMetadata.topics || [],
+              categories: aiMetadata.categories || ['Education'],
+              openaiFileId: processingResult.openaiFileId  // ⭐ This is the key missing piece!
+            });
+            
+            // 4. Set status back to completed after successful processing
+            await db.update(files)
+              .set({ 
+                processingStatus: 'completed',
+                processedAt: new Date()
+              })
+              .where(eq(files.id, file.id as string));
+            
+            console.log(`✅ Fully reprocessed with OpenAI ID: ${file.original_name} -> ${processingResult.openaiFileId}`);
+            updated++;
+          } else {
+            // Set back to completed if no content to process
+            await db.update(files)
+              .set({ processingStatus: 'completed' })
+              .where(eq(files.id, file.id as string));
+            console.log(`⚠️ Skipped (no content): ${file.original_name}`);
+          }
+          
+          // Add small delay to make processing visible in UI
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error(`❌ Failed to reprocess ${file.original_name}:`, error);
+          // Set status to error on failure
+          await db.update(files)
+            .set({ 
+              processingStatus: 'error',
+              processingError: error instanceof Error ? error.message : 'Comprehensive reprocessing failed'
+            })
+            .where(eq(files.id, file.id as string));
+          failed++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `🎯 Comprehensive reprocessing: ${updated} files now have OpenAI IDs, ${failed} failed`,
+        totalFiles: filesToUpdate.length,
+        updated,
+        failed,
+        details: {
+          note: "Files were treated like new uploads - now have OpenAI file IDs for semantic search"
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error in comprehensive reprocessing:', error);
+      res.status(500).json({ 
+        error: 'Failed to reprocess files for OpenAI',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Keep the old regenerate-metadata endpoint for simple metadata updates
   app.post('/api/files/regenerate-metadata', async (req: any, res) => {
     try {
       const userId = "demo-user";
@@ -1191,20 +1314,12 @@ ${file.fileContent.toString()}`;
       
       for (const file of filesToUpdate) {
         try {
-          // Set status to processing to make it visible in Processing Status page
-          await db.update(files)
-            .set({ 
-              processingStatus: 'processing',
-              processedAt: null  // Clear processed timestamp during reprocessing
-            })
-            .where(eq(files.id, file.id as string));
-            
           const content = file.file_content?.toString() || '';
           if (content && content.length > 0 && !content.startsWith('File reference:')) {
             // Generate AI metadata from the content
             const aiMetadata = await extractFileMetadata(content, file.original_name as string);
             
-            // Update the metadata
+            // Update the metadata (without OpenAI file ID)
             await storage.updateFileMetadata(file.id as string, userId, {
               extractedText: content,
               summary: aiMetadata.summary || content.substring(0, 500),
@@ -1213,31 +1328,11 @@ ${file.fileContent.toString()}`;
               categories: aiMetadata.categories || ['Education']
             });
             
-            // Set status back to completed after successful processing
-            await db.update(files)
-              .set({ 
-                processingStatus: 'completed',
-                processedAt: new Date()
-              })
-              .where(eq(files.id, file.id as string));
-            
             console.log(`✅ Updated metadata for ${file.original_name}`);
             updated++;
-          } else {
-            // Set back to completed if no content to process
-            await db.update(files)
-              .set({ processingStatus: 'completed' })
-              .where(eq(files.id, file.id as string));
           }
         } catch (error) {
           console.error(`Failed to update metadata for ${file.original_name}:`, error);
-          // Set status to error on failure
-          await db.update(files)
-            .set({ 
-              processingStatus: 'error',
-              processingError: error instanceof Error ? error.message : 'Metadata update failed'
-            })
-            .where(eq(files.id, file.id as string));
           failed++;
         }
       }

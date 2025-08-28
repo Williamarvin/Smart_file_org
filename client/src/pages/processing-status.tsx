@@ -386,6 +386,35 @@ export default function ProcessingStatus() {
             Clean Up Missing Files
           </Button>
         )}
+        
+        {/* Comprehensive reprocessing for files missing OpenAI IDs */}
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            if (confirm('This will reprocess files missing OpenAI IDs, treating them like new uploads. You will see the processing activity here. Continue?')) {
+              try {
+                const response = await apiRequest('POST', '/api/files/reprocess-for-openai');
+                const data = await response.json();
+                toast({
+                  title: "Comprehensive Reprocessing Started",
+                  description: `Processing ${data.totalFiles} files. Watch this page for progress!`,
+                  duration: 8000
+                });
+                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+              } catch (error) {
+                toast({
+                  title: "Failed to Start Reprocessing",
+                  description: "Could not start comprehensive reprocessing.",
+                  variant: "destructive"
+                });
+              }
+            }
+          }}
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          Reprocess Files for OpenAI IDs
+        </Button>
       </div>
 
       {/* Files are now processed automatically in the background - no manual processing needed */}
