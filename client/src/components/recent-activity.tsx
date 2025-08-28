@@ -50,10 +50,7 @@ const getTimeAgo = (dateString: string) => {
 export default function RecentActivity({ files }: RecentActivityProps) {
   // Filter to only show completed/transcribed files and sort by most recent
   const sortedFiles = [...files]
-    .filter(file => {
-      console.log(`File: ${file.originalName}, Status: ${file.processingStatus}, ProcessedAt: ${file.processedAt}`);
-      return file.processingStatus === 'completed';
-    })
+    .filter(file => file.processingStatus === 'completed')
     .sort((a, b) => {
       const aDate = new Date(a.processedAt || a.uploadedAt);
       const bDate = new Date(b.processedAt || b.uploadedAt);
