@@ -1,0 +1,75 @@
+Here's the complete search process when you search for files:
+
+Search Process Flow:
+1. User Input & Query Processing
+You enter a natural language query (e.g., "find my homework assignments")
+System captures any filters: categories, tags, date ranges
+Query gets processed through the dual search engine
+2. Dual-Layered Search Execution
+The system runs two searches simultaneously:
+
+Layer 1: Vector Store Semantic Search
+
+vector_results = self._vector_store_search(query, k)
+Uses OpenAI's Responses API with GPT-4o
+Sends enhanced query to vector store with file_search tool
+AI understands query meaning and intent, not just keywords
+Finds files based on semantic similarity and content context
+Layer 2: SQL Database Search
+
+sql_results = self._sql_database_search(query, k)
+This runs 4 parallel search strategies:
+
+Full-text search: Searches summaries, filenames, hashtags, categories
+Hashtag search: Direct tag matching
+Category search: Category-based filtering
+Filename search: Direct filename matching
+3. Query Enhancement & Intelligence
+The system automatically enhances your query:
+
+Term expansion: "homework" → "hw", "assignment", "problem set", "ampa"
+Context understanding: Academic queries get academic file boosting
+Synonym matching: Finds related concepts and terms
+4. Scoring & Ranking
+Each search layer assigns relevance scores:
+
+Vector Store Scoring:
+
+Based on semantic similarity and AI confidence
+Considers content meaning and document purpose
+SQL Database Scoring:
+
+Filename matches: 1.0 (highest)
+Category matches: 0.95
+Hashtag matches: 0.90
+Summary matches: 0.85
+Recency boost: +0.05 for newer files
+5. Result Merging & Deduplication
+combined_results = self._merge_search_results(vector_results, sql_results, query)
+Combines results from both layers
+Removes duplicates between vector and SQL results
+Re-ranks by overall relevance score
+Applies user filters (categories, tags, dates)
+6. Result Delivery
+Each result includes:
+
+File information: name, category, tags, snippet
+Relevance score: how well it matches your query
+Explanation: why the file matched (e.g., "SQL hashtag match" or "Vector semantic match")
+Source indication: whether found via AI semantic search or database search
+7. Caching & Performance
+5-minute cache stores recent search results
+Cache keys based on query + parameters
+Subsequent identical searches return instantly
+Search Intelligence Examples:
+Query: "find my tax documents"
+
+Vector Store: Finds files with financial content, receipts, W-2s based on semantic meaning
+SQL Database: Finds files tagged with "tax", "financial", "IRS" or in "Financial" category
+Combined: Returns comprehensive list of tax-related files
+Query: "homework assignments"
+
+Term expansion: Searches for "homework", "hw", "assignment", "problem set", "ampa"
+Uniform scoring: All homework files get equal relevance scores
+Academic boost: Files in academic categories get priority
+The dual approach ensures you never miss relevant files - semantic AI catches meaning-based matches while SQL ensures keyword-based matches are found.

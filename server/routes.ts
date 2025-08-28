@@ -1604,7 +1604,328 @@ ${file.fileContent.toString()}`;
     }
   });
 
-  // Browse/Search files - returns all files when query is empty, searches when query provided
+  // Simple in-memory cache for search results (5 minute TTL)
+  const searchCache = new Map<string, { results: any[], timestamp: number }>();
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  // Query enhancement and term expansion
+  function enhanceQuery(query: string): { original: string, expanded: string[], synonyms: string[], isAcademic: boolean } {
+    const original = query.toLowerCase();
+    let expanded: string[] = [original];
+    let synonyms: string[] = [];
+    let isAcademic = false;
+
+    // Academic term expansions
+    const academicTerms = {
+      'homework': ['hw', 'assignment', 'problem set', 'ampa', 'task'],
+      'lesson': ['class', 'teaching', 'education', 'instruction'],
+      'test': ['exam', 'quiz', 'assessment', 'evaluation'],
+      'study': ['learning', 'review', 'research', 'academic'],
+      'project': ['assignment', 'work', 'task', 'activity'],
+      'presentation': ['ppt', 'slide', 'talk', 'speech'],
+      'essay': ['paper', 'writing', 'composition', 'report'],
+      'debate': ['argument', 'discussion', 'speech', 'rhetoric']
+    };
+
+    // Check if query contains academic terms
+    for (const [term, expansions] of Object.entries(academicTerms)) {
+      if (original.includes(term)) {
+        isAcademic = true;
+        expanded.push(...expansions);
+        synonyms.push(...expansions);
+      }
+    }
+
+    // Subject-specific expansions
+    const subjectTerms = {
+      'math': ['mathematics', 'calculation', 'numbers', 'algebra', 'geometry'],
+      'english': ['literature', 'writing', 'language', 'grammar', 'reading'],
+      'science': ['biology', 'chemistry', 'physics', 'experiment', 'research'],
+      'history': ['historical', 'past', 'events', 'timeline', 'social studies']
+    };
+
+    for (const [subject, terms] of Object.entries(subjectTerms)) {
+      if (original.includes(subject)) {
+        isAcademic = true;
+        expanded.push(...terms);
+        synonyms.push(...terms);
+      }
+    }
+
+    return { 
+      original, 
+      expanded: Array.from(new Set(expanded)), 
+      synonyms: Array.from(new Set(synonyms)),
+      isAcademic 
+    };
+  }
+
+  // Advanced SQL search with 4 strategies
+  async function advancedSqlSearch(query: string, userId: string, enhancedQuery: any, limit: number = 20) {
+    const searchTerms = enhancedQuery.expanded;
+    
+    // Strategy 1: Filename search (highest priority)
+    const filenameResults = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+        // Metadata
+        metadataId: fileMetadata.id,
+        summary: fileMetadata.summary,
+        categories: fileMetadata.categories,
+        keywords: fileMetadata.keywords,
+        topics: fileMetadata.topics,
+        confidence: fileMetadata.confidence,
+        createdAt: fileMetadata.createdAt,
+        openaiFileId: fileMetadata.openaiFileId
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(
+        and(
+          eq(files.userId, userId),
+          or(
+            ...searchTerms.map((term: string) => 
+              or(
+                sql`LOWER(${files.originalName}) LIKE ${'%' + term + '%'}`,
+                sql`LOWER(${files.filename}) LIKE ${'%' + term + '%'}`
+              )
+            )
+          )
+        )
+      )
+      .limit(limit);
+
+    // Strategy 2: Category search
+    const categoryResults = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+        // Metadata
+        metadataId: fileMetadata.id,
+        summary: fileMetadata.summary,
+        categories: fileMetadata.categories,
+        keywords: fileMetadata.keywords,
+        topics: fileMetadata.topics,
+        confidence: fileMetadata.confidence,
+        createdAt: fileMetadata.createdAt,
+        openaiFileId: fileMetadata.openaiFileId
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(
+        and(
+          eq(files.userId, userId),
+          or(
+            ...searchTerms.map((term: string) => 
+              sql`${fileMetadata.categories} && ARRAY[${term}]::text[] OR EXISTS (
+                SELECT 1 FROM unnest(COALESCE(${fileMetadata.categories}, '{}')) AS cat 
+                WHERE LOWER(cat) LIKE ${'%' + term + '%'}
+              )`
+            )
+          )
+        )
+      )
+      .limit(limit);
+
+    // Strategy 3: Keywords/hashtag search  
+    const keywordResults = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+        // Metadata
+        metadataId: fileMetadata.id,
+        summary: fileMetadata.summary,
+        categories: fileMetadata.categories,
+        keywords: fileMetadata.keywords,
+        topics: fileMetadata.topics,
+        confidence: fileMetadata.confidence,
+        createdAt: fileMetadata.createdAt,
+        openaiFileId: fileMetadata.openaiFileId
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(
+        and(
+          eq(files.userId, userId),
+          or(
+            ...searchTerms.map((term: string) => 
+              or(
+                sql`EXISTS (
+                  SELECT 1 FROM unnest(COALESCE(${fileMetadata.keywords}, '{}')) AS kw 
+                  WHERE LOWER(kw) LIKE ${'%' + term + '%'}
+                )`,
+                sql`EXISTS (
+                  SELECT 1 FROM unnest(COALESCE(${fileMetadata.topics}, '{}')) AS tp 
+                  WHERE LOWER(tp) LIKE ${'%' + term + '%'}
+                )`
+              )
+            )
+          )
+        )
+      )
+      .limit(limit);
+
+    // Strategy 4: Full-text search (summary content)
+    const summaryResults = await db
+      .select({
+        id: files.id,
+        filename: files.filename,
+        originalName: files.originalName,
+        mimeType: files.mimeType,
+        size: files.size,
+        objectPath: files.objectPath,
+        folderId: files.folderId,
+        uploadedAt: files.uploadedAt,
+        processedAt: files.processedAt,
+        storageType: files.storageType,
+        processingStatus: files.processingStatus,
+        processingError: files.processingError,
+        userId: files.userId,
+        // Metadata
+        metadataId: fileMetadata.id,
+        summary: fileMetadata.summary,
+        categories: fileMetadata.categories,
+        keywords: fileMetadata.keywords,
+        topics: fileMetadata.topics,
+        confidence: fileMetadata.confidence,
+        createdAt: fileMetadata.createdAt,
+        openaiFileId: fileMetadata.openaiFileId
+      })
+      .from(files)
+      .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
+      .where(
+        and(
+          eq(files.userId, userId),
+          or(
+            ...searchTerms.map((term: string) => 
+              sql`LOWER(${fileMetadata.summary}) LIKE ${'%' + term + '%'}`
+            )
+          )
+        )
+      )
+      .limit(limit);
+
+    return { filenameResults, categoryResults, keywordResults, summaryResults };
+  }
+
+  // Enhanced scoring system
+  function calculateSearchScore(file: any, query: string, enhancedQuery: any, matchType: string): { score: number, explanation: string, matchDetails: string[] } {
+    let score = 0.5; // Base score
+    let matchDetails: string[] = [];
+    let explanation = "";
+
+    const searchTerms = enhancedQuery.expanded;
+    const originalQuery = enhancedQuery.original;
+    const isAcademic = enhancedQuery.isAcademic;
+
+    // Scoring based on match type
+    switch (matchType) {
+      case 'filename':
+        score = 1.0;
+        explanation = "Filename match";
+        matchDetails.push("Direct filename match");
+        break;
+      case 'category':
+        score = 0.95;
+        explanation = "Category match"; 
+        matchDetails.push("Category-based match");
+        break;
+      case 'keyword':
+        score = 0.90;
+        explanation = "Keyword/topic match";
+        matchDetails.push("Keyword or topic match");
+        break;
+      case 'summary':
+        score = 0.85;
+        explanation = "Content summary match";
+        matchDetails.push("Found in content summary");
+        break;
+      case 'semantic':
+        score = 0.95; // High for semantic matches
+        explanation = "AI semantic match";
+        matchDetails.push("Semantically relevant content");
+        break;
+      default:
+        score = 0.75;
+        explanation = "General match";
+        break;
+    }
+
+    // Recency boost (+5% for files uploaded in last 30 days)
+    if (file.uploadedAt) {
+      const daysSinceUpload = (Date.now() - new Date(file.uploadedAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceUpload <= 30) {
+        score += 0.05;
+        matchDetails.push("Recent file boost");
+      }
+    }
+
+    // Academic boost for academic queries
+    if (isAcademic && file.categories?.some((cat: string) => 
+      ['Education', 'Academic', 'Teaching', 'Learning', 'School'].some(acadCat => 
+        cat.toLowerCase().includes(acadCat.toLowerCase())
+      )
+    )) {
+      score += 0.05;
+      matchDetails.push("Academic content boost");
+      explanation += " (academic priority)";
+    }
+
+    // Multiple term match boost
+    const termsFound = searchTerms.filter((term: string) => 
+      file.originalName?.toLowerCase().includes(term) ||
+      file.summary?.toLowerCase().includes(term) ||
+      file.categories?.some((cat: string) => cat.toLowerCase().includes(term)) ||
+      file.keywords?.some((kw: string) => kw.toLowerCase().includes(term))
+    );
+
+    if (termsFound.length > 1) {
+      score += 0.02 * (termsFound.length - 1);
+      matchDetails.push(`Multiple terms matched (${termsFound.length})`);
+    }
+
+    return { 
+      score: Math.min(1.0, score), // Cap at 1.0
+      explanation, 
+      matchDetails 
+    };
+  }
+
+  // Browse/Search files - Enhanced intelligent search
   app.get("/api/search/:query?", async (req, res) => {
     try {
       const query = req.params.query as string;
@@ -1618,13 +1939,28 @@ ${file.fileContent.toString()}`;
         res.json(files);
         return;
       }
-      
+
+      // Check cache first
+      const cacheKey = `search:${userId}:${query.toLowerCase()}`;
+      const cached = searchCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        console.log(`🚀 Returning cached results for: "${query}"`);
+        res.json(cached.results);
+        return;
+      }
+
       console.log(`🔍 Enhanced dual search for: "${query}"`);
       
+      // Step 1: Query enhancement and term expansion
+      const enhancedQuery = enhanceQuery(query);
+      console.log(`📈 Query enhanced: ${enhancedQuery.original} → [${enhancedQuery.expanded.join(', ')}]${enhancedQuery.isAcademic ? ' (academic)' : ''}`);
+      
+      let allResults: any[] = [];
+
       // Layer 1: Semantic Search using OpenAI Vector Store
+      console.log("🤖 Layer 1: Performing semantic search...");
       let semanticResults: any[] = [];
       try {
-        console.log("🤖 Layer 1: Performing semantic search...");
         const semanticSearchResults = await vectorIndexManager.semanticSearch(query, 10);
         
         if (semanticSearchResults && semanticSearchResults.length > 0) {
@@ -1669,9 +2005,11 @@ ${file.fileContent.toString()}`;
                 )
               );
             
-            // Enrich with semantic search data
+            // Enrich with semantic search data and scoring
             semanticResults = semanticFiles.map(file => {
               const semanticData = semanticSearchResults.find(sr => sr.fileId === file.openaiFileId);
+              const scoring = calculateSearchScore(file, query, enhancedQuery, 'semantic');
+              
               return {
                 ...file,
                 metadata: {
@@ -1685,74 +2023,146 @@ ${file.fileContent.toString()}`;
                   createdAt: file.createdAt,
                   openaiFileId: file.openaiFileId
                 },
-                // Semantic search enrichment
+                // Enhanced search enrichment
                 searchType: 'semantic',
-                relevanceScore: semanticData?.relevanceScore || 75,
-                searchExplanation: semanticData?.relevanceExplanation || 'Semantically relevant to your query',
+                relevanceScore: scoring.score,
+                searchExplanation: scoring.explanation,
                 matchedContent: semanticData?.matchedContent || [],
+                matchDetails: scoring.matchDetails,
                 documentType: 'document',
                 searchIntent: query
               };
             });
             
-            console.log(`📊 Enriched ${semanticResults.length} semantic results with file data`);
+            console.log(`📊 Enriched ${semanticResults.length} semantic results with enhanced scoring`);
           }
         } else {
           console.log("⚠️ No semantic results found");
         }
       } catch (semanticError) {
         console.error("❌ Semantic search failed:", semanticError);
-        // Continue with keyword search
+        // Continue with SQL search
       }
+
+      // Layer 2: Advanced SQL Database Search (4 strategies)
+      console.log("🔍 Layer 2: Performing advanced SQL search with 4 strategies...");
       
-      // Layer 2: Keyword Search using SQL
-      console.log("🔍 Layer 2: Performing keyword search...");
-      const keywordFiles = await storage.searchFiles(query, userId, 20);
-      console.log(`✅ Keyword search found ${Array.isArray(keywordFiles) ? keywordFiles.length : 0} results`);
+      const sqlSearchResults = await advancedSqlSearch(query, userId, enhancedQuery, 15);
       
-      // Enrich keyword results with basic search metadata
-      const keywordResults = (keywordFiles || []).map((file: any) => ({
-        ...file,
-        searchType: 'keyword',
-        relevanceScore: 60, // Base relevance for keyword matches
-        searchExplanation: `Contains keywords related to "${query}"`,
-        matchedContent: [query],
-        documentType: 'document',
-        searchIntent: `Files containing "${query}"`
+      // Process each strategy with appropriate scoring
+      const processStrategyResults = (results: any[], matchType: string, strategyName: string) => {
+        const processed = results.map(file => {
+          const scoring = calculateSearchScore(file, query, enhancedQuery, matchType);
+          
+          return {
+            ...file,
+            metadata: {
+              id: file.metadataId,
+              fileId: file.id,
+              summary: file.summary,
+              categories: file.categories,
+              keywords: file.keywords,
+              topics: file.topics,
+              confidence: file.confidence,
+              createdAt: file.createdAt,
+              openaiFileId: file.openaiFileId
+            },
+            // SQL search enrichment
+            searchType: 'sql',
+            searchStrategy: matchType,
+            relevanceScore: scoring.score,
+            searchExplanation: scoring.explanation,
+            matchedContent: enhancedQuery.expanded.filter(term => 
+              file.originalName?.toLowerCase().includes(term) ||
+              file.summary?.toLowerCase().includes(term)
+            ),
+            matchDetails: scoring.matchDetails,
+            documentType: 'document',
+            searchIntent: `${strategyName} search for "${query}"`
+          };
+        });
+        
+        console.log(`📋 ${strategyName}: ${processed.length} results (avg score: ${processed.length > 0 ? (processed.reduce((sum, r) => sum + r.relevanceScore, 0) / processed.length).toFixed(2) : 0})`);
+        return processed;
+      };
+
+      // Process results from each strategy
+      const filenameResults = processStrategyResults(sqlSearchResults.filenameResults, 'filename', 'Filename');
+      const categoryResults = processStrategyResults(sqlSearchResults.categoryResults, 'category', 'Category'); 
+      const keywordResults = processStrategyResults(sqlSearchResults.keywordResults, 'keyword', 'Keyword');
+      const summaryResults = processStrategyResults(sqlSearchResults.summaryResults, 'summary', 'Summary');
+
+      // Combine all SQL results
+      const allSqlResults = [...filenameResults, ...categoryResults, ...keywordResults, ...summaryResults];
+
+      // Step 3: Result Merging & Deduplication
+      console.log("🔗 Step 3: Merging and deduplicating results...");
+      
+      // Combine semantic and SQL results
+      const combinedResults = [...semanticResults, ...allSqlResults];
+      
+      // Deduplicate by file ID, keeping highest scoring version
+      const deduplicatedMap = new Map<string, any>();
+      
+      combinedResults.forEach(result => {
+        const existing = deduplicatedMap.get(result.id);
+        if (!existing || result.relevanceScore > existing.relevanceScore) {
+          deduplicatedMap.set(result.id, result);
+        } else if (existing && result.relevanceScore === existing.relevanceScore) {
+          // If same score, prefer semantic results
+          if (result.searchType === 'semantic' && existing.searchType === 'sql') {
+            deduplicatedMap.set(result.id, result);
+          }
+        }
+      });
+
+      allResults = Array.from(deduplicatedMap.values());
+      
+      // Step 4: Final ranking and sorting
+      console.log("🎯 Step 4: Final ranking and result optimization...");
+      
+      allResults.sort((a, b) => {
+        // Primary sort: relevance score (descending)
+        if (Math.abs(a.relevanceScore - b.relevanceScore) > 0.01) {
+          return b.relevanceScore - a.relevanceScore;
+        }
+        
+        // Secondary sort: prefer semantic matches
+        if (a.searchType === 'semantic' && b.searchType !== 'semantic') return -1;
+        if (a.searchType !== 'semantic' && b.searchType === 'semantic') return 1;
+        
+        // Tertiary sort: upload date (newer first)
+        const dateA = new Date(a.uploadedAt || 0).getTime();
+        const dateB = new Date(b.uploadedAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+      // Limit results and add search metadata
+      const finalResults = allResults.slice(0, 30).map((result, index) => ({
+        ...result,
+        searchRank: index + 1,
+        searchMeta: {
+          query: query,
+          expandedTerms: enhancedQuery.expanded,
+          isAcademic: enhancedQuery.isAcademic,
+          totalResults: allResults.length,
+          searchTimestamp: new Date().toISOString()
+        }
       }));
-      
-      // Combine and deduplicate results (semantic results have priority)
-      const combinedResults = [];
-      const seenFileIds = new Set();
-      
-      // Add semantic results first (higher priority)
-      for (const result of semanticResults) {
-        if (!seenFileIds.has(result.id)) {
-          combinedResults.push(result);
-          seenFileIds.add(result.id);
-        }
-      }
-      
-      // Add keyword results (avoiding duplicates)
-      for (const result of keywordResults) {
-        if (!seenFileIds.has(result.id)) {
-          combinedResults.push(result);
-          seenFileIds.add(result.id);
-        }
-      }
-      
-      // Sort by relevance score (highest first)
-      combinedResults.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-      
-      // Limit results and return
-      const finalResults = combinedResults.slice(0, 30);
-      
-      console.log(`🎯 Dual search completed: ${finalResults.length} total results (${semanticResults.length} semantic + ${keywordResults.length} keyword)`);
-      
+
+      // Step 5: Cache results and return
+      searchCache.set(cacheKey, {
+        results: finalResults,
+        timestamp: Date.now()
+      });
+
+      console.log(`✅ Enhanced search completed: ${finalResults.length} results (${semanticResults.length} semantic, ${allSqlResults.length} SQL)`);
+      console.log(`🚀 Search performance: ${finalResults.slice(0, 3).map(r => `${r.originalName} (${r.relevanceScore.toFixed(2)})`).join(', ')}`);
+
       res.json(finalResults);
     } catch (error) {
-      console.error("❌ Dual search failed:", error);
-      res.status(500).json({ error: "Search failed" });
+      console.error("❌ Enhanced search error:", error);
+      res.status(500).json({ error: "Search failed", message: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
