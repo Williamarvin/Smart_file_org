@@ -27,18 +27,8 @@ const getActivityIcon = (status: string) => {
 };
 
 const getActivityMessage = (file: FileItem) => {
-  switch (file.processingStatus) {
-    case 'completed':
-      return `${file.originalName} processed`;
-    case 'processing':
-      return `${file.originalName} being analyzed`;
-    case 'error':
-      return `Failed to process ${file.originalName}`;
-    case 'pending':
-      return `${file.originalName} uploaded`;
-    default:
-      return `${file.originalName} uploaded`;
-  }
+  // Since we're only showing completed files, always show transcription message
+  return `${file.originalName} transcribed`;
 };
 
 const getTimeAgo = (dateString: string) => {
@@ -58,8 +48,9 @@ const getTimeAgo = (dateString: string) => {
 };
 
 export default function RecentActivity({ files }: RecentActivityProps) {
-  // Sort files by most recent activity
+  // Filter to only show completed/transcribed files and sort by most recent
   const sortedFiles = [...files]
+    .filter(file => file.processingStatus === 'completed') // Only show transcribed files
     .sort((a, b) => {
       const aDate = new Date(a.processedAt || a.uploadedAt);
       const bDate = new Date(b.processedAt || b.uploadedAt);
@@ -71,18 +62,20 @@ export default function RecentActivity({ files }: RecentActivityProps) {
     <Card>
       <CardContent className="p-6">
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-          <History className="text-purple-500 mr-2" />
-          Recent Activity
+          <Check className="text-green-500 mr-2" />
+          Recently Transcribed
         </h3>
         
         {sortedFiles.length === 0 ? (
           <div className="text-center py-4">
-            <p className="text-slate-500 text-sm">No recent activity</p>
+            <p className="text-slate-500 text-sm">No recently transcribed files</p>
           </div>
         ) : (
           <div className="space-y-3">
             {sortedFiles.map((file) => {
-              const { icon: IconComponent, color } = getActivityIcon(file.processingStatus);
+              // Use consistent green checkmark for all transcribed files
+              const IconComponent = Check;
+              const color = 'text-green-600 bg-green-100';
               const message = getActivityMessage(file);
               const timeAgo = getTimeAgo(file.processedAt || file.uploadedAt);
               
