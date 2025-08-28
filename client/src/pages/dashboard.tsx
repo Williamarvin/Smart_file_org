@@ -294,7 +294,7 @@ export function Dashboard() {
 
         {/* Recent Activity */}
         <div>
-          <RecentActivity files={Array.isArray(files) ? files.slice(0, 5) : []} />
+          <RecentActivity files={Array.isArray(files) ? files : []} />
         </div>
       </div>
     </div>

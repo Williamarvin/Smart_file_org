@@ -1000,13 +1000,12 @@ export function Browse() {
                                           activeFilter === "processing" ? "bg-blue-100 text-blue-800" :
                                           "bg-red-100 text-red-800"}
                               >
-                                {folderFileCounts[folder.id].filteredFiles} 
+                                {folderFileCounts[folder.id].filteredFiles}/{folderFileCounts[folder.id].totalFiles}
                                 {activeFilter === "transcribed" ? " transcribed" :
                                  activeFilter === "pending" ? " pending" :
                                  activeFilter === "processing" ? " processing" :
                                  " failed"}
                               </Badge>
-                              <span className="text-slate-400">of {folderFileCounts[folder.id].totalFiles} total</span>
                             </>
                           )}
                           <span className="text-slate-500">{Array.isArray(allFolders) ? countAllFoldersInFolder(folder, allFolders as FolderType[]) : 0} folders</span>
