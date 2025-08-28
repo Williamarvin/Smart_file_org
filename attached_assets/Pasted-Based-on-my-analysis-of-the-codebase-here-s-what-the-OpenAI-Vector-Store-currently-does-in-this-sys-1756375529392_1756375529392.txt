@@ -1,0 +1,47 @@
+Based on my analysis of the codebase, here's what the OpenAI Vector Store currently does in this system:
+
+Primary Functions of OpenAI Vector Store:
+1. File Storage & Indexing
+Stores uploaded file content directly in OpenAI's vector store
+Creates embeddings automatically when files are added
+Maintains file relationships with database records via openai_file_id
+Syncs with PostgreSQL - adds missing files, removes orphaned ones
+2. Semantic Search Engine
+The vector store powers the "Layer 1" of the dual search system:
+
+Current Implementation:
+
+# Uses OpenAI's Responses API (not Assistants API)
+response = self.client.responses.create(
+    instructions="You are a semantic file search assistant...",
+    model="gpt-4o",
+    input=f"Find files semantically related to: {query}",
+    tools=[{"type": "file_search", "vector_store_ids": [self.vector_store_id]}]
+)
+What it does:
+
+Understands query intent - not just keywords but meaning
+Finds conceptually related files - e.g., "tax documents" finds financial records
+Considers synonyms and context - "homework" matches "assignments", "problem sets"
+Returns semantic relevance scores based on content similarity
+3. File Management
+Automatic cleanup of failed or expired files
+Statistics tracking - file counts, usage bytes, processing status
+Metadata enrichment - stores categories, tags, confidence scores alongside content
+4. Integration with Database
+Two-way sync ensures consistency between vector store and PostgreSQL
+Stores OpenAI file IDs in database for cross-referencing
+Enables hybrid search combining semantic (vector) and keyword (SQL) results
+Current Architecture:
+Vector Store serves as:
+
+Content repository for full file text and embeddings
+Semantic search index powered by OpenAI's file_search tool
+AI-enhanced discovery layer that understands document meaning and context
+Notable limitation: The system currently uses two different vector store names:
+
+"smart_file_organizer_v2" (in vector_index.py)
+"Smart File Organizer Vector Store" (in dual_search_engine.py)
+This could cause inconsistencies - the system may create multiple vector stores instead of using a single unified one.
+
+The vector store essentially acts as an intelligent file index that enables natural language search across document content, going far beyond simple keyword matching to understand document purpose and semantic relationships.

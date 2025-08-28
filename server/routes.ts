@@ -1814,6 +1814,36 @@ ${file.fileContent.toString()}`;
     }
   });
 
+  // Bulk reprocess all files with new OpenAI vector storage
+  app.post("/api/files/reprocess-all", async (req: any, res) => {
+    try {
+      const userId = "demo-user";
+      const batchSize = req.body.batchSize || 5; // Process in small batches to avoid API limits
+      
+      // Get all files that need vector storage upgrade
+      const allFiles = await db.select()
+        .from(files)
+        .where(eq(files.userId, userId))
+        .orderBy(files.uploadedAt);
+      
+      console.log(`🚀 Starting bulk reprocessing of ${allFiles.length} files with OpenAI vector storage`);
+      
+      res.json({
+        message: "Bulk reprocessing initiated",
+        totalFiles: allFiles.length,
+        batchSize,
+        estimatedDuration: `${Math.ceil(allFiles.length / batchSize * 10)} minutes`
+      });
+      
+      // Process files in batches asynchronously
+      processAllFilesInBatches(allFiles, userId, batchSize);
+      
+    } catch (error) {
+      console.error("Error starting bulk reprocessing:", error);
+      res.status(500).json({ error: "Failed to start bulk reprocessing" });
+    }
+  });
+
   // Generate content using existing files
   app.post("/api/generate-content", async (req: any, res) => {
     try {
@@ -2055,6 +2085,51 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       });
     }
   });
+
+  // Bulk processing function for all files
+  async function processAllFilesInBatches(allFiles: any[], userId: string, batchSize: number) {
+    let processedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+    
+    console.log(`📊 Processing ${allFiles.length} files in batches of ${batchSize}`);
+    
+    for (let i = 0; i < allFiles.length; i += batchSize) {
+      const batch = allFiles.slice(i, i + batchSize);
+      console.log(`🔄 Processing batch ${Math.ceil((i + 1) / batchSize)} of ${Math.ceil(allFiles.length / batchSize)}`);
+      
+      // Process batch concurrently but with controlled concurrency
+      const batchPromises = batch.map(async (file) => {
+        try {
+          // Update status to processing
+          await storage.updateFileProcessingStatus(file.id, userId, "processing", "Bulk reprocessing for OpenAI vector storage");
+          
+          // Process the file
+          await processFileAsync(file.id, userId);
+          successCount++;
+          console.log(`✅ Successfully reprocessed: ${file.originalName} (${successCount}/${allFiles.length})`);
+          
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ Failed to reprocess ${file.originalName}:`, error);
+          await storage.updateFileProcessingStatus(file.id, userId, "error", `Bulk reprocess failed: ${error}`);
+        }
+        processedCount++;
+      });
+      
+      // Wait for current batch to complete
+      await Promise.allSettled(batchPromises);
+      
+      // Add delay between batches to respect API rate limits
+      if (i + batchSize < allFiles.length) {
+        console.log(`⏳ Batch complete. Waiting 10 seconds before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
+      }
+    }
+    
+    console.log(`🎉 Bulk reprocessing completed!`);
+    console.log(`📊 Results: ${successCount} successful, ${errorCount} errors out of ${allFiles.length} total files`);
+  }
 
   // Background processing function
   async function processFileAsync(fileId: string, userId: string, rawFileData?: Buffer) {
