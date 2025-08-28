@@ -517,16 +517,37 @@ export function Browse() {
 
   // Apply filters to the files
   const applyFilters = (files: any[]) => {
-    if (!files || !Array.isArray(files)) return [];
+    if (!files || !Array.isArray(files)) {
+      console.log("applyFilters: no files or not array", files);
+      return [];
+    }
+    
+    console.log(`applyFilters: Processing ${files.length} files with filter: ${activeFilter}`);
     
     switch (activeFilter) {
       case "transcribed":
-        return files.filter(file => 
-          file.metadata?.extractedText && 
-          !file.metadata.extractedText.startsWith('File reference:') &&
-          file.metadata.extractedText.length > 100 &&
-          file.processingStatus === 'completed'
-        );
+        const transcribedFiles = files.filter(file => {
+          const hasMetadata = file.metadata?.extractedText;
+          const notPlaceholder = file.metadata?.extractedText && !file.metadata.extractedText.startsWith('File reference:');
+          const hasLength = file.metadata?.extractedText && file.metadata.extractedText.length > 100;
+          const isCompleted = file.processingStatus === 'completed';
+          
+          const passes = hasMetadata && notPlaceholder && hasLength && isCompleted;
+          
+          if (!passes) {
+            console.log(`File ${file.originalName} filtered out:`, {
+              hasMetadata: !!hasMetadata,
+              notPlaceholder: !!notPlaceholder, 
+              hasLength: !!hasLength,
+              isCompleted: !!isCompleted,
+              extractedTextLength: file.metadata?.extractedText?.length || 0
+            });
+          }
+          
+          return passes;
+        });
+        console.log(`Transcribed filter: ${transcribedFiles.length} of ${files.length} files passed`);
+        return transcribedFiles;
       case "pending":
         return files.filter(file => file.processingStatus === 'pending');
       case "processing":
@@ -581,7 +602,12 @@ export function Browse() {
         <Button
           variant={activeFilter === "transcribed" ? "default" : "outline"}
           size="sm"
-          onClick={() => setActiveFilter("transcribed")}
+          onClick={() => {
+            console.log("Transcribed filter clicked");
+            // Invalidate queries to ensure fresh data
+            queryClient.invalidateQueries({ queryKey: ['/api/files'] });
+            setActiveFilter("transcribed");
+          }}
           className="bg-green-50 hover:bg-green-100 text-green-800 border-green-300 data-[state=on]:bg-green-600 data-[state=on]:text-white"
         >
           ✓ Transcribed
