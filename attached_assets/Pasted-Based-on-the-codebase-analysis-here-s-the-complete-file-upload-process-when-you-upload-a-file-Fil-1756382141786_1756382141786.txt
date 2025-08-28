@@ -1,0 +1,58 @@
+Based on the codebase analysis, here's the complete file upload process when you upload a file:
+
+File Upload Process Flow:
+1. Frontend Capture
+You select files through Streamlit's file uploader interface
+System reads the file content into memory as bytes
+User's category selection and context are captured
+2. Processing Method Selection
+The system automatically chooses:
+
+Backend Processing (preferred): Uses FastAPI server if available
+Direct Processing (fallback): Uses Streamlit app directly
+3. Core Processing Pipeline
+When a file is uploaded, it goes through these exact steps in sequence:
+
+Step 1: Raw Text Extraction (RawFileExtractor)
+
+extraction_result = self.raw_extractor.extract_text(file_content, filename)
+Extracts clean text from PDFs, DOCX, images (OCR), TXT, etc.
+Returns extracted text and metadata about extraction method
+Step 2: AI Content Analysis (AIPipeline)
+
+ai_analysis = self.ai_pipeline.analyze_content(text_content, filename, file_type)
+Sends content to GPT-4o for intelligent analysis
+Extracts action items, named entities, key processes
+Generates confidence scores and insights
+Step 3: Advanced Categorization (AdvancedCategorizer)
+
+categorization = self.categorizer.categorize_file(text_content, filename, file_type, metadata)
+AI-powered categorization beyond simple file types
+Assigns primary/subcategory, organization priority
+Generates suggested tags and hashtags
+Step 4: Vector Store Upload (VectorIndexManager)
+
+openai_file_id = self.vector_manager.add_file_to_index(file_content, filename, metadata)
+Uploads full file content to OpenAI Vector Store
+Creates embeddings for semantic search
+Returns OpenAI file ID for linking
+Step 5: Database Storage (PostgreSQLDatabase)
+
+storage_result = self.db.store_file_with_metadata(filename, file_content, comprehensive_metadata)
+Stores all extracted text, AI analysis results, categories, tags
+Links to OpenAI file ID for search integration
+Saves processing timestamps and confidence scores
+4. Result Processing
+System tracks processing time and success/failure status
+Updates progress bar in real-time
+Shows success/error messages for each file
+Clears cache to ensure new files appear in search immediately
+5. What Gets Stored
+After processing, your file exists in multiple places:
+
+OpenAI Vector Store: Full content + embeddings for semantic search
+PostgreSQL Database: Metadata, categories, tags, summaries, AI analysis
+Cross-references: Database stores OpenAI file ID to link both systems
+This dual-storage approach enables the system to perform both intelligent semantic search (via vector store) and fast metadata filtering (via database) when you later search for files.
+
+The entire process typically takes a few seconds per file, with real-time feedback showing which step is currently being processed.
