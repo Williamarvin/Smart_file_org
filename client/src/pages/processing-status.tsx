@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AIProcessingBar } from '@/components/ai-processing-bar';
 import { 
   Clock, 
   AlertCircle, 
@@ -199,6 +200,20 @@ export default function ProcessingStatus() {
           </Button>
         </div>
       </div>
+
+      {/* AI Processing Bar */}
+      {stats && stats.totalFiles > 0 && (
+        <div className="mb-8">
+          <AIProcessingBar 
+            stats={{
+              processedFiles: stats.processedFiles || 0,
+              totalFiles: stats.totalFiles || 0,
+              processingFiles: stats.processingFiles || 0
+            }}
+            className="max-w-lg"
+          />
+        </div>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">

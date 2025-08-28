@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import QuickStats from "@/components/quick-stats";
 import RecentActivity from "@/components/recent-activity";
+import { AIProcessingBar } from "@/components/ai-processing-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles, PieChart } from "lucide-react";
 import { Link } from "wouter";
@@ -122,6 +123,16 @@ export function Dashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* AI Processing Bar */}
+      {stats && (stats as any).totalFiles > 0 && (
+        <div className="mb-8">
+          <AIProcessingBar 
+            stats={stats as any}
+            className="max-w-md mx-auto"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         {/* Statistics */}
