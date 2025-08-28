@@ -12,7 +12,7 @@ import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggl
 
 interface ChatMessage {
   id: string;
-  type: "user" | "assistant";
+  type: "user" | "assistant" | "thinking";
   content: string;
   timestamp: Date;
   relatedFiles?: string[];
@@ -104,7 +104,16 @@ export function Chat() {
       content: inputMessage,
       timestamp: new Date(),
     };
-    setMessages(prev => [...prev, userMessage]);
+    
+    // Add thinking message
+    const thinkingMessage: ChatMessage = {
+      id: `thinking-${Date.now()}`,
+      type: "thinking",
+      content: "Thinking",
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage, thinkingMessage]);
 
     // Send to AI
     chatMutation.mutate({
