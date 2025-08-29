@@ -437,30 +437,42 @@ export class ExcelProcessor {
       }
     }
     
-    // First, create parent folder if needed and it has files
+    // First, create or get parent folder if needed
     if (parentFolderName && parentFolderName !== '' && foldersWithFiles.has(parentFolderName)) {
-      // Import storage to use the generateUniqueFolderName method
-      const { storage } = await import('./storage');
+      // Check if parent folder already exists
+      const existingParent = await db
+        .select()
+        .from(folders)
+        .where(
+          and(
+            eq(folders.name, parentFolderName),
+            isNull(folders.parentId),
+            eq(folders.userId, this.userId)
+          )
+        )
+        .limit(1);
       
-      // Generate unique name for parent folder to handle duplicates
-      const uniqueParentName = await storage.generateUniqueFolderName(parentFolderName, null, this.userId);
-      
-      console.log(`Creating parent folder with unique name: ${uniqueParentName} (original: ${parentFolderName})`);
-      const newParent = await db
-        .insert(folders)
-        .values({
-          name: uniqueParentName,
-          path: `/${uniqueParentName}`,
-          parentId: null,
-          userId: this.userId
-        })
-        .returning();
-      const parentFolder = newParent[0];
-      createdFolders.push(parentFolder);
-      
-      // Map both original and unique names to the folder
-      folderMap.set(parentFolderName, parentFolder);
-      folderMap.set(uniqueParentName, parentFolder);
+      if (existingParent.length > 0) {
+        // Use existing parent folder
+        console.log(`✓ Using existing parent folder: ${parentFolderName}`);
+        const parentFolder = existingParent[0];
+        folderMap.set(parentFolderName, parentFolder);
+      } else {
+        // Create new parent folder (only if it doesn't exist)
+        console.log(`Creating new parent folder: ${parentFolderName}`);
+        const newParent = await db
+          .insert(folders)
+          .values({
+            name: parentFolderName,
+            path: `/${parentFolderName}`,
+            parentId: null,
+            userId: this.userId
+          })
+          .returning();
+        const parentFolder = newParent[0];
+        createdFolders.push(parentFolder);
+        folderMap.set(parentFolderName, parentFolder);
+      }
     }
     
     // Create child folders only if they have files
