@@ -1,9 +1,9 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx';
 import * as path from 'path';
 import { db } from './db';
 import { files, folders, fileMetadata } from '@shared/schema';
 import { storage } from './storage';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { googleDriveService } from './googleDriveService';
 
 interface ProcessedRow {
@@ -55,7 +55,7 @@ export class ExcelProcessorFixed {
         and(
           eq(folders.name, excelFileName),
           eq(folders.userId, this.userId),
-          eq(folders.parentId, null)
+          isNull(folders.parentId)
         )
       )
       .limit(1);
@@ -126,7 +126,8 @@ export class ExcelProcessorFixed {
       totalRows += data.length;
       
       // Process each row as a topic subfolder
-      for (const [rowIndex, row] of data.entries()) {
+      for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
+        const row = data[rowIndex];
         // Find topic name from the row
         const columns = Object.keys(row as any);
         let topicName = '';
@@ -311,7 +312,7 @@ export class ExcelProcessorFixed {
           googleDriveUrl: googleDriveUrl,
           googleDriveMetadata: null,
           lastMetadataSync: googleDriveUrl ? new Date() : null
-        }, this.userId, downloadedBuffer);
+        }, this.userId, downloadedBuffer || undefined);
         
         // Create basic metadata
         await db
