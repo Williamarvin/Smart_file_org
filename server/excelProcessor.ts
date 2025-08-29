@@ -439,40 +439,50 @@ export class ExcelProcessor {
     
     // First, create or get parent folder if needed
     if (parentFolderName && parentFolderName !== '' && foldersWithFiles.has(parentFolderName)) {
-      // Check if parent folder already exists
-      const existingParent = await db
-        .select()
-        .from(folders)
-        .where(
-          and(
-            eq(folders.name, parentFolderName),
-            isNull(folders.parentId),
-            eq(folders.userId, this.userId)
-          )
-        )
-        .limit(1);
+      // Find unique folder name for parent folder
+      let uniqueParentName = parentFolderName;
+      let counter = 0;
       
-      if (existingParent.length > 0) {
-        // Use existing parent folder
-        console.log(`✓ Using existing parent folder: ${parentFolderName}`);
-        const parentFolder = existingParent[0];
-        folderMap.set(parentFolderName, parentFolder);
-      } else {
-        // Create new parent folder (only if it doesn't exist)
-        console.log(`Creating new parent folder: ${parentFolderName}`);
-        const newParent = await db
-          .insert(folders)
-          .values({
-            name: parentFolderName,
-            path: `/${parentFolderName}`,
-            parentId: null,
-            userId: this.userId
-          })
-          .returning();
-        const parentFolder = newParent[0];
-        createdFolders.push(parentFolder);
-        folderMap.set(parentFolderName, parentFolder);
+      while (true) {
+        const existingParent = await db
+          .select()
+          .from(folders)
+          .where(
+            and(
+              eq(folders.name, uniqueParentName),
+              isNull(folders.parentId),
+              eq(folders.userId, this.userId)
+            )
+          )
+          .limit(1);
+        
+        if (existingParent.length === 0) {
+          // Name is unique, break out of loop
+          break;
+        } else {
+          // Name exists, try next increment
+          counter++;
+          uniqueParentName = `${parentFolderName}_${counter}`;
+        }
       }
+      
+      // Create new parent folder with unique name
+      console.log(`Creating new parent folder with unique name: ${uniqueParentName}`);
+      const newParent = await db
+        .insert(folders)
+        .values({
+          name: uniqueParentName,
+          path: `/${uniqueParentName}`,
+          parentId: null,
+          userId: this.userId
+        })
+        .returning();
+      const parentFolder = newParent[0];
+      createdFolders.push(parentFolder);
+      
+      // Map both original and unique names to this folder
+      folderMap.set(parentFolderName, parentFolder);
+      folderMap.set(uniqueParentName, parentFolder);
     }
     
     // Create child folders only if they have files
@@ -508,38 +518,54 @@ export class ExcelProcessor {
           continue;
         }
         
-        // Check if folder exists with this name and parent
-        const existing = await db
-          .select()
-          .from(folders)
-          .where(
-            parentId 
-              ? and(eq(folders.name, part), eq(folders.parentId, parentId))
-              : and(eq(folders.name, part), isNull(folders.parentId))
-          )
-          .limit(1);
+        // Find unique folder name for this level
+        let uniqueFolderName = part;
+        let uniqueCurrentPath = currentPath;
+        let counter = 0;
         
-        if (existing.length > 0) {
-          console.log(`Folder exists in DB: ${currentPath}`);
-          folderMap.set(currentPath, existing[0]);
-          parentId = existing[0].id;
-        } else {
-          console.log(`Creating new folder: ${currentPath} with parent ${parentId}`);
-          // Create new folder
-          const newFolderResult: any = await db
-            .insert(folders)
-            .values({
-              name: part,
-              path: `/${currentPath}`,
-              parentId: parentId,
-              userId: this.userId
-            })
-            .returning();
-          const newFolder: any = newFolderResult[0];
-          folderMap.set(currentPath, newFolder);
-          createdFolders.push(newFolder);
-          parentId = newFolder.id;
+        while (true) {
+          const existing = await db
+            .select()
+            .from(folders)
+            .where(
+              parentId 
+                ? and(eq(folders.name, uniqueFolderName), eq(folders.parentId, parentId))
+                : and(eq(folders.name, uniqueFolderName), isNull(folders.parentId))
+            )
+            .limit(1);
+          
+          if (existing.length === 0) {
+            // Name is unique, break out of loop
+            break;
+          } else {
+            // Name exists, try next increment
+            counter++;
+            uniqueFolderName = `${part}_${counter}`;
+            // Update the unique current path to reflect the new name
+            const pathParts = currentPath.split('/');
+            pathParts[pathParts.length - 1] = uniqueFolderName;
+            uniqueCurrentPath = pathParts.join('/');
+          }
         }
+        
+        console.log(`Creating new folder: ${uniqueCurrentPath} (name: ${uniqueFolderName}) with parent ${parentId}`);
+        // Create new folder with unique name
+        const newFolderResult: any = await db
+          .insert(folders)
+          .values({
+            name: uniqueFolderName,
+            path: `/${uniqueCurrentPath}`,
+            parentId: parentId,
+            userId: this.userId
+          })
+          .returning();
+        const newFolder: any = newFolderResult[0];
+        
+        // Map both original and unique paths to this folder
+        folderMap.set(currentPath, newFolder);
+        folderMap.set(uniqueCurrentPath, newFolder);
+        createdFolders.push(newFolder);
+        parentId = newFolder.id;
       }
     }
     
