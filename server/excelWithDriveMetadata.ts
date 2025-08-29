@@ -126,7 +126,7 @@ export class ExcelWithDriveMetadataService {
           console.log(`⬇️ Downloading Google Drive file immediately: ${filename}`);
           try {
             const fileBuffer = await googleDriveService.downloadFile(googleDriveUrl);
-            if (fileBuffer) {
+            if (fileBuffer && fileBuffer.length > 0) {
               // Store the downloaded buffer for BYTEA storage
               downloadedFileBuffer = fileBuffer;
               
@@ -152,19 +152,27 @@ export class ExcelWithDriveMetadataService {
               actualFileContent = extractedContent;
               actualSize = fileBuffer.length;
               actualProcessingStatus = 'pending'; // Still needs full AI processing
-              // Use BYTEA-only storage for downloaded files (no cloud storage needed)
-              actualStorageType = 'bytea';
-              actualObjectPath = `/bytea/${filename}`; // Special path indicating BYTEA-only storage
-              console.log(`✅ Downloaded ${filename}: ${fileBuffer.length} bytes - will use BYTEA storage`);
+              // Use BYTEA storage for small files, hybrid for large files
+              if (fileBuffer.length <= 10 * 1024 * 1024) {
+                actualStorageType = 'bytea';
+                actualObjectPath = `/bytea/${filename}`; // Special path indicating BYTEA storage
+                console.log(`✅ Downloaded ${filename}: ${fileBuffer.length} bytes - will use BYTEA storage`);
+              } else {
+                actualStorageType = 'hybrid';  
+                actualObjectPath = `/excel-import/${row.folderName}/${filename}`; // Use regular path for large files
+                console.log(`✅ Downloaded ${filename}: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB - will use hybrid storage`);
+              }
             } else {
-              console.warn(`❌ Failed to download ${filename} from Google Drive`);
+              console.warn(`❌ Failed to download ${filename} from Google Drive - empty or no data received`);
               actualProcessingStatus = 'error';
-              actualFileContent = `Error: Could not download ${filename} from Google Drive`;
+              actualFileContent = `Error: Could not download ${filename} from Google Drive - no data received`;
             }
           } catch (error) {
             console.error(`❌ Error downloading ${filename}:`, error);
             actualProcessingStatus = 'error';
             actualFileContent = `Error: Failed to download ${filename} from Google Drive - ${error}`;
+            // Don't set /bytea/ path for failed downloads
+            actualObjectPath = `/excel-import/${row.folderName}/${filename}`;
           }
         }
 

@@ -2726,13 +2726,20 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
           fileData = bytea;
           console.log("Retrieved file data from BYTEA");
         } else {
-          // Check if this is a BYTEA-only file or has a fake cloud storage path
-          const isByteaOnlyFile = file.objectPath.startsWith('/bytea/') || 
-                                 file.objectPath.startsWith('/excel-import/');
+          // Check if this is a BYTEA-only file
+          const isByteaOnlyFile = file.objectPath.startsWith('/bytea/');
           
           if (isByteaOnlyFile) {
             console.error(`❌ BYTEA-only file has no BYTEA data: ${file.filename}`);
             throw new Error(`File data not found: ${file.filename} was supposed to be in BYTEA storage but isn't available`);
+          }
+          
+          // For /excel-import/ files, they might be placeholder files - mark as error instead of crashing
+          if (file.objectPath.startsWith('/excel-import/')) {
+            console.warn(`⚠️ Excel import file missing data, marking as error: ${file.filename}`);
+            await storage.updateFileProcessingStatus(fileId, userId, "error", 
+              `Excel import file data not available - may be placeholder or failed download`);
+            return; // Skip processing this file
           }
           
           // Fallback to Google Cloud Storage for real cloud paths

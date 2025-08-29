@@ -136,20 +136,37 @@ export class DatabaseStorage implements IStorage {
       ...insertFile,
       userId,
       storageType: 'hybrid' as const,
-      processingStatus: 'pending' as const,
+      processingStatus: insertFile.processingStatus || 'pending' as const,
     };
     
-    // Add BYTEA data if file is ≤50MB
+    // Add BYTEA data if file is ≤10MB and we have data
     if (shouldStoreBytea) {
-      const result = await db.execute(sql`
-        INSERT INTO files (id, filename, original_name, mime_type, size, object_path, file_content, user_id, storage_type, processing_status)
-        VALUES (gen_random_uuid(), ${insertFile.filename}, ${insertFile.originalName}, ${insertFile.mimeType}, 
-                ${insertFile.size}, ${insertFile.objectPath}, ${rawFileData}, ${userId}, 'hybrid', 'pending')
-        RETURNING *
-      `);
-      return result.rows[0] as File;
+      try {
+        const result = await db.execute(sql`
+          INSERT INTO files (id, filename, original_name, mime_type, size, object_path, file_content, user_id, storage_type, processing_status, google_drive_id, google_drive_url, google_drive_metadata, last_metadata_sync)
+          VALUES (gen_random_uuid(), ${insertFile.filename}, ${insertFile.originalName}, ${insertFile.mimeType}, 
+                  ${insertFile.size}, ${insertFile.objectPath}, ${rawFileData}, ${userId}, 'hybrid', ${fileValues.processingStatus},
+                  ${insertFile.googleDriveId}, ${insertFile.googleDriveUrl}, ${insertFile.googleDriveMetadata}, ${insertFile.lastMetadataSync})
+          RETURNING *
+        `);
+        const createdFile = result.rows[0] as File;
+        console.log(`✅ Successfully stored file with BYTEA data: ${insertFile.filename} (${rawFileData.length} bytes)`);
+        return createdFile;
+      } catch (error) {
+        console.error(`❌ Failed to store BYTEA data for ${insertFile.filename}:`, error);
+        // Fallback: create without BYTEA data but mark as error
+        const [file] = await db
+          .insert(files)
+          .values({
+            ...fileValues,
+            processingStatus: 'error',
+            processingError: `Failed to store file data: ${error}`
+          })
+          .returning();
+        return file;
+      }
     } else {
-      // Large files: cloud storage only (no BYTEA)
+      // Large files or no data: cloud storage only (no BYTEA)
       const [file] = await db
         .insert(files)
         .values(fileValues)
