@@ -47,11 +47,15 @@ export function AIProcessingBar({ stats, className = "", showTitle = true }: AIP
             </div>
           </div>
           
-          {stats.processingFiles === 0 && stats.processedFiles > 0 && (
+          {stats.processedFiles === stats.totalFiles && stats.totalFiles > 0 ? (
             <p className="text-xs text-green-600 font-medium">
               🎉 All files processed! Ready for search.
             </p>
-          )}
+          ) : stats.processingFiles === 0 && stats.processedFiles < stats.totalFiles ? (
+            <p className="text-xs text-amber-600 font-medium">
+              ⚠️ {stats.totalFiles - stats.processedFiles} files pending processing
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
