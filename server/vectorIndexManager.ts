@@ -201,7 +201,7 @@ Focus on extracting actionable insights and content that would be valuable for s
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1", // Using GPT-4.1 for better temperature parameter support
+        model: "gpt-4o", // Using GPT-4o for better performance
         messages: [
           {
             role: "system",
@@ -458,7 +458,7 @@ Respond in JSON format:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1", // Using GPT-4.1 for better temperature parameter support
+        model: "gpt-4o", // Using GPT-4o for better performance
         messages: [
           {
             role: "system",
