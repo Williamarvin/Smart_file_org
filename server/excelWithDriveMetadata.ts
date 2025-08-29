@@ -117,6 +117,9 @@ export class ExcelWithDriveMetadataService {
         let actualFileContent = fileData.content || `File reference: ${filename}`;
         let actualSize = size;
         let actualProcessingStatus: 'pending' | 'completed' | 'error' = googleDriveUrl ? 'pending' : 'completed';
+        let actualObjectPath = `/excel-import/${row.folderName}/${filename}`;
+        let actualStorageType: 'hybrid' | 'bytea' = 'hybrid';
+        let downloadedFileBuffer: Buffer | null = null;
         
         // If it's a Google Drive file, try to download it immediately
         if (googleDriveUrl && googleDriveService.isInitialized()) {
@@ -124,6 +127,9 @@ export class ExcelWithDriveMetadataService {
           try {
             const fileBuffer = await googleDriveService.downloadFile(googleDriveUrl);
             if (fileBuffer) {
+              // Store the downloaded buffer for BYTEA storage
+              downloadedFileBuffer = fileBuffer;
+              
               // Extract content based on file type
               let extractedContent = '';
               const fileExt = filename.toLowerCase().substring(filename.lastIndexOf('.'));
@@ -146,7 +152,10 @@ export class ExcelWithDriveMetadataService {
               actualFileContent = extractedContent;
               actualSize = fileBuffer.length;
               actualProcessingStatus = 'pending'; // Still needs full AI processing
-              console.log(`✅ Downloaded ${filename}: ${fileBuffer.length} bytes`);
+              // Use BYTEA-only storage for downloaded files (no cloud storage needed)
+              actualStorageType = 'bytea';
+              actualObjectPath = `/bytea/${filename}`; // Special path indicating BYTEA-only storage
+              console.log(`✅ Downloaded ${filename}: ${fileBuffer.length} bytes - will use BYTEA storage`);
             } else {
               console.warn(`❌ Failed to download ${filename} from Google Drive`);
               actualProcessingStatus = 'error';
@@ -159,43 +168,26 @@ export class ExcelWithDriveMetadataService {
           }
         }
 
-        const [newFile] = await db
-          .insert(files)
-          .values({
-            filename: filename,
-            originalName: fileData.filename, // Keep original display name
-            folderId: folderId || null,
-            size: actualSize,
-            mimeType: mimeType,
-            objectPath: googleDriveUrl || `/excel-import/${row.folderName}/${filename}`,
-            uploadedAt: new Date(),
-            userId: userId,
-            processingStatus: actualProcessingStatus,
-            processingError: actualProcessingStatus === 'error' ? actualFileContent : null,
-            fileContent: null, // Will be stored separately if needed
-            storageType: googleDriveUrl ? 'google-drive' : 'excel-metadata',
-            content: actualFileContent,
-            
-            // Google Drive specific fields
-            googleDriveId: googleDriveId,
-            googleDriveUrl: googleDriveUrl,
-            googleDriveMetadata: googleDriveMetadataJson,
-            lastMetadataSync: googleDriveMetadataJson ? new Date() : null
-          })
-          .returning();
+        // Create file using storage.createFile to handle BYTEA storage properly
+        const newFile = await storage.createFile({
+          filename: filename,
+          originalName: fileData.filename, // Keep original display name
+          folderId: folderId || null,
+          size: actualSize,
+          mimeType: mimeType,
+          objectPath: actualObjectPath,
+          processingStatus: actualProcessingStatus,
+          userId: userId,
+          
+          // Google Drive specific fields
+          googleDriveId: googleDriveId,
+          googleDriveUrl: googleDriveUrl,
+          googleDriveMetadata: googleDriveMetadataJson,
+          lastMetadataSync: googleDriveMetadataJson ? new Date() : null
+        }, userId, downloadedFileBuffer); // Pass the downloaded buffer for BYTEA storage
 
-        // If we successfully downloaded the file, store the file data for hybrid storage
-        if (googleDriveUrl && actualProcessingStatus !== 'error' && actualFileContent !== `File reference: ${filename}`) {
-          try {
-            const fileBuffer = await googleDriveService.downloadFile(googleDriveUrl);
-            if (fileBuffer) {
-              // Store file data in BYTEA if it's small enough
-              await storage.updateFileData(newFile.id, userId, fileBuffer);
-              console.log(`💾 Stored file data for ${filename} in hybrid storage`);
-            }
-          } catch (error) {
-            console.warn(`Warning: Could not store file data for ${filename}:`, error);
-          }
+        if (downloadedFileBuffer) {
+          console.log(`💾 Stored file data for ${filename} in BYTEA storage (${downloadedFileBuffer.length} bytes)`);
         }
         
         // Create file metadata entry

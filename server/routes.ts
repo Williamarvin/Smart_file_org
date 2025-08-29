@@ -2662,6 +2662,39 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     console.log(`📊 Results: ${successCount} successful, ${errorCount} errors out of ${allFiles.length} total files`);
   }
 
+  // Cleanup function for broken Excel import files
+  async function cleanupBrokenExcelFiles(userId: string) {
+    console.log('🧹 Starting cleanup of broken Excel import files...');
+    
+    // Get all files with fake Excel import paths that have no BYTEA data
+    const result = await db.execute(sql`
+      SELECT id, filename, object_path, google_drive_url, processing_status 
+      FROM files 
+      WHERE user_id = ${userId} 
+      AND object_path LIKE '/excel-import/%'
+      AND file_content IS NULL
+      AND processing_status IN ('pending', 'processing')
+    `);
+    
+    let cleanedCount = 0;
+    for (const file of result.rows as any[]) {
+      try {
+        let errorMessage = 'File was imported from Excel but file data is missing.';
+        if (file.google_drive_url) {
+          errorMessage += ` Original Google Drive URL: ${file.google_drive_url}. File may have been moved or access denied.`;
+        }
+        
+        await storage.updateFileProcessingStatus(file.id, userId, "error", errorMessage);
+        cleanedCount++;
+      } catch (error) {
+        console.error(`Failed to mark file ${file.id} as error:`, error);
+      }
+    }
+    
+    console.log(`✅ Marked ${cleanedCount} broken Excel import files as errors`);
+    return cleanedCount;
+  }
+
   // Background processing function
   async function processFileAsync(fileId: string, userId: string, rawFileData?: Buffer) {
     try {
@@ -2693,16 +2726,33 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
           fileData = bytea;
           console.log("Retrieved file data from BYTEA");
         } else {
-          // Fallback to Google Cloud Storage
-          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-          const [downloadedData] = await objectFile.download();
-          fileData = downloadedData;
-          console.log("Retrieved file data from cloud storage");
+          // Check if this is a BYTEA-only file or has a fake cloud storage path
+          const isByteaOnlyFile = file.objectPath.startsWith('/bytea/') || 
+                                 file.objectPath.startsWith('/excel-import/');
           
-          // Backfill BYTEA if ≤10MB
-          if (fileData.length <= 10 * 1024 * 1024) {
-            await storage.updateFileData(fileId, userId, fileData);
-            console.log(`Backfilled BYTEA storage: ${file.filename}`);
+          if (isByteaOnlyFile) {
+            console.error(`❌ BYTEA-only file has no BYTEA data: ${file.filename}`);
+            throw new Error(`File data not found: ${file.filename} was supposed to be in BYTEA storage but isn't available`);
+          }
+          
+          // Fallback to Google Cloud Storage for real cloud paths
+          try {
+            const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+            const [downloadedData] = await objectFile.download();
+            fileData = downloadedData;
+            console.log("Retrieved file data from cloud storage");
+            
+            // Backfill BYTEA if ≤10MB
+            if (fileData.length <= 10 * 1024 * 1024) {
+              await storage.updateFileData(fileId, userId, fileData);
+              console.log(`Backfilled BYTEA storage: ${file.filename}`);
+            }
+          } catch (cloudError) {
+            console.error(`❌ Cloud storage error for ${file.filename}: ${cloudError}`);
+            // Mark as error if both BYTEA and cloud storage fail
+            await storage.updateFileProcessingStatus(fileId, userId, "error", 
+              `File not accessible: missing from both BYTEA and cloud storage`);
+            throw cloudError;
           }
         }
       }
