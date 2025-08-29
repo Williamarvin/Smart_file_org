@@ -139,9 +139,9 @@ export class ExcelWithDriveMetadataService {
         }
         
         // Create file entry with Google Drive metadata and immediately download if it's a Google Drive file
-        let actualFileContent = fileData.content || `File reference: ${filename}`;
+        let actualFileContent = fileData.content || '';
         let actualSize = size;
-        let actualProcessingStatus: 'pending' | 'completed' | 'error' = googleDriveUrl ? 'pending' : 'completed';
+        let actualProcessingStatus: 'pending' | 'completed' | 'error' = 'pending'; // Always set to pending so files get processed
         let actualObjectPath = `/excel-import/${row.folderName}/${filename}`;
         let actualStorageType: 'hybrid' | 'bytea' = 'hybrid';
         let downloadedFileBuffer: Buffer | null = null;
@@ -174,9 +174,10 @@ export class ExcelWithDriveMetadataService {
                 extractedContent = `File: ${filename}\nSize: ${fileBuffer.length} bytes\nDownloaded from Google Drive`;
               }
               
-              actualFileContent = extractedContent;
+              // Don't set extracted content here - let the file processor handle it
+              actualFileContent = ''; // Empty content so processor will extract it
               actualSize = fileBuffer.length;
-              actualProcessingStatus = 'pending'; // Still needs full AI processing
+              actualProcessingStatus = 'pending'; // Needs full processing
               // Use BYTEA storage for small files, hybrid for large files
               if (fileBuffer.length <= 10 * 1024 * 1024) {
                 actualStorageType = 'bytea';
