@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
-import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter, Loader2 } from "lucide-react";
+import { Folder, FolderPlus, ChevronRight, Home, Search, Plus, MoreHorizontal, Trash2, Edit3, Move, CheckSquare, Square, Filter, Loader2, RefreshCw } from "lucide-react";
 import SearchBar from "@/components/search-bar";
 import FileGrid from "@/components/file-grid";
 import { useToast } from "@/hooks/use-toast";
@@ -108,8 +108,21 @@ export function Browse() {
   });
   const [isLoadingProblematic, setIsLoadingProblematic] = useState(false);
   const [isFixingProblematic, setIsFixingProblematic] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Auto-refresh every 5 seconds
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/folders", currentFolderId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/files?folderId=${currentFolderId || 'null'}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh, currentFolderId]);
 
   // Get folders for current level
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
@@ -572,8 +585,20 @@ export function Browse() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2">Browse Files</h1>
-        <p className="text-slate-600">Organize and search your document collection</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Browse Files</h1>
+            <p className="text-slate-600">Organize and search your document collection</p>
+          </div>
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+            {autoRefresh ? 'Auto-Refresh On' : 'Auto-Refresh Off'}
+          </Button>
+        </div>
       </div>
 
       {/* Search Bar */}

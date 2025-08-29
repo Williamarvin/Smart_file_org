@@ -110,13 +110,22 @@ export class GoogleDriveService {
         { 
           fileId, 
           alt: 'media',
-          supportsAllDrives: true // Support shared drives
+          supportsAllDrives: true, // Support shared drives
+          acknowledgeAbuse: true // Allow downloading files flagged by Drive  
         },
         { responseType: 'arraybuffer' }
       );
       
-      console.log(`✅ Downloaded file from Google Drive`);
-      return Buffer.from(response.data as ArrayBuffer);
+      const buffer = Buffer.from(response.data as ArrayBuffer);
+      
+      // Check if we got actual content
+      if (!buffer || buffer.length === 0) {
+        console.error(`Downloaded empty file for ${fileId}`);
+        return null;
+      }
+      
+      console.log(`✅ Downloaded file from Google Drive (${buffer.length} bytes)`);
+      return buffer;
     } catch (error: any) {
       console.error(`Failed to download file:`, error.message);
       if (error.response) {

@@ -93,10 +93,10 @@ export class DriveFileProcessor {
     try {
       // Download file from Google Drive
       const fileBuffer = await this.driveService.downloadFile(driveUrl);
-      if (!fileBuffer) {
-        console.error(`Failed to download ${file.filename}`);
+      if (!fileBuffer || fileBuffer.length === 0) {
+        console.error(`Failed to download ${file.filename} - empty or null buffer`);
         // Mark file as error in database with specific error message
-        const errorMessage = 'Object not found: File missing from Google Drive or no access permission';
+        const errorMessage = 'Failed to download from Google Drive: Error: Downloaded file is empty';
         // Update processing status through database directly since storage interface doesn't support error messages
         await db.update(files)
           .set({
