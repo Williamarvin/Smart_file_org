@@ -1695,7 +1695,8 @@ ${file.fileContent.toString()}`;
         topics: fileMetadata.topics,
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
-        openaiFileId: fileMetadata.openaiFileId
+        openaiFileId: fileMetadata.openaiFileId,
+        extractedText: fileMetadata.extractedText
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1738,7 +1739,8 @@ ${file.fileContent.toString()}`;
         topics: fileMetadata.topics,
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
-        openaiFileId: fileMetadata.openaiFileId
+        openaiFileId: fileMetadata.openaiFileId,
+        extractedText: fileMetadata.extractedText
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1781,7 +1783,8 @@ ${file.fileContent.toString()}`;
         topics: fileMetadata.topics,
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
-        openaiFileId: fileMetadata.openaiFileId
+        openaiFileId: fileMetadata.openaiFileId,
+        extractedText: fileMetadata.extractedText
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1830,7 +1833,8 @@ ${file.fileContent.toString()}`;
         topics: fileMetadata.topics,
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
-        openaiFileId: fileMetadata.openaiFileId
+        openaiFileId: fileMetadata.openaiFileId,
+        extractedText: fileMetadata.extractedText
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -2001,7 +2005,8 @@ ${file.fileContent.toString()}`;
                 topics: fileMetadata.topics,
                 confidence: fileMetadata.confidence,
                 createdAt: fileMetadata.createdAt,
-                openaiFileId: fileMetadata.openaiFileId
+                openaiFileId: fileMetadata.openaiFileId,
+        extractedText: fileMetadata.extractedText
               })
               .from(files)
               .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -2166,7 +2171,60 @@ ${file.fileContent.toString()}`;
       console.log(`✅ Enhanced search completed: ${finalResults.length} results (${semanticResults.length} semantic, ${allSqlResults.length} SQL)`);
       console.log(`🚀 Search performance: ${finalResults.slice(0, 3).map(r => `${r.originalName} (${r.relevanceScore.toFixed(2)})`).join(', ')}`);
 
-      res.json(finalResults);
+      // Transform search results to match regular file listing structure
+      const transformedResults = finalResults.map(result => ({
+        id: result.id,
+        filename: result.filename,
+        originalName: result.originalName,
+        mimeType: result.mimeType,
+        size: result.size,
+        objectPath: result.objectPath,
+        fileContent: null,
+        folderId: result.folderId,
+        uploadedAt: result.uploadedAt,
+        processedAt: result.processedAt,
+        storageType: result.storageType,
+        processingStatus: result.processingStatus,
+        processingError: result.processingError,
+        userId: result.userId,
+        googleDriveId: null,
+        googleDriveUrl: null,
+        googleDriveMetadata: null,
+        lastMetadataSync: null,
+        // Create nested metadata structure like regular file listings
+        metadata: result.metadataId ? {
+          id: result.metadataId,
+          fileId: result.id,
+          extractedText: result.extractedText,
+          summary: result.summary,
+          categories: result.categories,
+          keywords: result.keywords,
+          topics: result.topics,
+          confidence: result.confidence,
+          createdAt: result.createdAt || new Date(),
+          embedding: null,
+          embeddingVector: null,
+          openaiFileId: result.openaiFileId,
+          openaiVectorStoreId: null,
+          aiAnalysis: null,
+          categorization: null,
+          namedEntities: null,
+          actionItems: null,
+          keyProcesses: null,
+          organizationPriority: null,
+          relevanceScores: null,
+        } : undefined,
+        // Preserve search-specific fields
+        searchType: result.searchType,
+        relevanceScore: result.relevanceScore,
+        searchExplanation: result.searchExplanation,
+        matchedContent: result.matchedContent,
+        documentType: result.documentType,
+        searchRank: result.searchRank,
+        searchMeta: result.searchMeta,
+      }));
+
+      res.json(transformedResults);
     } catch (error) {
       console.error("❌ Enhanced search error:", error);
       res.status(500).json({ error: "Search failed", message: error instanceof Error ? error.message : "Unknown error" });
