@@ -349,13 +349,20 @@ export class ExcelProcessor {
       }
       
       // Process all columns looking for files and their hyperlinks
-      Object.keys(row).forEach((colName, jsIndex) => {
+      Object.keys(row).forEach((colName, colIndex) => {
         const cellValue = row[colName];
         
-        // Check if this looks like a file reference (contains .mp4, .pdf, etc)
-        if (cellValue && typeof cellValue === 'string' && 
+        // Check if this looks like a file reference (contains file extension) 
+        // OR if it has a hyperlink (for "Link" columns without extensions)
+        const hasFileExtension = cellValue && typeof cellValue === 'string' && 
             (cellValue.includes('.mp4') || cellValue.includes('.pdf') || 
-             cellValue.includes('.docx') || cellValue.includes('.pptx'))) {
+             cellValue.includes('.docx') || cellValue.includes('.pptx'));
+        
+        // Check if this cell has a hyperlink
+        const cellHasHyperlink = cellValue && typeof cellValue === 'string' &&
+            sheetHyperlinksByText && sheetHyperlinksByText.has(cellValue.trim());
+        
+        if (hasFileExtension || cellHasHyperlink) {
           
           // Check for hyperlink by text first (most reliable)
           let hyperlink = null;
@@ -364,8 +371,8 @@ export class ExcelProcessor {
           if (sheetHyperlinksByText && sheetHyperlinksByText.has(cellValue.trim())) {
             hyperlink = sheetHyperlinksByText.get(cellValue.trim());
             console.log(`✓ Found hyperlink by text match for "${cellValue}"`);
-          } else {
-            // Fallback: Try to find hyperlink in row hyperlinks
+          } else if (hasFileExtension) {
+            // Fallback: Try to find hyperlink in row hyperlinks (only for files with extensions)
             for (const colIdx in rowHyperlinks) {
               if (rowHyperlinks[colIdx]) {
                 hyperlink = rowHyperlinks[colIdx];
@@ -375,10 +382,22 @@ export class ExcelProcessor {
             }
           }
           
+          // Determine filename - add extension if missing but has hyperlink
+          let filename = cellValue.trim();
+          if (cellHasHyperlink && !hasFileExtension) {
+            // Add extension based on column header name
+            if (colName && colName.toLowerCase().includes('lesson plan')) {
+              filename += '.docx';
+            } else if (colName && colName.toLowerCase().includes('ppt')) {
+              filename += '.pptx';
+            }
+            console.log(`Added extension to hyperlinked file: ${filename} (from column: ${colName})`);
+          }
+          
           fileList.push({
-            filename: cellValue.trim(),
+            filename: filename,
             content: `File reference: ${cellValue}`,
-            type: cellValue.includes('.mp4') ? 'video' : 'document',
+            type: filename.includes('.mp4') ? 'video' : 'document',
             url: hyperlink || null
           });
           

@@ -137,6 +137,11 @@ export class DatabaseStorage implements IStorage {
       userId,
       storageType: 'hybrid' as const,
       processingStatus: insertFile.processingStatus || 'pending' as const,
+      // Include Google Drive fields if provided
+      googleDriveId: insertFile.googleDriveId || null,
+      googleDriveUrl: insertFile.googleDriveUrl || null,
+      googleDriveMetadata: insertFile.googleDriveMetadata || null,
+      lastMetadataSync: insertFile.lastMetadataSync || null,
     };
     
     // Add BYTEA data if file is ≤10MB and we have data
@@ -255,6 +260,11 @@ export class DatabaseStorage implements IStorage {
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
+        // Google Drive fields
+        googleDriveId: files.googleDriveId,
+        googleDriveUrl: files.googleDriveUrl,
+        googleDriveMetadata: files.googleDriveMetadata,
+        lastMetadataSync: files.lastMetadataSync,
         // Include metadata with extracted text preview
         metadataId: fileMetadata.id,
         metadataSummary: fileMetadata.summary,
@@ -288,10 +298,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
-      googleDriveId: null,
-      googleDriveUrl: null,
-      googleDriveMetadata: null,
-      lastMetadataSync: null,
+      googleDriveId: row.googleDriveId,
+      googleDriveUrl: row.googleDriveUrl,
+      googleDriveMetadata: row.googleDriveMetadata,
+      lastMetadataSync: row.lastMetadataSync,
       // Include metadata with extracted text for UI display
       metadata: row.metadataId ? {
         id: row.metadataId,
@@ -479,10 +489,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
-      googleDriveId: null,
-      googleDriveUrl: null,
-      googleDriveMetadata: null,
-      lastMetadataSync: null,
+      googleDriveId: row.googleDriveId,
+      googleDriveUrl: row.googleDriveUrl,
+      googleDriveMetadata: row.googleDriveMetadata,
+      lastMetadataSync: row.lastMetadataSync,
       metadata: row.metadata || undefined,
     }));
     
@@ -732,10 +742,10 @@ export class DatabaseStorage implements IStorage {
       processingStatus: row.processingStatus,
       processingError: row.processingError,
       userId: row.userId,
-      googleDriveId: null,
-      googleDriveUrl: null,
-      googleDriveMetadata: null,
-      lastMetadataSync: null,
+      googleDriveId: row.googleDriveId,
+      googleDriveUrl: row.googleDriveUrl,
+      googleDriveMetadata: row.googleDriveMetadata,
+      lastMetadataSync: row.lastMetadataSync,
       metadata: row.metadata || undefined,
     }));
   }
