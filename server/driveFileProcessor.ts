@@ -28,6 +28,19 @@ export class DriveFileProcessor {
   }
 
   /**
+   * Sanitize filename to remove invalid characters for file system
+   */
+  private sanitizeFilename(filename: string): string {
+    return filename
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // Replace invalid file system characters
+      .replace(/\r?\n/g, '_') // Replace newlines with underscore
+      .replace(/\s+/g, '_') // Replace multiple spaces with single underscore
+      .replace(/_+/g, '_') // Replace multiple underscores with single underscore
+      .trim()
+      .substring(0, 100); // Limit length to avoid path too long errors
+  }
+
+  /**
    * Process all files with Google Drive links
    */
   public async processAllDriveFiles(userId: string): Promise<{
@@ -108,8 +121,13 @@ export class DriveFileProcessor {
         throw new Error(errorMessage);
       }
 
-      // Save to temp file
-      const tempFilePath = path.join(this.tempDir, `${nanoid()}-${file.filename}`);
+      // Ensure temp directory exists
+      await fs.mkdir(this.tempDir, { recursive: true });
+      
+      // Save to temp file with sanitized filename
+      const sanitizedFilename = this.sanitizeFilename(file.filename);
+      const tempFilePath = path.join(this.tempDir, `${nanoid()}-${sanitizedFilename}`);
+      console.log(`💾 Creating temp file: ${tempFilePath}`);
       await fs.writeFile(tempFilePath, fileBuffer);
 
       // Extract content based on file type
