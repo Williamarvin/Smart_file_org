@@ -2762,17 +2762,46 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
                 return;
               }
             } else {
-              // Try cloud storage as fallback
-              try {
-                const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
-                const [downloadedData] = await objectFile.download();
-                fileData = downloadedData;
-                console.log(`✅ Retrieved Excel import file from cloud storage: ${file.filename}`);
-              } catch (cloudError) {
-                console.warn(`⚠️ Excel import file not available in cloud or Drive: ${file.filename}`);
-                await storage.updateFileProcessingStatus(fileId, userId, "error", 
-                  `File data not available - no download source`);
-                return;
+              // For placeholder files (100 bytes), check if filename indicates Google Drive file
+              if (file.size === 100 && file.filename.includes('drive.google.com')) {
+                // Extract URL from filename if stored there
+                const possibleUrl = file.filename;
+                console.log(`🔄 Attempting to download placeholder file from Google Drive URL in filename: ${possibleUrl}`);
+                try {
+                  const googleDriveService = new (await import('./googleDriveService')).GoogleDriveService();
+                  const downloadedBuffer = await googleDriveService.downloadFile(possibleUrl);
+                  
+                  if (downloadedBuffer && downloadedBuffer.length > 0) {
+                    fileData = downloadedBuffer;
+                    console.log(`✅ Downloaded ${file.filename} from Google Drive (via filename URL): ${downloadedBuffer.length} bytes`);
+                    
+                    // Store in BYTEA if ≤10MB
+                    if (downloadedBuffer.length <= 10 * 1024 * 1024) {
+                      await storage.updateFileData(fileId, userId, downloadedBuffer);
+                      console.log(`💾 Stored in BYTEA for fast access: ${file.filename}`);
+                    }
+                  } else {
+                    throw new Error('Downloaded file is empty');
+                  }
+                } catch (downloadError) {
+                  console.error(`❌ Failed to download from Google Drive URL in filename: ${downloadError}`);
+                  await storage.updateFileProcessingStatus(fileId, userId, "error", 
+                    `Failed to download from Google Drive: ${downloadError}`);
+                  return;
+                }
+              } else {
+                // Try cloud storage as fallback
+                try {
+                  const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+                  const [downloadedData] = await objectFile.download();
+                  fileData = downloadedData;
+                  console.log(`✅ Retrieved Excel import file from cloud storage: ${file.filename}`);
+                } catch (cloudError) {
+                  console.warn(`⚠️ Excel import file not available in cloud or Drive: ${file.filename}`);
+                  await storage.updateFileProcessingStatus(fileId, userId, "error", 
+                    `File data not available - no download source`);
+                  return;
+                }
               }
             }
           }
@@ -4401,9 +4430,9 @@ Remember:
 
       console.log('Processing Excel file:', req.file.originalname);
       
-      // Import and use the Excel processor
-      const { ExcelProcessor } = await import("./excelProcessor");
-      const processor = new ExcelProcessor(userId);
+      // Import and use the fixed Excel processor
+      const { ExcelProcessorFixed } = await import("./excelProcessorFixed");
+      const processor = new ExcelProcessorFixed(userId);
       
       // Process the Excel file with original filename
       const result = await processor.processExcelFile(req.file.path, req.file.originalname);
@@ -4564,9 +4593,9 @@ Remember:
       }
 
       // Process the Excel file
-      const { ExcelProcessor } = await import("./excelProcessor");
-      const processor = new ExcelProcessor(userId);
-      const result = await processor.processExcelFile(tempPath);
+      const { ExcelProcessorFixed } = await import("./excelProcessorFixed");
+      const processor = new ExcelProcessorFixed(userId);
+      const result = await processor.processExcelFile(tempPath, fileName);
       
       // Clean up
       fs.unlinkSync(tempPath);
