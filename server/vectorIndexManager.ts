@@ -51,9 +51,53 @@ export interface FileProcessingMetadata {
   keyProcesses: string[];
 }
 
+// Circuit breaker for semantic search
+class SemanticSearchCircuitBreaker {
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private readonly failureThreshold = 3;
+  private readonly recoveryTimeMs = 60000; // 1 minute
+  
+  isOpen(): boolean {
+    if (this.failureCount >= this.failureThreshold) {
+      const timeSinceLastFailure = Date.now() - this.lastFailureTime;
+      if (timeSinceLastFailure < this.recoveryTimeMs) {
+        return true; // Circuit is open (disabled)
+      } else {
+        // Try to recover
+        this.reset();
+      }
+    }
+    return false;
+  }
+  
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    console.warn(`⚠️ Semantic search failure recorded. Count: ${this.failureCount}/${this.failureThreshold}`);
+    
+    if (this.failureCount >= this.failureThreshold) {
+      console.error(`🚫 Semantic search circuit breaker OPEN. Disabled for ${this.recoveryTimeMs/1000} seconds.`);
+    }
+  }
+  
+  recordSuccess(): void {
+    if (this.failureCount > 0) {
+      console.log(`✅ Semantic search recovered. Resetting circuit breaker.`);
+      this.reset();
+    }
+  }
+  
+  private reset(): void {
+    this.failureCount = 0;
+    this.lastFailureTime = 0;
+  }
+}
+
 export class VectorIndexManager {
   private vectorStoreId: string | null = null;
   private vectorStore: any = null;
+  private circuitBreaker = new SemanticSearchCircuitBreaker();
 
   constructor() {
     this.initializeVectorStore();
@@ -358,6 +402,12 @@ Focus on concrete, actionable information that would be useful for search and re
     limit: number = 20,
     userFiles: File[] = []
   ): Promise<SemanticSearchResult[]> {
+    // Check circuit breaker first
+    if (this.circuitBreaker.isOpen()) {
+      console.warn(`🚫 Semantic search temporarily disabled by circuit breaker`);
+      return [];
+    }
+
     if (!this.vectorStoreId) {
       await this.initializeVectorStore();
     }
@@ -457,37 +507,75 @@ Respond in JSON format:
   "totalResults": 3
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // Using GPT-4o for better performance
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert semantic search assistant. Analyze queries and match them to relevant files based on meaning, context, and conceptual relationships. Always respond with valid JSON."
-          },
-          {
-            role: "user",
-            content: analysisPrompt
+      // Implement timeout and retry logic
+      const maxRetries = 2;
+      const timeoutMs = 15000; // 15 second timeout
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔄 Semantic search attempt ${attempt}/${maxRetries}`);
+          
+          const response = await Promise.race([
+            openai.chat.completions.create({
+              model: "gpt-4o", // Using GPT-4o for better performance
+              messages: [
+                {
+                  role: "system",
+                  content: "You are an expert semantic search assistant. Analyze queries and match them to relevant files based on meaning, context, and conceptual relationships. Always respond with valid JSON."
+                },
+                {
+                  role: "user",
+                  content: analysisPrompt
+                }
+              ],
+              response_format: { type: "json_object" },
+              temperature: 0.3
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`OpenAI API timeout after ${timeoutMs}ms`)), timeoutMs)
+            )
+          ]) as any;
+
+          const searchResults = JSON.parse(response.choices[0].message.content || '{"results":[],"searchIntent":"","totalResults":0}');
+          console.log(`✅ Semantic analysis completed: ${searchResults.results?.length || 0} relevant files found`);
+
+          // Record success and reset circuit breaker
+          this.circuitBreaker.recordSuccess();
+
+          // Return formatted results
+          return (searchResults.results || []).slice(0, limit).map((result: any, index: number) => ({
+            fileId: result.fileId || `result_${index}`,
+            relevanceScore: result.relevanceScore || 50,
+            explanation: result.explanation || 'Semantically relevant to your search query',
+            matchedContent: result.matchedContent || [],
+            documentType: result.documentType || 'document',
+            summary: result.summary || 'No summary available',
+            searchIntent: searchResults.searchIntent || query
+          }));
+
+        } catch (error: any) {
+          lastError = error;
+          console.warn(`⚠️ Semantic search attempt ${attempt} failed:`, error.message);
+          
+          if (attempt < maxRetries) {
+            // Exponential backoff: wait longer between retries
+            const backoffMs = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s...
+            console.log(`⏳ Retrying in ${backoffMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      });
+        }
+      }
 
-      const searchResults = JSON.parse(response.choices[0].message.content || '{"results":[],"searchIntent":"","totalResults":0}');
-      console.log(`✅ Semantic analysis completed: ${searchResults.results?.length || 0} relevant files found`);
-
-      // Return formatted results
-      return (searchResults.results || []).slice(0, limit).map((result: any, index: number) => ({
-        fileId: result.fileId || `result_${index}`,
-        relevanceScore: result.relevanceScore || 50,
-        explanation: result.explanation || 'Semantically relevant to your search query',
-        matchedContent: result.matchedContent || [],
-        documentType: result.documentType || 'document',
-        summary: result.summary || 'No summary available',
-        searchIntent: searchResults.searchIntent || query
-      }));
+      // If all retries failed, record failure and fall back gracefully
+      this.circuitBreaker.recordFailure();
+      console.error(`❌ All semantic search attempts failed. Last error:`, lastError?.message);
+      console.log(`🔄 Falling back to SQL-only search mode`);
+      return [];
 
     } catch (error: any) {
+      // Record failure for outer catch as well
+      this.circuitBreaker.recordFailure();
       console.error("❌ Semantic search failed:", error);
       console.error("Error details:", {
         message: error?.message,
