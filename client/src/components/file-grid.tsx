@@ -277,25 +277,6 @@ export default function FileGrid({
                                 </div>
                               )}
                               
-                              {/* Relevance Score */}
-                              {file.relevanceScore && (
-                                <div className={`px-2 py-1 rounded-full font-medium ${
-                                  file.relevanceScore >= 80 
-                                    ? 'bg-green-100 text-green-700'
-                                    : file.relevanceScore >= 60
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {file.relevanceScore}% relevant
-                                </div>
-                              )}
-                              
-                              {/* Legacy similarity support */}
-                              {!file.relevanceScore && file.similarity && (
-                                <div className="bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-                                  {Math.round(file.similarity * 100)}% match
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
