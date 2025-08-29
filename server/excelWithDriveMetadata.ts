@@ -59,7 +59,32 @@ export class ExcelWithDriveMetadataService {
     
     // Second pass: create files with metadata
     for (const row of processedRows) {
-      const folderId = folderMap.get(row.folderName)?.id;
+      // Try multiple strategies to find the correct folder
+      let folderId = folderMap.get(row.folderName)?.id;
+      
+      // If not found, try alternative lookup strategies
+      if (!folderId) {
+        // Try without leading/trailing slashes
+        const cleanFolderName = row.folderName.replace(/^\/+|\/+$/g, '');
+        folderId = folderMap.get(cleanFolderName)?.id;
+        
+        // If still not found, try just the leaf folder name
+        if (!folderId) {
+          const leafFolderName = cleanFolderName.split('/').pop();
+          if (leafFolderName) {
+            folderId = folderMap.get(leafFolderName)?.id;
+          }
+        }
+        
+        // If still not found, log debug info
+        if (!folderId) {
+          console.warn(`🔍 Folder lookup failed for "${row.folderName}". Available keys:`, Array.from(folderMap.keys()).slice(0, 10));
+        } else {
+          console.log(`✓ Found folder via alternative lookup: "${row.folderName}" -> ${folderId}`);
+        }
+      } else {
+        console.log(`✓ Found folder via direct lookup: "${row.folderName}" -> ${folderId}`);
+      }
       
       for (const fileData of row.files) {
         if (!fileData.filename || fileData.filename.trim() === '') {
@@ -270,12 +295,58 @@ export class ExcelWithDriveMetadataService {
     filesWithDriveMetadata: number;
     filesWithoutDriveMetadata: number;
   }> {
-    // Create folder map
+    // Create comprehensive folder map with all possible lookups
     const folderMap = new Map<string, any>();
+    
+    // First, get ALL folders for this user to build a complete map
+    const { storage } = await import('./storage');
+    const allUserFolders = await storage.getFolders(userId);
+    
+    console.log(`Building folder map from ${allUserFolders.length} total folders and ${createdFolders.length} newly created folders`);
+    
+    // Add all existing folders to the map
+    for (const folder of allUserFolders) {
+      folderMap.set(folder.name, folder);
+      folderMap.set(folder.path.replace(/^\//, ''), folder);
+      
+      // Also add path segments for hierarchical matching
+      const pathParts = folder.path.replace(/^\//, '').split('/');
+      if (pathParts.length > 1) {
+        // For paths like "test_fixed_excel/LV1(UP)/Released", also map "LV1(UP)/Released" 
+        for (let i = 1; i < pathParts.length; i++) {
+          const subPath = pathParts.slice(i).join('/');
+          folderMap.set(subPath, folder);
+        }
+        
+        // Also map the full path without the root
+        const pathWithoutRoot = pathParts.slice(1).join('/');
+        if (pathWithoutRoot) {
+          folderMap.set(pathWithoutRoot, folder);
+        }
+      }
+    }
+    
+    // Add newly created folders to the map (in case they're not in allUserFolders yet)
     for (const folder of createdFolders) {
       folderMap.set(folder.name, folder);
       folderMap.set(folder.path.replace(/^\//, ''), folder);
+      
+      // Also add path segments for hierarchical matching
+      const pathParts = folder.path.replace(/^\//, '').split('/');
+      if (pathParts.length > 1) {
+        for (let i = 1; i < pathParts.length; i++) {
+          const subPath = pathParts.slice(i).join('/');
+          folderMap.set(subPath, folder);
+        }
+        
+        const pathWithoutRoot = pathParts.slice(1).join('/');
+        if (pathWithoutRoot) {
+          folderMap.set(pathWithoutRoot, folder);
+        }
+      }
     }
+    
+    console.log(`Folder map contains ${folderMap.size} entries for folder lookup`);
     
     // Create files with Drive metadata
     const createdFiles = await this.createFilesWithDriveMetadata(
