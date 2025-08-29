@@ -92,6 +92,7 @@ export class ExcelProcessor {
       // Extract hyperlinks from worksheet
       // Note: hyperlinks can be in .l property or in worksheet['!links']
       const hyperlinks: any = {};
+      const hyperlinksByText: Map<string, string> = new Map(); // Map file text to URL
       let hyperlinkCount = 0;
       
       // Method 1: Check .l property on cells
@@ -103,8 +104,15 @@ export class ExcelProcessor {
             if (!hyperlinks[coords.r]) hyperlinks[coords.r] = {};
             const url = cellObj.l.Target || cellObj.l.href || cellObj.l.Rel;
             hyperlinks[coords.r][coords.c] = url;
+            
+            // Also map by cell text for easier lookup
+            if (cellObj.v) {
+              const cellText = String(cellObj.v).trim();
+              hyperlinksByText.set(cellText, url);
+              console.log(`Found hyperlink: "${cellText}" -> ${url.substring(0, 80)}...`);
+            }
+            
             hyperlinkCount++;
-            console.log(`Found hyperlink in cell ${cell}: ${url}`);
           }
         }
       });
@@ -137,6 +145,7 @@ export class ExcelProcessor {
       
       // Store hyperlinks separately for processing
       const sheetHyperlinks = hyperlinks;
+      const sheetHyperlinksByText = hyperlinksByText;
 
       totalRows += data.length;
 
@@ -161,7 +170,7 @@ export class ExcelProcessor {
       
       // Process each row with hierarchical structure support
       // Pass subject folder instead of parent folder
-      const processedData = await this.processRowsWithHierarchy(data, analysis, subjectFolderName, sheetName, sheetHyperlinks);
+      const processedData = await this.processRowsWithHierarchy(data, analysis, subjectFolderName, sheetName, sheetHyperlinks, sheetHyperlinksByText);
       console.log(`Processed ${processedData.length} rows with folders:`, processedData.map(r => r.folderName));
       
       // Debug: Check if we have any URLs in the processed data
@@ -260,7 +269,8 @@ export class ExcelProcessor {
     analysis: any, 
     parentFolderName: string, 
     sheetName: string,
-    sheetHyperlinks?: any
+    sheetHyperlinks?: any,
+    sheetHyperlinksByText?: Map<string, string>
   ): Promise<ProcessedRow[]> {
     const processedRows: ProcessedRow[] = [];
     
@@ -347,17 +357,21 @@ export class ExcelProcessor {
             (cellValue.includes('.mp4') || cellValue.includes('.pdf') || 
              cellValue.includes('.docx') || cellValue.includes('.pptx'))) {
           
-          // Check all column indices for a matching hyperlink
-          // Hyperlinks are stored by Excel column index (0-based)
+          // Check for hyperlink by text first (most reliable)
           let hyperlink = null;
           
-          // Try to find hyperlink in any column for this row
-          for (const colIdx in rowHyperlinks) {
-            // If we have a hyperlink and the cell value matches or is related
-            if (rowHyperlinks[colIdx]) {
-              hyperlink = rowHyperlinks[colIdx];
-              console.log(`Found hyperlink for ${cellValue} at column ${colIdx}: ${hyperlink}`);
-              break; // Use the first hyperlink found for this row
+          // First try to find hyperlink by exact text match
+          if (sheetHyperlinksByText && sheetHyperlinksByText.has(cellValue.trim())) {
+            hyperlink = sheetHyperlinksByText.get(cellValue.trim());
+            console.log(`✓ Found hyperlink by text match for "${cellValue}"`);
+          } else {
+            // Fallback: Try to find hyperlink in row hyperlinks
+            for (const colIdx in rowHyperlinks) {
+              if (rowHyperlinks[colIdx]) {
+                hyperlink = rowHyperlinks[colIdx];
+                console.log(`Found hyperlink for ${cellValue} at column ${colIdx}`);
+                break;
+              }
             }
           }
           
