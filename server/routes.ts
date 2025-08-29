@@ -5023,8 +5023,13 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
     setInterval(processPendingFiles, 30000);
   };
   
-  // Start the automatic processing loop
-  startAutomaticProcessing();
+  // Start the automatic processing loop only in development
+  // In production, this causes memory issues with large video files
+  if (process.env.NODE_ENV !== 'production') {
+    startAutomaticProcessing();
+  } else {
+    console.log('🚫 Automatic processing disabled in production to prevent memory issues');
+  }
   
   // Start automatic cleanup for missing objects
   const startAutomaticCleanup = () => {
@@ -5086,7 +5091,10 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
     setTimeout(cleanupMissingObjects, 30000);
   };
   
-  startAutomaticCleanup();
+  // Start automatic cleanup only in development  
+  if (process.env.NODE_ENV !== 'production') {
+    startAutomaticCleanup();
+  }
 
   const httpServer = createServer(app);
   return httpServer;
