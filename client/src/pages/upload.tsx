@@ -59,8 +59,17 @@ export function Upload() {
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to process Excel file');
+        let errorMessage = 'Failed to process Excel file';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (parseError) {
+          // Server returned non-JSON response (likely HTML error page)
+          const textResponse = await response.text();
+          console.error('Server returned non-JSON error:', textResponse);
+          errorMessage = `Server error (${response.status}): Please check the file format and try again`;
+        }
+        throw new Error(errorMessage);
       }
       
       return response.json();

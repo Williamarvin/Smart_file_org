@@ -38,14 +38,36 @@ export class ExcelProcessor {
   }> {
     console.log('Processing Excel file:', filePath, 'Original name:', originalFilename);
     
-    // Read the Excel file with options to preserve hyperlinks
-    const workbook = XLSX.readFile(filePath, { 
-      cellHTML: true,
-      cellStyles: true,
-      cellFormula: true,
-      cellDates: true,
-      WTF: true  // Preserve all features including hyperlinks
-    });
+    // Validate file exists and is readable
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Excel file not found');
+    }
+
+    // Check file size (prevent processing extremely large files)
+    const stats = fs.statSync(filePath);
+    if (stats.size > 50 * 1024 * 1024) { // 50MB limit
+      throw new Error('Excel file is too large (maximum 50MB)');
+    }
+
+    let workbook: XLSX.WorkBook;
+    try {
+      // Read the Excel file with options to preserve hyperlinks
+      workbook = XLSX.readFile(filePath, { 
+        cellHTML: true,
+        cellStyles: true,
+        cellFormula: true,
+        cellDates: true,
+        WTF: true  // Preserve all features including hyperlinks
+      });
+    } catch (error) {
+      console.error('Error reading Excel file:', error);
+      throw new Error('Invalid Excel file format or corrupted file');
+    }
+
+    // Validate workbook has sheets
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('Excel file contains no worksheets');
+    }
     let allFolders: any[] = [];
     let allFiles: any[] = [];
     let totalRows = 0;
@@ -492,7 +514,7 @@ export class ExcelProcessor {
         } else {
           console.log(`Creating new folder: ${currentPath} with parent ${parentId}`);
           // Create new folder
-          const newFolderResult = await db
+          const newFolderResult: any = await db
             .insert(folders)
             .values({
               name: part,
@@ -501,7 +523,7 @@ export class ExcelProcessor {
               userId: this.userId
             })
             .returning();
-          const newFolder = newFolderResult[0];
+          const newFolder: any = newFolderResult[0];
           folderMap.set(currentPath, newFolder);
           createdFolders.push(newFolder);
           parentId = newFolder.id;
