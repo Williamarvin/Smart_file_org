@@ -655,7 +655,7 @@ export class DatabaseStorage implements IStorage {
     const [stats] = await db
       .select({
         totalFiles: sql<number>`COUNT(*)::int`,
-        processedFiles: sql<number>`COUNT(CASE WHEN processing_status IN ('completed', 'error', 'failed') THEN 1 END)::int`,
+        processedFiles: sql<number>`COUNT(CASE WHEN processing_status = 'completed' THEN 1 END)::int`,
         processingFiles: sql<number>`COUNT(CASE WHEN processing_status IN ('pending', 'processing') THEN 1 END)::int`,
         errorFiles: sql<number>`COUNT(CASE WHEN processing_status IN ('error', 'failed') THEN 1 END)::int`,
         totalSize: sql<bigint>`COALESCE(SUM(size), 0)::bigint`,

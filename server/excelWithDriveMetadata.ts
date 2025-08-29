@@ -3,6 +3,7 @@ import { files, folders, fileMetadata } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { googleDriveService, type GoogleDriveMetadata } from './googleDriveService';
 import { nanoid } from 'nanoid';
+import { storage } from './storage';
 
 /**
  * Enhanced Excel import service that fetches Google Drive metadata
@@ -112,25 +113,68 @@ export class ExcelWithDriveMetadataService {
           }
         }
         
-        // Create file entry with Google Drive metadata
+        // Create file entry with Google Drive metadata and immediately download if it's a Google Drive file
+        let actualFileContent = fileData.content || `File reference: ${filename}`;
+        let actualSize = size;
+        let actualProcessingStatus: 'pending' | 'completed' | 'error' = googleDriveUrl ? 'pending' : 'completed';
+        
+        // If it's a Google Drive file, try to download it immediately
+        if (googleDriveUrl && googleDriveService.isInitialized()) {
+          console.log(`⬇️ Downloading Google Drive file immediately: ${filename}`);
+          try {
+            const fileBuffer = await googleDriveService.downloadFile(googleDriveUrl);
+            if (fileBuffer) {
+              // Extract content based on file type
+              let extractedContent = '';
+              const fileExt = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+              
+              if (fileExt === '.pdf') {
+                // For PDF, store basic info (full processing will happen later)
+                extractedContent = `PDF Document: ${filename}\nSize: ${fileBuffer.length} bytes\nDownloaded from Google Drive`;
+              } else if (fileExt === '.docx') {
+                // For DOCX, store basic info (full processing will happen later)
+                extractedContent = `Word Document: ${filename}\nSize: ${fileBuffer.length} bytes\nDownloaded from Google Drive`;
+              } else if (['.mp4', '.avi', '.mov', '.mkv'].includes(fileExt)) {
+                // For videos, store basic info (transcription will happen later)
+                extractedContent = `Video File: ${filename}\nSize: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB\nDownloaded from Google Drive`;
+              } else if (['.pptx', '.ppt'].includes(fileExt)) {
+                extractedContent = `PowerPoint Presentation: ${filename}\nSize: ${fileBuffer.length} bytes\nDownloaded from Google Drive`;
+              } else {
+                extractedContent = `File: ${filename}\nSize: ${fileBuffer.length} bytes\nDownloaded from Google Drive`;
+              }
+              
+              actualFileContent = extractedContent;
+              actualSize = fileBuffer.length;
+              actualProcessingStatus = 'pending'; // Still needs full AI processing
+              console.log(`✅ Downloaded ${filename}: ${fileBuffer.length} bytes`);
+            } else {
+              console.warn(`❌ Failed to download ${filename} from Google Drive`);
+              actualProcessingStatus = 'error';
+              actualFileContent = `Error: Could not download ${filename} from Google Drive`;
+            }
+          } catch (error) {
+            console.error(`❌ Error downloading ${filename}:`, error);
+            actualProcessingStatus = 'error';
+            actualFileContent = `Error: Failed to download ${filename} from Google Drive - ${error}`;
+          }
+        }
+
         const [newFile] = await db
           .insert(files)
           .values({
             filename: filename,
             originalName: fileData.filename, // Keep original display name
             folderId: folderId || null,
-            size: size,
+            size: actualSize,
             mimeType: mimeType,
             objectPath: googleDriveUrl || `/excel-import/${row.folderName}/${filename}`,
             uploadedAt: new Date(),
             userId: userId,
-            // Mark as pending if it's a Google Drive file that needs content extraction
-            processingStatus: googleDriveUrl ? 'pending' : 'completed',
-            processingError: null,
-            fileContent: null,
+            processingStatus: actualProcessingStatus,
+            processingError: actualProcessingStatus === 'error' ? actualFileContent : null,
+            fileContent: null, // Will be stored separately if needed
             storageType: googleDriveUrl ? 'google-drive' : 'excel-metadata',
-            // Store placeholder content that will be replaced by actual content
-            content: fileData.content || `File reference: ${filename}`,
+            content: actualFileContent,
             
             // Google Drive specific fields
             googleDriveId: googleDriveId,
@@ -139,6 +183,20 @@ export class ExcelWithDriveMetadataService {
             lastMetadataSync: googleDriveMetadataJson ? new Date() : null
           })
           .returning();
+
+        // If we successfully downloaded the file, store the file data for hybrid storage
+        if (googleDriveUrl && actualProcessingStatus !== 'error' && actualFileContent !== `File reference: ${filename}`) {
+          try {
+            const fileBuffer = await googleDriveService.downloadFile(googleDriveUrl);
+            if (fileBuffer) {
+              // Store file data in BYTEA if it's small enough
+              await storage.updateFileData(newFile.id, userId, fileBuffer);
+              console.log(`💾 Stored file data for ${filename} in hybrid storage`);
+            }
+          } catch (error) {
+            console.warn(`Warning: Could not store file data for ${filename}:`, error);
+          }
+        }
         
         // Create file metadata entry
         const metadataObj: Record<string, any> = {
