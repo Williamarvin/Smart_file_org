@@ -37,19 +37,115 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
     document.body.removeChild(a);
   };
 
+  const formatContent = (text: string) => {
+    const lines = text.split('\n');
+    const formattedContent = [];
+    let inList = false;
+    let listItems = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+      
+      // Check if this line is a bullet point or numbered item
+      const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*');
+      const isNumbered = /^\d+\./.test(trimmedLine);
+      const isListItem = isBullet || isNumbered;
+      
+      // If we were in a list and this isn't a list item, render the accumulated list
+      if (inList && !isListItem && trimmedLine !== '') {
+        if (listItems.length > 0) {
+          formattedContent.push(
+            <ul key={`list-${i}`} className="mb-4 ml-2">
+              {listItems}
+            </ul>
+          );
+          listItems = [];
+        }
+        inList = false;
+      }
+      
+      if (isListItem) {
+        inList = true;
+        let itemText = trimmedLine;
+        
+        // Remove bullet markers and number prefixes
+        if (isBullet) {
+          itemText = trimmedLine.replace(/^[•\-\*]\s*/, '');
+        } else if (isNumbered) {
+          itemText = trimmedLine.replace(/^\d+\.\s*/, '');
+        }
+        
+        listItems.push(
+          <li key={`item-${i}`} className="flex items-start mb-2">
+            <span className="text-gray-500 mr-3 mt-1">•</span>
+            <span className="text-base text-gray-800 leading-relaxed">{itemText}</span>
+          </li>
+        );
+      } else if (trimmedLine === '') {
+        // Empty line - add spacing
+        if (inList && listItems.length > 0) {
+          formattedContent.push(
+            <ul key={`list-${i}`} className="mb-4 ml-2">
+              {listItems}
+            </ul>
+          );
+          listItems = [];
+          inList = false;
+        }
+        formattedContent.push(<div key={`space-${i}`} className="mb-3" />);
+      } else {
+        // Regular paragraph - check if it looks like a header or title
+        const isTitle = i === 0 || (trimmedLine.length < 100 && trimmedLine === trimmedLine.toUpperCase());
+        const isSection = trimmedLine.endsWith(':') && trimmedLine.length < 100;
+        
+        if (isTitle && i === 0) {
+          formattedContent.push(
+            <h1 key={`title-${i}`} className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2 border-gray-200">
+              {trimmedLine}
+            </h1>
+          );
+        } else if (isSection) {
+          formattedContent.push(
+            <h2 key={`section-${i}`} className="text-lg font-semibold text-gray-800 mt-6 mb-3">
+              {trimmedLine}
+            </h2>
+          );
+        } else {
+          formattedContent.push(
+            <p key={`para-${i}`} className="text-base text-gray-800 mb-4 leading-relaxed">
+              {trimmedLine}
+            </p>
+          );
+        }
+      }
+    }
+    
+    // Handle any remaining list items
+    if (listItems.length > 0) {
+      formattedContent.push(
+        <ul key="list-final" className="mb-4 ml-2">
+          {listItems}
+        </ul>
+      );
+    }
+    
+    return formattedContent;
+  };
+
   const PreviewContent = () => (
     <>
       {/* Document Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-slate-50">
-        <h3 className="font-semibold text-slate-800">
-          {title || "Generated Content"}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 className="font-semibold text-gray-800 text-lg">
+          {title || "Document Preview"}
         </h3>
         <div className="flex items-center space-x-2">
           <Button
             onClick={handleCopy}
             variant="ghost"
             size="sm"
-            className="h-8 px-2"
+            className="h-8 px-2 text-gray-600 hover:text-gray-900"
           >
             <Copy className="h-4 w-4" />
           </Button>
@@ -57,7 +153,7 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
             onClick={handleDownload}
             variant="ghost"
             size="sm"
-            className="h-8 px-2"
+            className="h-8 px-2 text-gray-600 hover:text-gray-900"
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -66,7 +162,7 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
               onClick={() => setIsFullscreen(true)}
               variant="ghost"
               size="sm"
-              className="h-8 px-2"
+              className="h-8 px-2 text-gray-600 hover:text-gray-900"
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
@@ -74,69 +170,11 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
         </div>
       </div>
 
-      {/* Document Content */}
-      <ScrollArea className={isFullscreen ? "h-[calc(100vh-200px)]" : "h-[400px]"}>
-        <div className="p-6 bg-white">
-          <div className="prose prose-sm max-w-none font-serif">
-            {content.split('\n').map((paragraph, index) => {
-              // Handle headers (lines starting with #)
-              if (paragraph.startsWith('### ')) {
-                return (
-                  <h3 key={index} className="text-base font-bold text-slate-800 mt-4 mb-2 font-sans">
-                    {paragraph.replace('### ', '')}
-                  </h3>
-                );
-              } else if (paragraph.startsWith('## ')) {
-                return (
-                  <h2 key={index} className="text-lg font-bold text-slate-900 mt-6 mb-3 font-sans">
-                    {paragraph.replace('## ', '')}
-                  </h2>
-                );
-              } else if (paragraph.startsWith('# ')) {
-                return (
-                  <h1 key={index} className="text-2xl font-bold text-slate-900 mt-6 mb-4 pb-2 border-b border-slate-200 font-sans">
-                    {paragraph.replace('# ', '')}
-                  </h1>
-                );
-              }
-              // Handle bullet points
-              else if (paragraph.trim().startsWith('• ') || paragraph.trim().startsWith('- ') || paragraph.trim().startsWith('* ')) {
-                return (
-                  <li key={index} className="text-sm text-slate-700 ml-6 mb-2 list-disc">
-                    {paragraph.replace(/^[•\-\*]\s*/, '')}
-                  </li>
-                );
-              }
-              // Handle numbered lists
-              else if (/^\d+\.\s/.test(paragraph.trim())) {
-                return (
-                  <li key={index} className="text-sm text-slate-700 ml-6 mb-2 list-decimal">
-                    {paragraph.replace(/^\d+\.\s*/, '')}
-                  </li>
-                );
-              }
-              // Handle bold text with **text**
-              else if (paragraph.includes('**')) {
-                const parts = paragraph.split(/\*\*(.*?)\*\*/g);
-                return (
-                  <p key={index} className="text-sm text-slate-700 mb-3">
-                    {parts.map((part, i) => 
-                      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
-                    )}
-                  </p>
-                );
-              }
-              // Regular paragraphs
-              else if (paragraph.trim()) {
-                return (
-                  <p key={index} className="text-sm text-slate-700 mb-3 leading-relaxed">
-                    {paragraph}
-                  </p>
-                );
-              }
-              // Empty lines for spacing
-              return <div key={index} className="mb-2" />;
-            })}
+      {/* Document Content - PDF-like styling */}
+      <ScrollArea className={isFullscreen ? "h-[calc(100vh-200px)]" : "h-[500px]"}>
+        <div className="px-12 py-10 bg-white" style={{ minHeight: '600px' }}>
+          <div className="max-w-4xl mx-auto">
+            {formatContent(content)}
           </div>
         </div>
       </ScrollArea>
@@ -146,15 +184,16 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
   if (isEmbedded) {
     return (
       <>
-        <Card className={`overflow-hidden border border-slate-200 shadow-sm bg-white ${className}`}>
+        <Card className={`overflow-hidden border border-gray-300 shadow-lg bg-white ${className}`} 
+              style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
           <PreviewContent />
         </Card>
         
         {/* Fullscreen Dialog */}
         <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-          <DialogContent className="max-w-4xl h-[90vh] p-0">
+          <DialogContent className="max-w-5xl h-[90vh] p-0">
             <DialogHeader className="px-6 pt-6">
-              <DialogTitle>{title || "Generated Content"}</DialogTitle>
+              <DialogTitle className="text-xl">{title || "Document Preview"}</DialogTitle>
               <Button
                 onClick={() => setIsFullscreen(false)}
                 variant="ghost"
@@ -164,7 +203,7 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
                 <X className="h-4 w-4" />
               </Button>
             </DialogHeader>
-            <div className="px-6 pb-6">
+            <div className="pb-6">
               <PreviewContent />
             </div>
           </DialogContent>

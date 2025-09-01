@@ -149,30 +149,29 @@ export function Chat() {
   // Helper function to detect if content should be shown in document preview
   const shouldShowAsDocument = (content: string): boolean => {
     // Check for document-like patterns
-    const hasHeaders = /^#{1,3}\s/m.test(content);
     const hasBulletPoints = /^[•\-\*]\s/m.test(content);
     const hasNumberedList = /^\d+\.\s/m.test(content);
-    const hasBoldText = /\*\*.*?\*\*/g.test(content);
-    const hasMultipleSections = (content.match(/^#{1,3}\s/gm) || []).length > 1;
-    const isLongContent = content.length > 500;
+    const hasMultipleLines = content.split('\n').length > 5;
+    const isLongContent = content.length > 400;
     
     // Check for specific keywords that indicate structured content
-    const hasDocumentKeywords = /summary|overview|analysis|report|course|design|framework|components|structure/i.test(content);
+    const hasDocumentKeywords = /summary|overview|analysis|report|course|design|framework|components|structure|key|main|points|section/i.test(content);
     
     // Show as document if it has structure and is substantial
-    return (hasHeaders || (hasBulletPoints && hasDocumentKeywords)) && 
-           (hasMultipleSections || isLongContent || hasDocumentKeywords);
+    return (hasBulletPoints || hasNumberedList || hasDocumentKeywords) && 
+           (hasMultipleLines || isLongContent);
   };
 
   // Helper to extract title from content
   const extractTitle = (content: string): string | undefined => {
-    const firstHeader = content.match(/^#\s+(.+)$/m);
-    if (firstHeader) return firstHeader[1];
-    
     // Try to detect title from first line if it looks like a title
-    const firstLine = content.split('\n')[0];
-    if (firstLine && firstLine.length < 100 && !firstLine.includes(':')) {
-      return firstLine;
+    const firstLine = content.split('\n')[0].trim();
+    if (firstLine && firstLine.length < 100) {
+      // If first line looks like a title (short, possibly ends with colon, or is a header-like phrase)
+      if (firstLine.includes('Summary') || firstLine.includes('Overview') || 
+          firstLine.includes('Analysis') || firstLine.includes('Report')) {
+        return firstLine.replace(/[:#]/g, '').trim();
+      }
     }
     
     return undefined;
