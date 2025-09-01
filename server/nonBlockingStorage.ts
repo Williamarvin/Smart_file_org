@@ -9,9 +9,13 @@ import { cache } from "./cache";
  */
 
 // Lightning-fast file listing (already optimized)
-export async function getNonBlockingFiles(userId: string = "demo-user", limit = 50, offset = 0) {
+export async function getNonBlockingFiles(
+  userId: string = "demo-user",
+  limit = 50,
+  offset = 0,
+) {
   const cacheKey = `nb-files:${userId}:${limit}:${offset}`;
-  
+
   if (offset === 0 && limit <= 50) {
     const cached = cache.get(cacheKey);
     if (cached) return cached;
@@ -35,12 +39,7 @@ export async function getNonBlockingFiles(userId: string = "demo-user", limit = 
       userId: files.userId,
     })
     .from(files)
-    .where(
-      and(
-        eq(files.userId, userId),
-        ne(files.processingStatus, "error")
-      )
-    )
+    .where(and(eq(files.userId, userId), ne(files.processingStatus, "error")))
     .orderBy(desc(files.uploadedAt))
     .limit(limit)
     .offset(offset);
@@ -48,7 +47,7 @@ export async function getNonBlockingFiles(userId: string = "demo-user", limit = 
   // Get ONLY lightweight metadata (no extracted_text which can be huge)
   let metadataMap = new Map();
   if (result.length > 0) {
-    const fileIds = result.map(f => f.id);
+    const fileIds = result.map((f) => f.id);
     const lightMetadata = await db
       .select({
         fileId: fileMetadata.fileId,
@@ -62,8 +61,8 @@ export async function getNonBlockingFiles(userId: string = "demo-user", limit = 
       })
       .from(fileMetadata)
       .where(eq(fileMetadata.fileId, fileIds[0])); // Simple fix for array syntax
-    
-    lightMetadata.forEach(meta => {
+
+    lightMetadata.forEach((meta) => {
       metadataMap.set(meta.fileId, {
         id: meta.id,
         fileId: meta.fileId,
@@ -80,7 +79,7 @@ export async function getNonBlockingFiles(userId: string = "demo-user", limit = 
     });
   }
 
-  const finalResult = result.map(file => ({
+  const finalResult = result.map((file) => ({
     ...file,
     fileContent: null, // NEVER load BYTEA in list queries
     metadata: metadataMap.get(file.id) || undefined,
@@ -94,9 +93,13 @@ export async function getNonBlockingFiles(userId: string = "demo-user", limit = 
 }
 
 // Lightning-fast search WITHOUT loading heavy text data
-export async function searchFilesNonBlocking(query: string, userId: string, limit = 20) {
+export async function searchFilesNonBlocking(
+  query: string,
+  userId: string,
+  limit = 20,
+) {
   console.log(`Non-blocking search for "${query}"`);
-  
+
   // Search only in lightweight fields - NO extracted_text loading
   const result = await db
     .select({
@@ -144,13 +147,13 @@ export async function searchFilesNonBlocking(query: string, userId: string, limi
             SELECT 1 FROM unnest(${fileMetadata.categories}) AS category 
             WHERE category ILIKE ${`%${query}%`}
           )
-        )`
-      )
+        )`,
+      ),
     )
     .orderBy(desc(files.uploadedAt))
     .limit(limit);
 
-  return result.map(row => ({
+  return result.map((row) => ({
     id: row.id,
     filename: row.filename,
     originalName: row.originalName,
@@ -165,26 +168,32 @@ export async function searchFilesNonBlocking(query: string, userId: string, limi
     processingStatus: row.processingStatus,
     processingError: row.processingError,
     userId: row.userId,
-    metadata: row.metadataId ? {
-      id: row.metadataId,
-      fileId: row.id,
-      extractedText: null, // NEVER load heavy text
-      summary: row.summary,
-      categories: row.categories,
-      keywords: row.keywords,
-      topics: row.topics,
-      confidence: row.confidence,
-      createdAt: row.createdAt,
-      embedding: null,
-      embeddingVector: null,
-    } : undefined,
+    metadata: row.metadataId
+      ? {
+          id: row.metadataId,
+          fileId: row.id,
+          extractedText: null, // NEVER load heavy text
+          summary: row.summary,
+          categories: row.categories,
+          keywords: row.keywords,
+          topics: row.topics,
+          confidence: row.confidence,
+          createdAt: row.createdAt,
+          embedding: null,
+          embeddingVector: null,
+        }
+      : undefined,
   }));
 }
 
 // Lightning-fast similarity search WITHOUT loading heavy data
-export async function searchSimilarFilesNonBlocking(embedding: number[], userId: string = "demo-user", limit = 20) {
+export async function searchSimilarFilesNonBlocking(
+  embedding: number[],
+  userId: string = "demo-user",
+  limit = 20,
+) {
   console.log(`Non-blocking similarity search for user ${userId}`);
-  
+
   // Use pgvector but exclude heavy fields
   const result = await db.execute(
     sql`
@@ -202,7 +211,7 @@ export async function searchSimilarFilesNonBlocking(embedding: number[], userId:
         AND fm.embedding_vector IS NOT NULL
       ORDER BY fm.embedding_vector <=> ${JSON.stringify(embedding)}::vector
       LIMIT ${limit}
-    `
+    `,
   );
 
   return result.rows.map((row: any) => ({

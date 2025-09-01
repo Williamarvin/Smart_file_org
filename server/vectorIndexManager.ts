@@ -7,7 +7,7 @@ import path from "path";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export interface VectorStoreFile {
@@ -57,7 +57,7 @@ class SemanticSearchCircuitBreaker {
   private lastFailureTime = 0;
   private readonly failureThreshold = 3;
   private readonly recoveryTimeMs = 60000; // 1 minute
-  
+
   isOpen(): boolean {
     if (this.failureCount >= this.failureThreshold) {
       const timeSinceLastFailure = Date.now() - this.lastFailureTime;
@@ -70,24 +70,28 @@ class SemanticSearchCircuitBreaker {
     }
     return false;
   }
-  
+
   recordFailure(): void {
     this.failureCount++;
     this.lastFailureTime = Date.now();
-    console.warn(`⚠️ Semantic search failure recorded. Count: ${this.failureCount}/${this.failureThreshold}`);
-    
+    console.warn(
+      `⚠️ Semantic search failure recorded. Count: ${this.failureCount}/${this.failureThreshold}`,
+    );
+
     if (this.failureCount >= this.failureThreshold) {
-      console.error(`🚫 Semantic search circuit breaker OPEN. Disabled for ${this.recoveryTimeMs/1000} seconds.`);
+      console.error(
+        `🚫 Semantic search circuit breaker OPEN. Disabled for ${this.recoveryTimeMs / 1000} seconds.`,
+      );
     }
   }
-  
+
   recordSuccess(): void {
     if (this.failureCount > 0) {
       console.log(`✅ Semantic search recovered. Resetting circuit breaker.`);
       this.reset();
     }
   }
-  
+
   private reset(): void {
     this.failureCount = 0;
     this.lastFailureTime = 0;
@@ -107,7 +111,9 @@ export class VectorIndexManager {
     try {
       // For now, use a static vector store ID or create assistant-based approach
       // OpenAI's vector store API might not be available in this library version
-      console.log("✅ Vector store manager initialized (using assistant-based approach)");
+      console.log(
+        "✅ Vector store manager initialized (using assistant-based approach)",
+      );
       this.vectorStoreId = "file-search-assistant";
     } catch (error) {
       console.error("Failed to initialize vector store:", error);
@@ -121,42 +127,47 @@ export class VectorIndexManager {
   async addFileToIndex(
     fileContent: Buffer | string,
     filename: string,
-    metadata: Record<string, any> = {}
+    metadata: Record<string, any> = {},
   ): Promise<FileProcessingMetadata> {
     if (!this.vectorStoreId) {
       await this.initializeVectorStore();
     }
 
     try {
-      const content = typeof fileContent === 'string' ? fileContent : fileContent.toString();
-      
-      console.log(`🔄 Uploading to OpenAI: ${filename} (${content.length} chars)`);
+      const content =
+        typeof fileContent === "string" ? fileContent : fileContent.toString();
+
+      console.log(
+        `🔄 Uploading to OpenAI: ${filename} (${content.length} chars)`,
+      );
 
       // Create a temporary file for OpenAI upload (Node.js compatible)
-      const tempDir = '/tmp';
+      const tempDir = "/tmp";
       const tempFilename = `openai-upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.txt`;
       const tempFilePath = path.join(tempDir, tempFilename);
-      
+
       // Write content to temporary file
-      fs.writeFileSync(tempFilePath, content, 'utf8');
-      
+      fs.writeFileSync(tempFilePath, content, "utf8");
+
       try {
         // Create file in OpenAI for assistants using fs.createReadStream (Node.js compatible)
         const fileStream = fs.createReadStream(tempFilePath);
-        
+
         const openaiFile = await openai.files.create({
           file: fileStream,
-          purpose: "assistants"
+          purpose: "assistants",
         });
 
-        console.log(`✅ OpenAI file created successfully: ${openaiFile.id} for ${filename}`);
-        
+        console.log(
+          `✅ OpenAI file created successfully: ${openaiFile.id} for ${filename}`,
+        );
+
         // For now, just return the OpenAI file ID to test the upload
         // We'll add back the comprehensive AI analysis once the basic upload works
         const simpleResult = {
           openaiFileId: openaiFile.id,
           vectorStoreId: this.vectorStoreId!,
-          aiAnalysis: { 
+          aiAnalysis: {
             summary: "File uploaded to OpenAI successfully",
             keyPoints: ["File processing completed"],
             mainThemes: ["Document upload"],
@@ -164,54 +175,68 @@ export class VectorIndexManager {
             documentType: "text file",
             audience: "general",
             language: "english",
-            tone: "neutral"
+            tone: "neutral",
           },
-          categorization: { 
-            primaryCategory: "Document", 
+          categorization: {
+            primaryCategory: "Document",
             secondaryCategories: [],
             confidence: 1.0,
             organizationPriority: 0.5,
             suggestedTags: [],
             hashtags: [],
             folderSuggestion: "Documents",
-            importance: "medium" as const
+            importance: "medium" as const,
           },
           namedEntities: [],
           actionItems: [],
-          keyProcesses: []
+          keyProcesses: [],
         };
 
-        console.log(`🎉 Basic vector indexing completed successfully for ${filename}`, {
-          openaiFileId: simpleResult.openaiFileId,
-          vectorStoreId: simpleResult.vectorStoreId
-        });
+        console.log(
+          `🎉 Basic vector indexing completed successfully for ${filename}`,
+          {
+            openaiFileId: simpleResult.openaiFileId,
+            vectorStoreId: simpleResult.vectorStoreId,
+          },
+        );
 
         return simpleResult;
-        
       } finally {
         // Clean up temporary file
         try {
           fs.unlinkSync(tempFilePath);
         } catch (cleanupError) {
-          console.warn(`Warning: Could not delete temp file ${tempFilePath}:`, cleanupError);
+          console.warn(
+            `Warning: Could not delete temp file ${tempFilePath}:`,
+            cleanupError,
+          );
         }
       }
-
     } catch (error: any) {
       console.error(`❌ Vector indexing failed for ${filename}:`, error);
       console.error(`Error details:`, {
         name: error?.name,
         message: error?.message,
-        stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
-        apiKey: process.env.OPENAI_API_KEY ? 'Present' : 'Missing'
+        stack: error?.stack?.split("\n").slice(0, 5).join("\n"),
+        apiKey: process.env.OPENAI_API_KEY ? "Present" : "Missing",
       });
-      
+
       // Provide more specific error information
-      const errorMessage = error?.message || 'Unknown error';
-      if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
-        throw new Error(`OpenAI authentication failed. Please check your OPENAI_API_KEY.`);
-      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
-        throw new Error(`OpenAI API quota exceeded. Please check your OpenAI usage.`);
+      const errorMessage = error?.message || "Unknown error";
+      if (
+        errorMessage.includes("API key") ||
+        errorMessage.includes("authentication")
+      ) {
+        throw new Error(
+          `OpenAI authentication failed. Please check your OPENAI_API_KEY.`,
+        );
+      } else if (
+        errorMessage.includes("quota") ||
+        errorMessage.includes("limit")
+      ) {
+        throw new Error(
+          `OpenAI API quota exceeded. Please check your OpenAI usage.`,
+        );
       } else {
         throw new Error(`Vector indexing failed: ${errorMessage}`);
       }
@@ -221,13 +246,16 @@ export class VectorIndexManager {
   /**
    * Step 2: Comprehensive AI Analysis using GPT-5
    */
-  private async performAIAnalysis(content: string, filename: string): Promise<any> {
+  private async performAIAnalysis(
+    content: string,
+    filename: string,
+  ): Promise<any> {
     try {
       const analysisPrompt = `
 Analyze the following document comprehensively. Extract key insights, themes, and structural information.
 
 Filename: ${filename}
-Content: ${content.slice(0, 12000)}${content.length > 12000 ? '\n...(truncated)' : ''}
+Content: ${content.slice(0, 12000)}${content.length > 12000 ? "\n...(truncated)" : ""}
 
 Provide analysis in this JSON format:
 {
@@ -249,15 +277,16 @@ Focus on extracting actionable insights and content that would be valuable for s
         messages: [
           {
             role: "system",
-            content: "You are an expert document analyst specializing in comprehensive content analysis. Always respond with valid JSON."
+            content:
+              "You are an expert document analyst specializing in comprehensive content analysis. Always respond with valid JSON.",
           },
           {
             role: "user",
-            content: analysisPrompt
-          }
+            content: analysisPrompt,
+          },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3
+        temperature: 0.3,
       });
 
       return JSON.parse(response.choices[0].message.content || "{}");
@@ -271,7 +300,7 @@ Focus on extracting actionable insights and content that would be valuable for s
         documentType: "unknown",
         audience: "general",
         language: "unknown",
-        tone: "neutral"
+        tone: "neutral",
       };
     }
   }
@@ -279,7 +308,11 @@ Focus on extracting actionable insights and content that would be valuable for s
   /**
    * Step 3: Advanced Categorization with Confidence Scores
    */
-  private async performCategorization(content: string, filename: string, aiAnalysis: any): Promise<any> {
+  private async performCategorization(
+    content: string,
+    filename: string,
+    aiAnalysis: any,
+  ): Promise<any> {
     try {
       const categorizationPrompt = `
 Based on the document analysis, categorize this file with confidence scores and organizational recommendations.
@@ -287,7 +320,7 @@ Based on the document analysis, categorize this file with confidence scores and 
 Filename: ${filename}
 Document Type: ${aiAnalysis.documentType}
 Content Summary: ${aiAnalysis.summary}
-Key Points: ${aiAnalysis.keyPoints?.join(', ')}
+Key Points: ${aiAnalysis.keyPoints?.join(", ")}
 
 Provide categorization in this JSON format:
 {
@@ -310,15 +343,16 @@ Rate organizationPriority from 0.0 to 1.0 based on how important this document a
         messages: [
           {
             role: "system",
-            content: "You are an expert in document organization and taxonomy. Always respond with valid JSON."
+            content:
+              "You are an expert in document organization and taxonomy. Always respond with valid JSON.",
           },
           {
             role: "user",
-            content: categorizationPrompt
-          }
+            content: categorizationPrompt,
+          },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.2
+        temperature: 0.2,
       });
 
       return JSON.parse(response.choices[0].message.content || "{}");
@@ -332,7 +366,7 @@ Rate organizationPriority from 0.0 to 1.0 based on how important this document a
         suggestedTags: [],
         hashtags: [],
         folderSuggestion: "Uncategorized",
-        importance: "medium"
+        importance: "medium",
       };
     }
   }
@@ -349,7 +383,7 @@ Rate organizationPriority from 0.0 to 1.0 based on how important this document a
       const entityPrompt = `
 Extract structured information from this document content:
 
-Content: ${content.slice(0, 8000)}${content.length > 8000 ? '\n...(truncated)' : ''}
+Content: ${content.slice(0, 8000)}${content.length > 8000 ? "\n...(truncated)" : ""}
 
 Identify and extract the following in JSON format:
 {
@@ -366,30 +400,37 @@ Focus on concrete, actionable information that would be useful for search and re
         messages: [
           {
             role: "system",
-            content: "You are an expert in information extraction and entity recognition. Always respond with valid JSON."
+            content:
+              "You are an expert in information extraction and entity recognition. Always respond with valid JSON.",
           },
           {
             role: "user",
-            content: entityPrompt
-          }
+            content: entityPrompt,
+          },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.1
+        temperature: 0.1,
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
-      
+
       return {
-        namedEntities: Array.isArray(result.namedEntities) ? result.namedEntities : [],
-        actionItems: Array.isArray(result.actionItems) ? result.actionItems : [],
-        keyProcesses: Array.isArray(result.keyProcesses) ? result.keyProcesses : []
+        namedEntities: Array.isArray(result.namedEntities)
+          ? result.namedEntities
+          : [],
+        actionItems: Array.isArray(result.actionItems)
+          ? result.actionItems
+          : [],
+        keyProcesses: Array.isArray(result.keyProcesses)
+          ? result.keyProcesses
+          : [],
       };
     } catch (error) {
       console.error("Entity extraction failed:", error);
       return {
         namedEntities: [],
         actionItems: [],
-        keyProcesses: []
+        keyProcesses: [],
       };
     }
   }
@@ -400,11 +441,13 @@ Focus on concrete, actionable information that would be useful for search and re
   async semanticSearch(
     query: string,
     limit: number = 20,
-    userFiles: File[] = []
+    userFiles: File[] = [],
   ): Promise<SemanticSearchResult[]> {
     // Check circuit breaker first
     if (this.circuitBreaker.isOpen()) {
-      console.warn(`🚫 Semantic search temporarily disabled by circuit breaker`);
+      console.warn(
+        `🚫 Semantic search temporarily disabled by circuit breaker`,
+      );
       return [];
     }
 
@@ -414,7 +457,7 @@ Focus on concrete, actionable information that would be useful for search and re
 
     try {
       console.log(`🔍 Performing semantic search for: "${query}"`);
-      
+
       // Use OpenAI Chat Completions with file_search tool - simpler than assistants API
       const searchPrompt = `
 You are a semantic file search assistant. Find files from the vector store that are relevant to this query: "${query}"
@@ -444,7 +487,7 @@ If no relevant files are found, return an empty results array.`;
 
       // For now, we'll use a fallback approach until vector store search is fully integrated
       console.log(`🔄 Using fallback semantic analysis for: "${query}"`);
-      
+
       // Get files with OpenAI IDs for semantic search
       const filesWithOpenAI = await db
         .select({
@@ -455,7 +498,7 @@ If no relevant files are found, return an empty results array.`;
           summary: fileMetadata.summary,
           categories: fileMetadata.categories,
           keywords: fileMetadata.keywords,
-          topics: fileMetadata.topics
+          topics: fileMetadata.topics,
         })
         .from(files)
         .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -463,8 +506,8 @@ If no relevant files are found, return an empty results array.`;
           and(
             eq(files.userId, "demo-user"),
             eq(files.processingStatus, "completed"),
-            sql`${fileMetadata.openaiFileId} IS NOT NULL`
-          )
+            sql`${fileMetadata.openaiFileId} IS NOT NULL`,
+          ),
         )
         .limit(50); // Get a reasonable sample for analysis
 
@@ -473,21 +516,27 @@ If no relevant files are found, return an empty results array.`;
         return [];
       }
 
-      console.log(`📊 Analyzing ${filesWithOpenAI.length} files with OpenAI vector storage`);
+      console.log(
+        `📊 Analyzing ${filesWithOpenAI.length} files with OpenAI vector storage`,
+      );
 
       // Use GPT-5 to analyze which files are most relevant
       const analysisPrompt = `
 Analyze this search query: "${query}"
 
 Here are files available in the system:
-${filesWithOpenAI.map(f => `
+${filesWithOpenAI
+  .map(
+    (f) => `
 - File: ${f.originalName || f.filename}
 - OpenAI ID: ${f.openaiFileId}
-- Summary: ${f.summary || 'No summary'}
-- Categories: ${Array.isArray(f.categories) ? f.categories.join(', ') : f.categories || 'None'}
-- Keywords: ${Array.isArray(f.keywords) ? f.keywords.join(', ') : f.keywords || 'None'}
-- Topics: ${Array.isArray(f.topics) ? f.topics.join(', ') : f.topics || 'None'}
-`).join('\n')}
+- Summary: ${f.summary || "No summary"}
+- Categories: ${Array.isArray(f.categories) ? f.categories.join(", ") : f.categories || "None"}
+- Keywords: ${Array.isArray(f.keywords) ? f.keywords.join(", ") : f.keywords || "None"}
+- Topics: ${Array.isArray(f.topics) ? f.topics.join(", ") : f.topics || "None"}
+`,
+  )
+  .join("\n")}
 
 Based on the search query, rank and analyze the most relevant files. Provide detailed explanations of why each file matches.
 
@@ -511,83 +560,99 @@ Respond in JSON format:
       const maxRetries = 2;
       const timeoutMs = 15000; // 15 second timeout
       let lastError: any = null;
-      
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           console.log(`🔄 Semantic search attempt ${attempt}/${maxRetries}`);
-          
-          const response = await Promise.race([
+
+          const response = (await Promise.race([
             openai.chat.completions.create({
               model: "gpt-4o", // Using GPT-4o for better performance
               messages: [
                 {
                   role: "system",
-                  content: "You are an expert semantic search assistant. Analyze queries and match them to relevant files based on meaning, context, and conceptual relationships. Always respond with valid JSON."
+                  content:
+                    "You are an expert semantic search assistant. Analyze queries and match them to relevant files based on meaning, context, and conceptual relationships. Always respond with valid JSON.",
                 },
                 {
                   role: "user",
-                  content: analysisPrompt
-                }
+                  content: analysisPrompt,
+                },
               ],
               response_format: { type: "json_object" },
-              temperature: 0.3
+              temperature: 0.3,
             }),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error(`OpenAI API timeout after ${timeoutMs}ms`)), timeoutMs)
-            )
-          ]) as any;
+            new Promise((_, reject) =>
+              setTimeout(
+                () =>
+                  reject(new Error(`OpenAI API timeout after ${timeoutMs}ms`)),
+                timeoutMs,
+              ),
+            ),
+          ])) as any;
 
-          const searchResults = JSON.parse(response.choices[0].message.content || '{"results":[],"searchIntent":"","totalResults":0}');
-          console.log(`✅ Semantic analysis completed: ${searchResults.results?.length || 0} relevant files found`);
+          const searchResults = JSON.parse(
+            response.choices[0].message.content ||
+              '{"results":[],"searchIntent":"","totalResults":0}',
+          );
+          console.log(
+            `✅ Semantic analysis completed: ${searchResults.results?.length || 0} relevant files found`,
+          );
 
           // Record success and reset circuit breaker
           this.circuitBreaker.recordSuccess();
 
           // Return formatted results
-          return (searchResults.results || []).slice(0, limit).map((result: any, index: number) => ({
-            fileId: result.fileId || `result_${index}`,
-            relevanceScore: result.relevanceScore || 50,
-            explanation: result.explanation || 'Semantically relevant to your search query',
-            matchedContent: result.matchedContent || [],
-            documentType: result.documentType || 'document',
-            summary: result.summary || 'No summary available',
-            searchIntent: searchResults.searchIntent || query
-          }));
-
+          return (searchResults.results || [])
+            .slice(0, limit)
+            .map((result: any, index: number) => ({
+              fileId: result.fileId || `result_${index}`,
+              relevanceScore: result.relevanceScore || 50,
+              explanation:
+                result.explanation ||
+                "Semantically relevant to your search query",
+              matchedContent: result.matchedContent || [],
+              documentType: result.documentType || "document",
+              summary: result.summary || "No summary available",
+              searchIntent: searchResults.searchIntent || query,
+            }));
         } catch (error: any) {
           lastError = error;
-          console.warn(`⚠️ Semantic search attempt ${attempt} failed:`, error.message);
-          
+          console.warn(
+            `⚠️ Semantic search attempt ${attempt} failed:`,
+            error.message,
+          );
+
           if (attempt < maxRetries) {
             // Exponential backoff: wait longer between retries
             const backoffMs = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s...
             console.log(`⏳ Retrying in ${backoffMs}ms...`);
-            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
           }
         }
       }
 
       // If all retries failed, record failure and fall back gracefully
       this.circuitBreaker.recordFailure();
-      console.error(`❌ All semantic search attempts failed. Last error:`, lastError?.message);
+      console.error(
+        `❌ All semantic search attempts failed. Last error:`,
+        lastError?.message,
+      );
       console.log(`🔄 Falling back to SQL-only search mode`);
       return [];
-
     } catch (error: any) {
       // Record failure for outer catch as well
       this.circuitBreaker.recordFailure();
       console.error("❌ Semantic search failed:", error);
       console.error("Error details:", {
         message: error?.message,
-        name: error?.name
+        name: error?.name,
       });
-      
+
       // Return empty results rather than crashing
       return [];
     }
   }
-
-
 
   /**
    * Remove file from OpenAI
@@ -617,14 +682,14 @@ Respond in JSON format:
       return {
         totalFiles: 0,
         storageUsage: 0,
-        lastActivity: new Date().toISOString()
+        lastActivity: new Date().toISOString(),
       };
     } catch (error) {
       console.error("Failed to get stats:", error);
       return {
         totalFiles: 0,
         storageUsage: 0,
-        lastActivity: new Date().toISOString()
+        lastActivity: new Date().toISOString(),
       };
     }
   }

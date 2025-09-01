@@ -16,7 +16,7 @@ class DifyBridgeServer {
         capabilities: {
           tools: {},
         },
-      }
+      },
     );
 
     this.setupTools();
@@ -31,17 +31,17 @@ class DifyBridgeServer {
           inputSchema: {
             type: "object",
             properties: {
-              message: { 
+              message: {
                 type: "string",
-                description: "The message to send to Dify"
+                description: "The message to send to Dify",
               },
               conversation_id: {
                 type: "string",
-                description: "Optional conversation ID for context"
-              }
+                description: "Optional conversation ID for context",
+              },
             },
-            required: ["message"]
-          }
+            required: ["message"],
+          },
         },
         {
           name: "dify_mcp_tools",
@@ -49,19 +49,19 @@ class DifyBridgeServer {
           inputSchema: {
             type: "object",
             properties: {
-              tool_name: { 
+              tool_name: {
                 type: "string",
-                description: "Name of the MCP tool to use"
+                description: "Name of the MCP tool to use",
               },
               parameters: {
                 type: "object",
-                description: "Parameters for the tool"
-              }
+                description: "Parameters for the tool",
+              },
             },
-            required: ["tool_name"]
-          }
-        }
-      ]
+            required: ["tool_name"],
+          },
+        },
+      ],
     }));
 
     this.server.setRequestHandler("tools/call", async (request) => {
@@ -82,16 +82,16 @@ class DifyBridgeServer {
       const response = await fetch(DIFY_URL, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${DIFY_API_KEY}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${DIFY_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           inputs: {},
           query: args.message,
           response_mode: "blocking",
           conversation_id: args.conversation_id || "",
-          user: "claude-user"
-        })
+          user: "claude-user",
+        }),
       });
 
       const data = await response.json();
@@ -104,19 +104,19 @@ class DifyBridgeServer {
         content: [
           {
             type: "text",
-            text: data.answer || "No response from Dify"
-          }
-        ]
+            text: data.answer || "No response from Dify",
+          },
+        ],
       };
     } catch (error) {
       return {
         content: [
           {
             type: "text",
-            text: `Error calling Dify: ${error.message}`
-          }
+            text: `Error calling Dify: ${error.message}`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     }
   }
@@ -128,10 +128,10 @@ class DifyBridgeServer {
       const response = await fetch(`${DIFY_URL}/tools/${args.tool_name}`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${DIFY_API_KEY}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${DIFY_API_KEY}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(args.parameters || {})
+        body: JSON.stringify(args.parameters || {}),
       });
 
       const data = await response.json();
@@ -140,19 +140,19 @@ class DifyBridgeServer {
         content: [
           {
             type: "text",
-            text: JSON.stringify(data, null, 2)
-          }
-        ]
+            text: JSON.stringify(data, null, 2),
+          },
+        ],
       };
     } catch (error) {
       return {
         content: [
           {
             type: "text",
-            text: `Error calling MCP tool: ${error.message}`
-          }
+            text: `Error calling MCP tool: ${error.message}`,
+          },
         ],
-        isError: true
+        isError: true,
       };
     }
   }

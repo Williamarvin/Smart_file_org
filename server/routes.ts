@@ -5,7 +5,17 @@ import { storage } from "./storage";
 // Using existing optimized storage layer
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { GoogleDriveService } from "./googleDriveService";
-import { extractFileMetadata, generateContentEmbedding, generateSearchEmbedding, findSimilarContent, generateContentFromFiles, chatWithFiles, transcribeVideo, generateTextToSpeech, generateRelevanceExplanation } from "./openai";
+import {
+  extractFileMetadata,
+  generateContentEmbedding,
+  generateSearchEmbedding,
+  findSimilarContent,
+  generateContentFromFiles,
+  chatWithFiles,
+  transcribeVideo,
+  generateTextToSpeech,
+  generateRelevanceExplanation,
+} from "./openai";
 import { vectorIndexManager } from "./vectorIndexManager";
 import { aiProvider } from "./aiProvider";
 import { difyService } from "./difyService";
@@ -27,16 +37,20 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Disk storage for Excel files
 const diskStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, '/tmp')
+    cb(null, "/tmp");
   },
   filename: function (req, file, cb) {
-    cb(null, `excel-${Date.now()}-${file.originalname}`)
-  }
+    cb(null, `excel-${Date.now()}-${file.originalname}`);
+  },
 });
 
 const uploadDisk = multer({ storage: diskStorage });
 
-async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
+async function extractTextFromFile(
+  buffer: Buffer,
+  mimeType: string,
+  filename: string,
+): Promise<string> {
   try {
     switch (mimeType) {
       case "application/pdf":
@@ -46,91 +60,114 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
           // Try to normalize whitespace and combine text better
           normalizeWhitespace: true,
         };
-        
+
         const pdfData = await PDFParse(buffer, pdfOptions);
-        let extractedText = pdfData.text || '';
-        
+        let extractedText = pdfData.text || "";
+
         // Clean up the text - remove excessive whitespace but preserve structure
         if (extractedText) {
           // First, try to preserve paragraph structure by replacing single newlines with spaces
           // but keeping double newlines as paragraph breaks
           extractedText = extractedText
-            .replace(/([^\n])\n([^\n])/g, '$1 $2') // Single newlines become spaces
-            .replace(/\s+/g, ' ') // Multiple spaces become single space
-            .replace(/\n{3,}/g, '\n\n') // Multiple newlines become double newlines
+            .replace(/([^\n])\n([^\n])/g, "$1 $2") // Single newlines become spaces
+            .replace(/\s+/g, " ") // Multiple spaces become single space
+            .replace(/\n{3,}/g, "\n\n") // Multiple newlines become double newlines
             .trim();
         }
-        
+
         // Check if we got meaningful text (not just whitespace)
         const cleanedText = extractedText.trim();
-        
+
         // More detailed debugging
         console.log(`PDF Debug for ${filename}:`);
         console.log(`- Raw text length: ${pdfData.text?.length}`);
         console.log(`- Cleaned text length: ${cleanedText.length}`);
         console.log(`- Number of pages: ${pdfData.numpages}`);
         console.log(`- PDF Version: ${pdfData.version}`);
-        
-        if (cleanedText.length < 50) {  // Changed from 10 to 50 to match enhancedPdfExtractor threshold
-          console.warn(`PDF extraction returned minimal text for ${filename} (${cleanedText.length} chars) - triggering OCR`);
-          
+
+        if (cleanedText.length < 50) {
+          // Changed from 10 to 50 to match enhancedPdfExtractor threshold
+          console.warn(
+            `PDF extraction returned minimal text for ${filename} (${cleanedText.length} chars) - triggering OCR`,
+          );
+
           // Log first 500 chars of raw text to debug
           if (pdfData.text) {
             const rawSample = pdfData.text.substring(0, 500);
-            console.log(`First 500 chars of raw text (char codes):`, 
-              Array.from(rawSample).map(c => c.charCodeAt(0)));
+            console.log(
+              `First 500 chars of raw text (char codes):`,
+              Array.from(rawSample).map((c) => c.charCodeAt(0)),
+            );
             console.log(`Raw text sample: "${rawSample}"`);
           }
-          
+
           // Try alternative extraction if main text failed
           if (pdfData.text && pdfData.text.length > 80) {
             // Sometimes PDFs have text but it's all whitespace characters
             // Try to extract any visible characters
             const visibleChars = pdfData.text.match(/[^\s]/g);
-            if (visibleChars && visibleChars.length > 50) {  // Changed from 10 to 50
-              console.log(`Found ${visibleChars.length} visible characters, attempting recovery...`);
+            if (visibleChars && visibleChars.length > 50) {
+              // Changed from 10 to 50
+              console.log(
+                `Found ${visibleChars.length} visible characters, attempting recovery...`,
+              );
               extractedText = pdfData.text;
             }
           }
-          
+
           // If still no text, try enhanced extraction with OCR
           if (extractedText.trim().length < 50) {
-            console.log(`📷 Minimal text detected (${extractedText.trim().length} chars), triggering enhanced extraction with OCR...`);
-            
+            console.log(
+              `📷 Minimal text detected (${extractedText.trim().length} chars), triggering enhanced extraction with OCR...`,
+            );
+
             // Import and use enhanced PDF extractor with OCR capabilities
-            const { enhancedPdfExtractor } = await import('./enhancedPdfExtractor');
-            
+            const { enhancedPdfExtractor } = await import(
+              "./enhancedPdfExtractor"
+            );
+
             try {
-              const ocrText = await enhancedPdfExtractor.extractText(buffer, filename);
-              
+              const ocrText = await enhancedPdfExtractor.extractText(
+                buffer,
+                filename,
+              );
+
               // Check if OCR was successful
               if (ocrText && ocrText.trim().length > 50) {
-                console.log(`✅ Enhanced extraction with OCR succeeded: ${ocrText.length} characters`);
+                console.log(
+                  `✅ Enhanced extraction with OCR succeeded: ${ocrText.length} characters`,
+                );
                 return ocrText;
               }
             } catch (ocrError: any) {
-              console.error(`❌ Enhanced extraction failed: ${ocrError.message}`);
+              console.error(
+                `❌ Enhanced extraction failed: ${ocrError.message}`,
+              );
             }
-            
+
             // Only return fallback if OCR also failed
-            const pageInfo = pdfData.numpages ? `${pdfData.numpages} pages` : 'unknown pages';
+            const pageInfo = pdfData.numpages
+              ? `${pdfData.numpages} pages`
+              : "unknown pages";
             const title = pdfData.info?.Title || filename;
-            const author = pdfData.info?.Author || 'Unknown author';
-            
+            const author = pdfData.info?.Author || "Unknown author";
+
             return `PDF Document: ${title}\nAuthor: ${author}\nPages: ${pageInfo}\n\nNote: This PDF appears to contain scanned images or complex formatting that prevents text extraction. OCR processing was attempted but failed.`;
           }
         }
-        
-        console.log(`✅ Extracted ${cleanedText.length} characters from PDF: ${filename}`);
+
+        console.log(
+          `✅ Extracted ${cleanedText.length} characters from PDF: ${filename}`,
+        );
         return extractedText;
-      
+
       case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         const docxResult = await mammoth.extractRawText({ buffer });
         return docxResult.value;
-      
+
       case "text/plain":
         return buffer.toString("utf-8");
-      
+
       // Video file types
       case "video/mp4":
       case "video/avi":
@@ -140,9 +177,12 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
       case "video/webm":
       case "video/mkv":
         // For video files, we need to save the buffer to a temporary file first
-        const tempVideoPath = path.join('/tmp', `video_${nanoid()}_${filename}`);
+        const tempVideoPath = path.join(
+          "/tmp",
+          `video_${nanoid()}_${filename}`,
+        );
         fs.writeFileSync(tempVideoPath, buffer);
-        
+
         try {
           const transcription = await transcribeVideo(tempVideoPath);
           // Clean up temporary file
@@ -155,12 +195,14 @@ async function extractTextFromFile(buffer: Buffer, mimeType: string, filename: s
           }
           throw videoError;
         }
-      
+
       default:
         throw new Error(`Unsupported file type: ${mimeType}`);
     }
   } catch (error: any) {
-    throw new Error(`Failed to extract text from ${filename}: ${error?.message || "Unknown error"}`);
+    throw new Error(
+      `Failed to extract text from ${filename}: ${error?.message || "Unknown error"}`,
+    );
   }
 }
 
@@ -168,30 +210,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Dify automatically if API key is in environment
   if (process.env.DIFY_API_KEY) {
     aiProvider.initializeDify({
-      baseUrl: process.env.DIFY_BASE_URL || 'https://api.dify.ai/v1',
-      apiKey: process.env.DIFY_API_KEY
+      baseUrl: process.env.DIFY_BASE_URL || "https://api.dify.ai/v1",
+      apiKey: process.env.DIFY_API_KEY,
     });
-    aiProvider.setDefaultProvider('dify'); // Set Dify as default provider
-    console.log('✓ Dify service automatically initialized from environment variables');
-    console.log('✓ Dify MCP set as default AI provider');
+    aiProvider.setDefaultProvider("dify"); // Set Dify as default provider
+    console.log(
+      "✓ Dify service automatically initialized from environment variables",
+    );
+    console.log("✓ Dify MCP set as default AI provider");
   }
-  
+
   // Mock user endpoint - no authentication
-  app.get('/api/auth/user', async (req: any, res) => {
+  app.get("/api/auth/user", async (req: any, res) => {
     // Return a mock user for testing
     res.json({
       id: "demo-user",
       email: "demo@example.com",
       firstName: "Demo",
       lastName: "User",
-      profileImageUrl: null
+      profileImageUrl: null,
     });
   });
 
   // ============= AI Provider Configuration Endpoints =============
-  
+
   // Get provider status
-  app.get('/api/providers/status', async (req: any, res) => {
+  app.get("/api/providers/status", async (req: any, res) => {
     try {
       const status = aiProvider.getProviderStatus();
       res.json(status);
@@ -202,41 +246,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Configure a provider (Dify or OpenAI)
-  app.post('/api/providers/configure', async (req: any, res) => {
+  app.post("/api/providers/configure", async (req: any, res) => {
     try {
       const { provider, config } = req.body;
-      
-      if (provider === 'dify') {
+
+      if (provider === "dify") {
         if (!config.baseUrl || !config.apiKey) {
-          return res.status(400).json({ error: "Dify requires baseUrl and apiKey" });
+          return res
+            .status(400)
+            .json({ error: "Dify requires baseUrl and apiKey" });
         }
-        
+
         // Initialize Dify service
         aiProvider.initializeDify({
           baseUrl: config.baseUrl,
-          apiKey: config.apiKey
+          apiKey: config.apiKey,
         });
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: "Dify configured successfully",
-          status: aiProvider.getProviderStatus()
+          status: aiProvider.getProviderStatus(),
         });
-      } else if (provider === 'openai') {
+      } else if (provider === "openai") {
         // OpenAI is configured via environment variable
         if (!process.env.OPENAI_API_KEY) {
-          return res.status(400).json({ 
-            error: "OpenAI API key not found in environment variables" 
+          return res.status(400).json({
+            error: "OpenAI API key not found in environment variables",
           });
         }
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: "OpenAI is configured via environment variables",
-          status: aiProvider.getProviderStatus()
+          status: aiProvider.getProviderStatus(),
         });
       } else {
-        res.status(400).json({ error: "Invalid provider. Use 'dify' or 'openai'" });
+        res
+          .status(400)
+          .json({ error: "Invalid provider. Use 'dify' or 'openai'" });
       }
     } catch (error) {
       console.error("Error configuring provider:", error);
@@ -245,35 +293,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Switch default provider
-  app.post('/api/providers/switch', async (req: any, res) => {
+  app.post("/api/providers/switch", async (req: any, res) => {
     try {
       const { provider, userId } = req.body;
-      
-      if (!['openai', 'dify'].includes(provider)) {
-        return res.status(400).json({ error: "Invalid provider. Use 'dify' or 'openai'" });
+
+      if (!["openai", "dify"].includes(provider)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid provider. Use 'dify' or 'openai'" });
       }
-      
+
       // Check if provider is configured
       const status = aiProvider.getProviderStatus();
-      if (provider === 'dify' && !status.providers.dify.configured) {
-        return res.status(400).json({ 
-          error: "Dify is not configured. Please configure it first." 
+      if (provider === "dify" && !status.providers.dify.configured) {
+        return res.status(400).json({
+          error: "Dify is not configured. Please configure it first.",
         });
       }
-      
+
       if (userId) {
         // Set user-specific provider preference
-        aiProvider.setUserProvider(userId, provider as 'openai' | 'dify');
+        aiProvider.setUserProvider(userId, provider as "openai" | "dify");
       } else {
         // Set default provider
-        aiProvider.setDefaultProvider(provider as 'openai' | 'dify');
+        aiProvider.setDefaultProvider(provider as "openai" | "dify");
       }
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: `Switched to ${provider}`,
         currentProvider: provider,
-        status: aiProvider.getProviderStatus()
+        status: aiProvider.getProviderStatus(),
       });
     } catch (error) {
       console.error("Error switching provider:", error);
@@ -282,7 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get available MCP tools from Dify
-  app.get('/api/providers/mcp-tools', async (req: any, res) => {
+  app.get("/api/providers/mcp-tools", async (req: any, res) => {
     try {
       const tools = await aiProvider.getMCPTools();
       res.json({ tools });
@@ -293,20 +343,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Execute MCP tool through Dify
-  app.post('/api/providers/mcp-tool', async (req: any, res) => {
+  app.post("/api/providers/mcp-tool", async (req: any, res) => {
     try {
       const { toolName, parameters, userId } = req.body;
-      
+
       if (!toolName) {
         return res.status(400).json({ error: "toolName is required" });
       }
-      
+
       const result = await aiProvider.executeMCPTool(
         toolName,
         parameters || {},
-        userId || "demo-user"
+        userId || "demo-user",
       );
-      
+
       res.json({ result });
     } catch (error) {
       console.error("Error executing MCP tool:", error);
@@ -331,22 +381,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/folders", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const folderData = z.object({
-        name: z.string(),
-        path: z.string(),
-        parentId: z.string().nullable().optional(),
-        color: z.string().optional(),
-        description: z.string().optional(),
-      }).parse(req.body);
+      const folderData = z
+        .object({
+          name: z.string(),
+          path: z.string(),
+          parentId: z.string().nullable().optional(),
+          color: z.string().optional(),
+          description: z.string().optional(),
+        })
+        .parse(req.body);
 
-      const folder = await storage.createFolder({
-        name: folderData.name,
-        path: folderData.path,
-        parentId: folderData.parentId || null,
-        color: folderData.color,
-        description: folderData.description,
-        userId: userId,
-      }, userId);
+      const folder = await storage.createFolder(
+        {
+          name: folderData.name,
+          path: folderData.path,
+          parentId: folderData.parentId || null,
+          color: folderData.color,
+          description: folderData.description,
+          userId: userId,
+        },
+        userId,
+      );
 
       res.json(folder);
     } catch (error) {
@@ -359,28 +414,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/files", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const fileData = z.object({
-        filename: z.string(),
-        originalName: z.string(),
-        mimeType: z.string(),
-        size: z.number(),
-        uploadURL: z.string(),
-        folderId: z.string().nullable().optional(),
-      }).parse(req.body);
+      const fileData = z
+        .object({
+          filename: z.string(),
+          originalName: z.string(),
+          mimeType: z.string(),
+          size: z.number(),
+          uploadURL: z.string(),
+          folderId: z.string().nullable().optional(),
+        })
+        .parse(req.body);
 
       // Normalize the object path
-      const objectPath = objectStorageService.normalizeObjectEntityPath(fileData.uploadURL);
+      const objectPath = objectStorageService.normalizeObjectEntityPath(
+        fileData.uploadURL,
+      );
 
-      const file = await storage.createFile({
-        filename: fileData.filename,
-        originalName: fileData.originalName,
-        mimeType: fileData.mimeType,
-        size: fileData.size,
-        objectPath,
-        folderId: fileData.folderId || null,
-        processingStatus: "pending",
-        userId: userId,
-      }, userId);
+      const file = await storage.createFile(
+        {
+          filename: fileData.filename,
+          originalName: fileData.originalName,
+          mimeType: fileData.mimeType,
+          size: fileData.size,
+          objectPath,
+          folderId: fileData.folderId || null,
+          processingStatus: "pending",
+          userId: userId,
+        },
+        userId,
+      );
 
       // Invalidate caches when new files are created
       // Cache invalidation handled in storage layer
@@ -403,9 +465,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const processingStatus = req.query.processingStatus as string;
-      
+
       let filesList;
-      if (processingStatus && processingStatus !== 'all') {
+      if (processingStatus && processingStatus !== "all") {
         console.log(`Filtering files by processingStatus: ${processingStatus}`);
         // Query database directly with processing status filter
         const query = db
@@ -414,18 +476,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(
             and(
               eq(files.userId, userId),
-              eq(files.processingStatus, processingStatus)
-            )
+              eq(files.processingStatus, processingStatus),
+            ),
           )
           .limit(limit)
           .offset(offset);
-        
+
         filesList = await query;
-        console.log(`Found ${filesList.length} files with status ${processingStatus}`);
+        console.log(
+          `Found ${filesList.length} files with status ${processingStatus}`,
+        );
       } else {
         filesList = await storage.getFiles(userId, limit, offset);
       }
-      
+
       res.json(filesList);
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -437,8 +501,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/processing-status", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const status = req.query.status as string || 'all';
-      
+      const status = (req.query.status as string) || "all";
+
       // Get ALL files directly from database (including failed, pending, etc)
       const allFiles = await db
         .select({
@@ -453,55 +517,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processedAt: files.processedAt,
           processingStatus: files.processingStatus,
           processingError: files.processingError,
-          userId: files.userId
+          userId: files.userId,
         })
         .from(files)
         .where(eq(files.userId, userId));
-      
+
       // Get folder names for mapping
       const folderList = await db
         .select({
           id: folders.id,
-          name: folders.name
+          name: folders.name,
         })
         .from(folders)
         .where(eq(folders.userId, userId));
-      
-      const folderMap = new Map(folderList.map(f => [f.id, f.name]));
-      
+
+      const folderMap = new Map(folderList.map((f) => [f.id, f.name]));
+
       // Format results with proper processing info
-      const results = allFiles.map(file => ({
+      const results = allFiles.map((file) => ({
         id: file.id,
         filename: file.filename || file.originalName,
-        processingStatus: file.processingStatus || 'pending',
+        processingStatus: file.processingStatus || "pending",
         processingStartedAt: file.uploadedAt,
         processingError: file.processingError,
-        processingDuration: file.processedAt && file.uploadedAt 
-          ? new Date(file.processedAt).getTime() - new Date(file.uploadedAt).getTime()
-          : 0,
-        fileType: file.mimeType || 'unknown',
+        processingDuration:
+          file.processedAt && file.uploadedAt
+            ? new Date(file.processedAt).getTime() -
+              new Date(file.uploadedAt).getTime()
+            : 0,
+        fileType: file.mimeType || "unknown",
         fileSize: file.size || 0,
         folderId: file.folderId || null,
-        folderName: file.folderId ? folderMap.get(file.folderId) : null
+        folderName: file.folderId ? folderMap.get(file.folderId) : null,
       }));
-      
+
       // Filter based on status
       let filteredResults = results;
-      if (status !== 'all') {
-        if (status === 'stuck') {
+      if (status !== "all") {
+        if (status === "stuck") {
           // Files that have been processing or pending for over 2 hours
-          filteredResults = results.filter(f => {
+          filteredResults = results.filter((f) => {
             if (!f.processingStartedAt) return false;
             const startTime = new Date(f.processingStartedAt).getTime();
             const now = Date.now();
-            const isStuck = (now - startTime) > 2 * 60 * 60 * 1000;
-            return isStuck && (f.processingStatus === 'processing' || f.processingStatus === 'pending');
+            const isStuck = now - startTime > 2 * 60 * 60 * 1000;
+            return (
+              isStuck &&
+              (f.processingStatus === "processing" ||
+                f.processingStatus === "pending")
+            );
           });
         } else {
-          filteredResults = results.filter(f => f.processingStatus === status);
+          filteredResults = results.filter(
+            (f) => f.processingStatus === status,
+          );
         }
       }
-      
+
       res.json(filteredResults);
     } catch (error) {
       console.error("Error fetching processing status:", error);
@@ -515,8 +587,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = "demo-user";
       const category = req.params.category as string;
       const limit = parseInt(req.query.limit as string) || 20;
-      
-      const files = await storage.getFilesByCategory(category, "demo-user", limit);
+
+      const files = await storage.getFilesByCategory(
+        category,
+        "demo-user",
+        limit,
+      );
       res.json(files);
     } catch (error) {
       console.error("Error fetching files by category:", error);
@@ -528,66 +604,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Category mapping function to standardize categories
   function normalizeCategory(category: string): string {
     const categoryMap: { [key: string]: string } = {
-      'educational': 'Education',
-      'education': 'Education',
-      'academic': 'Education',
-      'learning': 'Education',
-      'business': 'Business',
-      'corporate': 'Business',
-      'work': 'Business',
-      'professional': 'Business',
-      'technical': 'Technology',
-      'technology': 'Technology',
-      'tech': 'Technology',
-      'programming': 'Technology',
-      'software': 'Technology',
-      'entertainment': 'Entertainment',
-      'fun': 'Entertainment',
-      'music': 'Entertainment',
-      'video': 'Entertainment',
-      'health': 'Health',
-      'medical': 'Health',
-      'wellness': 'Health',
-      'finance': 'Finance',
-      'financial': 'Finance',
-      'money': 'Finance',
-      'investment': 'Finance',
-      'science': 'Science',
-      'research': 'Science',
-      'scientific': 'Science',
-      'news': 'News',
-      'current events': 'News',
-      'politics': 'News',
-      'personal': 'Personal',
-      'life': 'Personal',
-      'diary': 'Personal',
-      'reference': 'Reference',
-      'documentation': 'Reference',
-      'manual': 'Reference',
-      'guide': 'Reference'
+      educational: "Education",
+      education: "Education",
+      academic: "Education",
+      learning: "Education",
+      business: "Business",
+      corporate: "Business",
+      work: "Business",
+      professional: "Business",
+      technical: "Technology",
+      technology: "Technology",
+      tech: "Technology",
+      programming: "Technology",
+      software: "Technology",
+      entertainment: "Entertainment",
+      fun: "Entertainment",
+      music: "Entertainment",
+      video: "Entertainment",
+      health: "Health",
+      medical: "Health",
+      wellness: "Health",
+      finance: "Finance",
+      financial: "Finance",
+      money: "Finance",
+      investment: "Finance",
+      science: "Science",
+      research: "Science",
+      scientific: "Science",
+      news: "News",
+      "current events": "News",
+      politics: "News",
+      personal: "Personal",
+      life: "Personal",
+      diary: "Personal",
+      reference: "Reference",
+      documentation: "Reference",
+      manual: "Reference",
+      guide: "Reference",
     };
-    
-    return categoryMap[category.toLowerCase()] || 'Reference';
+
+    return categoryMap[category.toLowerCase()] || "Reference";
   }
 
   app.get("/api/categories", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const rawCategories = await storage.getCategories(userId);
-      
+
       // Normalize and aggregate categories
       const normalizedCategories: { [key: string]: number } = {};
       for (const cat of rawCategories) {
         const normalized = normalizeCategory(cat.category);
-        normalizedCategories[normalized] = (normalizedCategories[normalized] || 0) + cat.count;
+        normalizedCategories[normalized] =
+          (normalizedCategories[normalized] || 0) + cat.count;
       }
-      
+
       // Convert back to array format
-      const categories = Object.entries(normalizedCategories).map(([category, count]) => ({
-        category,
-        count
-      })).sort((a, b) => b.count - a.count);
-      
+      const categories = Object.entries(normalizedCategories)
+        .map(([category, count]) => ({
+          category,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count);
+
       res.json(categories);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -624,11 +703,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if we have content stored in the database
       if (file.fileContent) {
         // Set appropriate headers for download
-        res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
-        
+        res.setHeader(
+          "Content-Type",
+          file.mimeType || "application/octet-stream",
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${file.originalName}"`,
+        );
+
         // For video files, create a simple text file with the transcript
-        if (file.mimeType?.startsWith('video/')) {
+        if (file.mimeType?.startsWith("video/")) {
           const transcriptContent = `Transcript of: ${file.originalName}
 Date: ${new Date(file.uploadedAt).toLocaleDateString()}
 Original Google Drive Link: ${file.objectPath}
@@ -638,9 +723,12 @@ TRANSCRIBED CONTENT:
 ==========================================
 
 ${file.fileContent.toString()}`;
-          
-          res.setHeader('Content-Type', 'text/plain');
-          res.setHeader('Content-Disposition', `attachment; filename="${file.originalName.replace(/\.[^/.]+$/, '')}_transcript.txt"`);
+
+          res.setHeader("Content-Type", "text/plain");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${file.originalName.replace(/\.[^/.]+$/, "")}_transcript.txt"`,
+          );
           res.send(transcriptContent);
         } else {
           // For other files, send the content directly
@@ -649,11 +737,19 @@ ${file.fileContent.toString()}`;
       } else if (file.objectPath) {
         // If no content stored but we have Google Drive link, try to download it
         const googleDriveService = new GoogleDriveService();
-        const fileContent = await googleDriveService.downloadFile(file.objectPath);
-        
+        const fileContent = await googleDriveService.downloadFile(
+          file.objectPath,
+        );
+
         if (fileContent) {
-          res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-          res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+          res.setHeader(
+            "Content-Type",
+            file.mimeType || "application/octet-stream",
+          );
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${file.originalName}"`,
+          );
           res.send(fileContent);
         } else {
           // Fallback: redirect to Google Drive link
@@ -678,17 +774,19 @@ ${file.fileContent.toString()}`;
       }
 
       // Log if deleting a file stuck in processing
-      if (file.processingStatus === 'processing') {
-        console.log(`Deleting file stuck in processing: ${file.originalName} (uploaded: ${file.uploadedAt})`);
+      if (file.processingStatus === "processing") {
+        console.log(
+          `Deleting file stuck in processing: ${file.originalName} (uploaded: ${file.uploadedAt})`,
+        );
       }
 
       // Delete from database (works for any status)
       await storage.deleteFile(req.params.id, userId);
-      
+
       // TODO: Also delete from Google Cloud Storage
       // const objectStorageService = new ObjectStorageService();
       // await objectStorageService.deleteObject(file.objectPath);
-      
+
       res.json({ success: true, deletedFile: file.originalName });
     } catch (error) {
       console.error("Error deleting file:", error);
@@ -701,33 +799,37 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       const fileId = req.params.id;
-      
+
       const file = await storage.getFile(fileId, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
-      
+
       // Only retry if file is in processing, error, or failed status (not completed or skipped)
-      if (file.processingStatus !== 'processing' && 
-          file.processingStatus !== 'error' && 
-          file.processingStatus !== 'failed') {
-        return res.status(400).json({ 
-          error: "File is not eligible for retry", 
-          currentStatus: file.processingStatus 
+      if (
+        file.processingStatus !== "processing" &&
+        file.processingStatus !== "error" &&
+        file.processingStatus !== "failed"
+      ) {
+        return res.status(400).json({
+          error: "File is not eligible for retry",
+          currentStatus: file.processingStatus,
         });
       }
-      
-      console.log(`Retrying processing for file: ${file.originalName} (status: ${file.processingStatus})`);
-      
+
+      console.log(
+        `Retrying processing for file: ${file.originalName} (status: ${file.processingStatus})`,
+      );
+
       // Process file asynchronously
-      processFileAsync(fileId, userId).catch(err => {
+      processFileAsync(fileId, userId).catch((err) => {
         console.error(`Failed to retry processing for ${fileId}:`, err);
       });
-      
-      res.json({ 
-        message: "Processing retry initiated", 
-        fileId, 
-        filename: file.originalName 
+
+      res.json({
+        message: "Processing retry initiated",
+        fileId,
+        filename: file.originalName,
       });
     } catch (error) {
       console.error("Error retrying file processing:", error);
@@ -739,47 +841,46 @@ ${file.fileContent.toString()}`;
   app.post("/api/files/stop-processing", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
+
       // Get all files in processing status
-      const processingFiles = await db.select()
+      const processingFiles = await db
+        .select()
         .from(files)
         .where(
           and(
             eq(files.userId, userId),
-            eq(files.processingStatus, 'processing')
-          )
+            eq(files.processingStatus, "processing"),
+          ),
         );
-      
-      console.log(`⏹️ Found ${processingFiles.length} processing files to stop`);
-      
+
+      console.log(
+        `⏹️ Found ${processingFiles.length} processing files to stop`,
+      );
+
       // Mark as error so they can be retried
       if (processingFiles.length > 0) {
-        const fileIds = processingFiles.map(f => f.id);
+        const fileIds = processingFiles.map((f) => f.id);
         // Update each file individually to avoid SQL array issues
         for (const fileId of fileIds) {
-          await db.update(files)
+          await db
+            .update(files)
             .set({
-              processingStatus: 'error',
-              processingError: 'Processing stopped by user'
+              processingStatus: "error",
+              processingError: "Processing stopped by user",
             })
-            .where(
-              and(
-                eq(files.userId, userId),
-                eq(files.id, fileId)
-              )
-            );
+            .where(and(eq(files.userId, userId), eq(files.id, fileId)));
         }
-        
+
         console.log(`✅ Stopped ${fileIds.length} files`);
       }
-      
+
       res.json({
         message: `Stopped ${processingFiles.length} processing files`,
         count: processingFiles.length,
-        files: processingFiles.map(f => ({
+        files: processingFiles.map((f) => ({
           id: f.id,
-          filename: f.originalName
-        }))
+          filename: f.originalName,
+        })),
       });
     } catch (error) {
       console.error("Error stopping processing files:", error);
@@ -791,48 +892,49 @@ ${file.fileContent.toString()}`;
   app.post("/api/files/retry-processing", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
+
       // Get all files stuck in processing status
-      const processingFiles = await db.select()
+      const processingFiles = await db
+        .select()
         .from(files)
         .where(
           and(
             eq(files.userId, userId),
-            eq(files.processingStatus, 'processing')
-          )
+            eq(files.processingStatus, "processing"),
+          ),
         );
-      
-      console.log(`🔄 Found ${processingFiles.length} stuck processing files to retry`);
-      
-      // Reset status and timestamps to work like new uploads 
+
+      console.log(
+        `🔄 Found ${processingFiles.length} stuck processing files to retry`,
+      );
+
+      // Reset status and timestamps to work like new uploads
       if (processingFiles.length > 0) {
         // Update each file individually to avoid SQL array issues
         for (const file of processingFiles) {
-          await db.update(files)
+          await db
+            .update(files)
             .set({
-              processingStatus: 'pending',
+              processingStatus: "pending",
               processingError: null,
-              uploadedAt: new Date(),  // ⭐ Reset upload timestamp - no more "2 days processing"
-              processedAt: null        // ⭐ Clear processed timestamp
+              uploadedAt: new Date(), // ⭐ Reset upload timestamp - no more "2 days processing"
+              processedAt: null, // ⭐ Clear processed timestamp
             })
-            .where(
-              and(
-                eq(files.userId, userId),
-                eq(files.id, file.id)
-              )
-            );
+            .where(and(eq(files.userId, userId), eq(files.id, file.id)));
         }
-        
-        console.log(`✅ Reset ${processingFiles.length} stuck files to pending for retry`);
+
+        console.log(
+          `✅ Reset ${processingFiles.length} stuck files to pending for retry`,
+        );
       }
-      
+
       res.json({
         message: `Retrying ${processingFiles.length} stuck processing files`,
         count: processingFiles.length,
-        files: processingFiles.map(f => ({
+        files: processingFiles.map((f) => ({
           id: f.id,
-          filename: f.originalName
-        }))
+          filename: f.originalName,
+        })),
       });
     } catch (error) {
       console.error("Error retrying processing files:", error);
@@ -844,50 +946,44 @@ ${file.fileContent.toString()}`;
   app.post("/api/files/retry-all-errors", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
+
       // Get all errored files
-      const erroredFiles = await db.select()
+      const erroredFiles = await db
+        .select()
         .from(files)
         .where(
-          and(
-            eq(files.userId, userId),
-            eq(files.processingStatus, 'error')
-          )
+          and(eq(files.userId, userId), eq(files.processingStatus, "error")),
         );
-      
+
       console.log(`🔄 Found ${erroredFiles.length} errored files to retry`);
-      
+
       // Reset status and timestamps to work like new uploads
-      const fileIds = erroredFiles.map(f => f.id);
+      const fileIds = erroredFiles.map((f) => f.id);
       if (fileIds.length > 0) {
         // Update each file individually to avoid SQL array issues
         for (const fileId of fileIds) {
-          await db.update(files)
+          await db
+            .update(files)
             .set({
-              processingStatus: 'pending',
+              processingStatus: "pending",
               processingError: null,
-              uploadedAt: new Date(),  // ⭐ Reset upload timestamp - no more "2 days processing"
-              processedAt: null        // ⭐ Clear processed timestamp
+              uploadedAt: new Date(), // ⭐ Reset upload timestamp - no more "2 days processing"
+              processedAt: null, // ⭐ Clear processed timestamp
             })
-            .where(
-              and(
-                eq(files.userId, userId),
-                eq(files.id, fileId)
-              )
-            );
+            .where(and(eq(files.userId, userId), eq(files.id, fileId)));
         }
-        
+
         console.log(`✅ Reset ${fileIds.length} files to pending for retry`);
       }
-      
+
       res.json({
         message: `Retrying ${erroredFiles.length} errored files`,
         count: erroredFiles.length,
-        files: erroredFiles.map(f => ({
+        files: erroredFiles.map((f) => ({
           id: f.id,
           filename: f.originalName,
-          previousError: f.processingError
-        }))
+          previousError: f.processingError,
+        })),
       });
     } catch (error) {
       console.error("Error retrying all errored files:", error);
@@ -899,53 +995,52 @@ ${file.fileContent.toString()}`;
   app.delete("/api/files/cleanup-missing", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
-      // Get all files with "Object not found" or similar storage errors 
-      const missingFiles = await db.select()
+
+      // Get all files with "Object not found" or similar storage errors
+      const missingFiles = await db
+        .select()
         .from(files)
         .where(
           and(
             eq(files.userId, userId),
-            eq(files.processingStatus, 'error'),
+            eq(files.processingStatus, "error"),
             or(
-              like(files.processingError, '%Object not found%'),
-              like(files.processingError, '%not found%'),
-              like(files.processingError, '%404%'),
-              like(files.processingError, '%NoSuchKey%')
-            )
-          )
+              like(files.processingError, "%Object not found%"),
+              like(files.processingError, "%not found%"),
+              like(files.processingError, "%404%"),
+              like(files.processingError, "%NoSuchKey%"),
+            ),
+          ),
         );
-      
+
       console.log(`🧹 Found ${missingFiles.length} missing files to clean up`);
-      
+
       let deletedCount = 0;
       for (const file of missingFiles) {
         try {
           // Delete file metadata first
-          await db.delete(fileMetadata)
-            .where(eq(fileMetadata.fileId, file.id));
-          
+          await db.delete(fileMetadata).where(eq(fileMetadata.fileId, file.id));
+
           // Delete the file record
-          await db.delete(files)
-            .where(eq(files.id, file.id));
-            
+          await db.delete(files).where(eq(files.id, file.id));
+
           console.log(`🗑️ Deleted missing file: ${file.originalName}`);
           deletedCount++;
         } catch (error) {
           console.error(`Failed to delete file ${file.originalName}:`, error);
         }
       }
-      
+
       res.json({
         message: `🧹 Cleaned up ${deletedCount} missing files from database`,
         count: deletedCount,
         totalFound: missingFiles.length,
-        files: missingFiles.map(f => ({
+        files: missingFiles.map((f) => ({
           id: f.id,
           filename: f.originalName,
           error: f.processingError,
-          status: deletedCount > 0 ? 'cleaned' : 'error-during-cleanup'
-        }))
+          status: deletedCount > 0 ? "cleaned" : "error-during-cleanup",
+        })),
       });
     } catch (error) {
       console.error("Error cleaning up missing files:", error);
@@ -959,30 +1054,32 @@ ${file.fileContent.toString()}`;
       const userId = "demo-user";
       const fileId = req.params.id;
       const { reason = "Manual failure - stuck in processing" } = req.body;
-      
+
       const file = await storage.getFile(fileId, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
-      
+
       // Only mark as failed if file is in processing status
-      if (file.processingStatus !== 'processing') {
-        return res.status(400).json({ 
-          error: "File is not in processing status", 
-          currentStatus: file.processingStatus 
+      if (file.processingStatus !== "processing") {
+        return res.status(400).json({
+          error: "File is not in processing status",
+          currentStatus: file.processingStatus,
         });
       }
-      
-      console.log(`Marking file as failed: ${file.originalName} - Reason: ${reason}`);
-      
+
+      console.log(
+        `Marking file as failed: ${file.originalName} - Reason: ${reason}`,
+      );
+
       // Update status to error
       await storage.updateFileProcessingStatus(fileId, userId, "error", reason);
-      
-      res.json({ 
-        message: "File marked as failed", 
-        fileId, 
+
+      res.json({
+        message: "File marked as failed",
+        fileId,
         filename: file.originalName,
-        reason 
+        reason,
       });
     } catch (error) {
       console.error("Error marking file as failed:", error);
@@ -992,185 +1089,196 @@ ${file.fileContent.toString()}`;
 
   // Process Google Drive files - download actual content
   // Test Google Drive access for a single file
-  app.post('/api/test-drive-access', async (req: any, res) => {
+  app.post("/api/test-drive-access", async (req: any, res) => {
     const { fileUrl } = req.body;
-    
+
     if (!fileUrl) {
-      return res.status(400).json({ error: 'fileUrl is required' });
+      return res.status(400).json({ error: "fileUrl is required" });
     }
-    
+
     try {
       const driveService = new GoogleDriveService();
       await driveService.waitForInit();
-      
+
       const fileId = driveService.extractFileId(fileUrl);
-      
+
       if (!fileId) {
-        return res.status(400).json({ error: 'Invalid Google Drive URL' });
+        return res.status(400).json({ error: "Invalid Google Drive URL" });
       }
-      
+
       console.log(`Testing access to file ID: ${fileId} from URL: ${fileUrl}`);
-      
+
       // Try to get metadata first
       const metadata = await driveService.getFileMetadata(fileUrl);
-      
+
       if (metadata) {
-        console.log('Successfully retrieved metadata:', metadata);
-        
+        console.log("Successfully retrieved metadata:", metadata);
+
         // Now try to download
         const content = await driveService.downloadFile(fileUrl);
-        
+
         if (content) {
           return res.json({
             success: true,
-            message: 'File is accessible',
+            message: "File is accessible",
             metadata,
-            contentSize: content.length
+            contentSize: content.length,
           });
         } else {
           return res.json({
             success: false,
-            message: 'Could not download file content',
-            metadata
+            message: "Could not download file content",
+            metadata,
           });
         }
       } else {
         return res.json({
           success: false,
-          message: 'Could not retrieve file metadata'
+          message: "Could not retrieve file metadata",
         });
       }
     } catch (error: any) {
-      console.error('Test failed:', error);
+      console.error("Test failed:", error);
       return res.status(500).json({
-        error: 'Failed to test file access',
-        details: error.message
+        error: "Failed to test file access",
+        details: error.message,
       });
     }
   });
-  
+
   // Delete orphaned files (files without folder IDs)
-  app.delete('/api/files/orphaned', async (req: any, res) => {
+  app.delete("/api/files/orphaned", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('Deleting orphaned files for user:', userId);
-      
+      console.log("Deleting orphaned files for user:", userId);
+
       // Get count of orphaned files first
       const orphanedCount = await storage.getOrphanedFilesCount(userId);
-      
+
       // Delete all orphaned files
       const deletedCount = await storage.deleteOrphanedFiles(userId);
-      
+
       res.json({
         success: true,
         message: `Deleted ${deletedCount} orphaned files`,
         orphanedCount,
-        deletedCount
+        deletedCount,
       });
     } catch (error) {
-      console.error('Error deleting orphaned files:', error);
-      res.status(500).json({ 
-        error: 'Failed to delete orphaned files',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error deleting orphaned files:", error);
+      res.status(500).json({
+        error: "Failed to delete orphaned files",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Delete ALL files and folders - complete reset
-  app.delete('/api/reset-all', async (req: any, res) => {
+  app.delete("/api/reset-all", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('Resetting all data for user:', userId);
-      
+      console.log("Resetting all data for user:", userId);
+
       // Delete everything
       const result = await storage.deleteAllUserData(userId);
-      
+
       res.json({
         success: true,
-        message: 'All files and folders have been deleted',
-        ...result
+        message: "All files and folders have been deleted",
+        ...result,
       });
     } catch (error) {
-      console.error('Error resetting all data:', error);
-      res.status(500).json({ 
-        error: 'Failed to reset all data',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error resetting all data:", error);
+      res.status(500).json({
+        error: "Failed to reset all data",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
-  app.post('/api/files/process-drive-files', async (req: any, res) => {
+  app.post("/api/files/process-drive-files", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('Starting Google Drive file processing for user:', userId);
-      
+      console.log("Starting Google Drive file processing for user:", userId);
+
       // Import the processor (lazy loading to avoid circular dependencies)
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       // Process all Google Drive files for the user
       const result = await driveFileProcessor.processAllDriveFiles(userId);
-      
+
       res.json({
         success: true,
-        message: 'Google Drive file processing completed',
-        ...result
+        message: "Google Drive file processing completed",
+        ...result,
       });
     } catch (error) {
-      console.error('Error processing Google Drive files:', error);
-      res.status(500).json({ 
-        error: 'Failed to process Google Drive files',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error processing Google Drive files:", error);
+      res.status(500).json({
+        error: "Failed to process Google Drive files",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Re-process files with placeholder content
-  app.post('/api/files/reprocess-placeholders', async (req: any, res) => {
+  app.post("/api/files/reprocess-placeholders", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('Re-processing files with placeholder content for user:', userId);
-      
+      console.log(
+        "Re-processing files with placeholder content for user:",
+        userId,
+      );
+
       // Import the processor
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       // Get all files with placeholder content
-      const filesWithPlaceholders = await storage.getFilesWithPlaceholderContent(userId);
-      console.log(`Found ${filesWithPlaceholders.length} files with placeholder content`);
-      
+      const filesWithPlaceholders =
+        await storage.getFilesWithPlaceholderContent(userId);
+      console.log(
+        `Found ${filesWithPlaceholders.length} files with placeholder content`,
+      );
+
       let processed = 0;
       let failed = 0;
-      
+
       for (const file of filesWithPlaceholders) {
-        const result = await driveFileProcessor.processFileById(file.id, userId);
+        const result = await driveFileProcessor.processFileById(
+          file.id,
+          userId,
+        );
         if (result) {
           processed++;
         } else {
           failed++;
         }
       }
-      
+
       res.json({
         success: true,
         message: `Re-processed ${processed} files, ${failed} failed`,
         totalFiles: filesWithPlaceholders.length,
         processed,
-        failed
+        failed,
       });
     } catch (error) {
-      console.error('Error re-processing placeholder files:', error);
-      res.status(500).json({ 
-        error: 'Failed to re-process placeholder files',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error re-processing placeholder files:", error);
+      res.status(500).json({
+        error: "Failed to re-process placeholder files",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Comprehensive reprocessing for files missing OpenAI IDs - treats them like new uploads
-  app.post('/api/files/reprocess-for-openai', async (req: any, res) => {
+  app.post("/api/files/reprocess-for-openai", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('🔄 Starting comprehensive reprocessing for files missing OpenAI IDs...');
-      
+      console.log(
+        "🔄 Starting comprehensive reprocessing for files missing OpenAI IDs...",
+      );
+
       // Get files that have content but missing OpenAI file IDs
       const query = sql`
         SELECT f.id, f.filename, f.original_name, f.file_content, fm.openai_file_id
@@ -1184,92 +1292,108 @@ ${file.fileContent.toString()}`;
         ORDER BY f.processed_at DESC
         LIMIT 50
       `;
-      
+
       const result = await db.execute(query);
       const filesToUpdate = result.rows;
-      
-      console.log(`📊 Found ${filesToUpdate.length} files missing OpenAI IDs for comprehensive reprocessing`);
-      
+
+      console.log(
+        `📊 Found ${filesToUpdate.length} files missing OpenAI IDs for comprehensive reprocessing`,
+      );
+
       // Import both vectorIndexManager and openai functions
-      const { VectorIndexManager } = await import('./vectorIndexManager');
-      const { extractFileMetadata } = await import('./openai');
+      const { VectorIndexManager } = await import("./vectorIndexManager");
+      const { extractFileMetadata } = await import("./openai");
       const vectorManager = new VectorIndexManager();
-      
+
       let updated = 0;
       let failed = 0;
-      
+
       // Process files one by one to make it visible in UI
       for (const file of filesToUpdate) {
         try {
           console.log(`🔄 Processing: ${file.original_name}`);
-          
+
           // Set status to processing and reset timestamps like new upload
-          await db.update(files)
-            .set({ 
-              processingStatus: 'processing',
-              processedAt: null,        // Clear processed timestamp during reprocessing
+          await db
+            .update(files)
+            .set({
+              processingStatus: "processing",
+              processedAt: null, // Clear processed timestamp during reprocessing
               processingError: null,
-              uploadedAt: new Date()    // ⭐ Reset upload timestamp - no more "2 days processing"
+              uploadedAt: new Date(), // ⭐ Reset upload timestamp - no more "2 days processing"
             })
             .where(eq(files.id, file.id as string));
-            
-          const content = file.file_content?.toString() || '';
-          if (content && content.length > 50 && !content.startsWith('File reference:')) {
-            
+
+          const content = file.file_content?.toString() || "";
+          if (
+            content &&
+            content.length > 50 &&
+            !content.startsWith("File reference:")
+          ) {
             // 1. Create OpenAI file ID by uploading to OpenAI (like new upload)
             const processingResult = await vectorManager.addFileToIndex(
               content,
-              file.original_name as string || file.filename as string,
-              { userId, fileId: file.id }
+              (file.original_name as string) || (file.filename as string),
+              { userId, fileId: file.id },
             );
-            
+
             // 2. Generate comprehensive metadata
-            const aiMetadata = await extractFileMetadata(content, file.original_name as string);
-            
+            const aiMetadata = await extractFileMetadata(
+              content,
+              file.original_name as string,
+            );
+
             // 3. Update with both OpenAI file ID and metadata
             await storage.updateFileMetadata(file.id as string, userId, {
               extractedText: content,
               summary: aiMetadata.summary || content.substring(0, 500),
               keywords: aiMetadata.keywords || [],
               topics: aiMetadata.topics || [],
-              categories: aiMetadata.categories || ['Education'],
-              openaiFileId: processingResult.openaiFileId  // ⭐ This is the key missing piece!
+              categories: aiMetadata.categories || ["Education"],
+              openaiFileId: processingResult.openaiFileId, // ⭐ This is the key missing piece!
             });
-            
+
             // 4. Set status back to completed after successful processing
-            await db.update(files)
-              .set({ 
-                processingStatus: 'completed',
-                processedAt: new Date()
+            await db
+              .update(files)
+              .set({
+                processingStatus: "completed",
+                processedAt: new Date(),
               })
               .where(eq(files.id, file.id as string));
-            
-            console.log(`✅ Fully reprocessed with OpenAI ID: ${file.original_name} -> ${processingResult.openaiFileId}`);
+
+            console.log(
+              `✅ Fully reprocessed with OpenAI ID: ${file.original_name} -> ${processingResult.openaiFileId}`,
+            );
             updated++;
           } else {
             // Set back to completed if no content to process
-            await db.update(files)
-              .set({ processingStatus: 'completed' })
+            await db
+              .update(files)
+              .set({ processingStatus: "completed" })
               .where(eq(files.id, file.id as string));
             console.log(`⚠️ Skipped (no content): ${file.original_name}`);
           }
-          
+
           // Add small delay to make processing visible in UI
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (error) {
           console.error(`❌ Failed to reprocess ${file.original_name}:`, error);
           // Set status to error on failure
-          await db.update(files)
-            .set({ 
-              processingStatus: 'error',
-              processingError: error instanceof Error ? error.message : 'Comprehensive reprocessing failed'
+          await db
+            .update(files)
+            .set({
+              processingStatus: "error",
+              processingError:
+                error instanceof Error
+                  ? error.message
+                  : "Comprehensive reprocessing failed",
             })
             .where(eq(files.id, file.id as string));
           failed++;
         }
       }
-      
+
       res.json({
         success: true,
         message: `🎯 Comprehensive reprocessing: ${updated} files now have OpenAI IDs, ${failed} failed`,
@@ -1277,24 +1401,24 @@ ${file.fileContent.toString()}`;
         updated,
         failed,
         details: {
-          note: "Files were treated like new uploads - now have OpenAI file IDs for semantic search"
-        }
+          note: "Files were treated like new uploads - now have OpenAI file IDs for semantic search",
+        },
       });
     } catch (error) {
-      console.error('❌ Error in comprehensive reprocessing:', error);
-      res.status(500).json({ 
-        error: 'Failed to reprocess files for OpenAI',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("❌ Error in comprehensive reprocessing:", error);
+      res.status(500).json({
+        error: "Failed to reprocess files for OpenAI",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Keep the old regenerate-metadata endpoint for simple metadata updates
-  app.post('/api/files/regenerate-metadata', async (req: any, res) => {
+  app.post("/api/files/regenerate-metadata", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('Regenerating metadata for all files with content...');
-      
+      console.log("Regenerating metadata for all files with content...");
+
       // Get all files that have content stored
       const query = sql`
         SELECT f.id, f.filename, f.original_name, f.file_content, fm.extracted_text, fm.summary
@@ -1305,143 +1429,150 @@ ${file.fileContent.toString()}`;
         AND LENGTH(f.file_content::text) > 100
         LIMIT 200
       `;
-      
+
       const result = await db.execute(query);
       const filesToUpdate = result.rows;
-      
-      console.log(`Found ${filesToUpdate.length} files needing metadata regeneration`);
-      
-      const { extractFileMetadata } = await import('./openai');
-      
+
+      console.log(
+        `Found ${filesToUpdate.length} files needing metadata regeneration`,
+      );
+
+      const { extractFileMetadata } = await import("./openai");
+
       let updated = 0;
       let failed = 0;
-      
+
       for (const file of filesToUpdate) {
         try {
-          const content = file.file_content?.toString() || '';
-          if (content && content.length > 0 && !content.startsWith('File reference:')) {
+          const content = file.file_content?.toString() || "";
+          if (
+            content &&
+            content.length > 0 &&
+            !content.startsWith("File reference:")
+          ) {
             // Generate AI metadata from the content
-            const aiMetadata = await extractFileMetadata(content, file.original_name as string);
-            
+            const aiMetadata = await extractFileMetadata(
+              content,
+              file.original_name as string,
+            );
+
             // Update the metadata (without OpenAI file ID)
             await storage.updateFileMetadata(file.id as string, userId, {
               extractedText: content,
               summary: aiMetadata.summary || content.substring(0, 500),
               keywords: aiMetadata.keywords || [],
               topics: aiMetadata.topics || [],
-              categories: aiMetadata.categories || ['Education']
+              categories: aiMetadata.categories || ["Education"],
             });
-            
+
             console.log(`✅ Updated metadata for ${file.original_name}`);
             updated++;
           }
         } catch (error) {
-          console.error(`Failed to update metadata for ${file.original_name}:`, error);
+          console.error(
+            `Failed to update metadata for ${file.original_name}:`,
+            error,
+          );
           failed++;
         }
       }
-      
+
       res.json({
         success: true,
         message: `Updated metadata for ${updated} files, ${failed} failed`,
         totalFiles: filesToUpdate.length,
         updated,
-        failed
+        failed,
       });
     } catch (error) {
-      console.error('Error regenerating metadata:', error);
-      res.status(500).json({ 
-        error: 'Failed to regenerate metadata',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error regenerating metadata:", error);
+      res.status(500).json({
+        error: "Failed to regenerate metadata",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Process a single Google Drive file
-  app.post('/api/files/:id/process-drive', async (req: any, res) => {
+  app.post("/api/files/:id/process-drive", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { id: fileId } = req.params;
-      
+
       // Import the processor
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       // Process the specific file
       const success = await driveFileProcessor.processFileById(fileId, userId);
-      
+
       if (success) {
         res.json({
           success: true,
-          message: 'File processed successfully'
+          message: "File processed successfully",
         });
       } else {
         res.status(400).json({
           success: false,
-          message: 'Failed to process file'
+          message: "Failed to process file",
         });
       }
     } catch (error) {
-      console.error('Error processing Google Drive file:', error);
-      res.status(500).json({ 
-        error: 'Failed to process Google Drive file',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error processing Google Drive file:", error);
+      res.status(500).json({
+        error: "Failed to process Google Drive file",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Process specific file by name (priority processing)
-  app.post('/api/files/process-by-name', async (req: any, res) => {
+  app.post("/api/files/process-by-name", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { filename } = req.body;
-      
+
       if (!filename) {
-        return res.status(400).json({ error: 'Filename is required' });
+        return res.status(400).json({ error: "Filename is required" });
       }
-      
+
       // Find the file by name
       const [file] = await db
         .select()
         .from(files)
-        .where(
-          and(
-            eq(files.userId, userId),
-            eq(files.originalName, filename)
-          )
-        )
+        .where(and(eq(files.userId, userId), eq(files.originalName, filename)))
         .limit(1);
-      
+
       if (!file) {
-        return res.status(404).json({ error: 'File not found' });
+        return res.status(404).json({ error: "File not found" });
       }
-      
+
       // Import the processor
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       console.log(`Priority processing requested for: ${filename}`);
-      
+
       // Process the specific file
       const success = await driveFileProcessor.processFileById(file.id, userId);
-      
+
       if (success) {
         // Get updated metadata
         const metadata = await storage.getFileMetadata(file.id, userId);
         res.json({
           success: true,
-          message: 'File processed successfully',
-          file: { ...file, metadata }
+          message: "File processed successfully",
+          file: { ...file, metadata },
         });
       } else {
         res.status(400).json({
           success: false,
-          message: 'Failed to process file'
+          message: "Failed to process file",
         });
       }
     } catch (error) {
-      console.error('Error processing file by name:', error);
-      res.status(500).json({ 
-        error: 'Failed to process file',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error processing file by name:", error);
+      res.status(500).json({
+        error: "Failed to process file",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -1451,43 +1582,43 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       const limit = req.body.limit || 10; // Process in batches to avoid overload
-      
+
       // Get all pending files
       const pendingFiles = await db
         .select()
         .from(files)
         .where(
-          and(
-            eq(files.userId, userId),
-            eq(files.processingStatus, "pending")
-          )
+          and(eq(files.userId, userId), eq(files.processingStatus, "pending")),
         )
         .limit(limit);
-      
+
       if (pendingFiles.length === 0) {
         return res.json({
           success: true,
           message: "No pending files to process",
-          processedCount: 0
+          processedCount: 0,
         });
       }
-      
+
       console.log(`Found ${pendingFiles.length} pending files to process`);
-      
+
       // Import the drive processor
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       let processedCount = 0;
       let failedCount = 0;
-      
+
       for (const file of pendingFiles) {
         try {
           console.log(`Processing: ${file.originalName}`);
-          
+
           // Check if this is a Google Drive file
-          if (file.googleDriveUrl || file.storageType === 'google-drive') {
+          if (file.googleDriveUrl || file.storageType === "google-drive") {
             // Use drive processor for Google Drive files
-            const success = await driveFileProcessor.processFileById(file.id, userId);
+            const success = await driveFileProcessor.processFileById(
+              file.id,
+              userId,
+            );
             if (success) {
               processedCount++;
             } else {
@@ -1495,7 +1626,9 @@ ${file.fileContent.toString()}`;
             }
           } else {
             // Use regular processing for uploaded files
-            console.log(`Using regular processing for uploaded file: ${file.originalName}`);
+            console.log(
+              `Using regular processing for uploaded file: ${file.originalName}`,
+            );
             await processFileAsync(file.id, userId);
             processedCount++;
           }
@@ -1504,28 +1637,30 @@ ${file.fileContent.toString()}`;
           failedCount++;
         }
       }
-      
+
       res.json({
         success: true,
         message: `Processed ${processedCount} files, ${failedCount} failed`,
         processedCount,
-        failedCount
+        failedCount,
       });
     } catch (error) {
       console.error("Error processing pending files:", error);
       res.status(500).json({ error: "Failed to process pending files" });
     }
   });
-  
+
   // Process ALL Excel-imported files that still have placeholder metadata
   app.post("/api/files/process-all-excel", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      console.log('🚀 Processing ALL Excel-imported files with placeholder metadata...');
-      
+      console.log(
+        "🚀 Processing ALL Excel-imported files with placeholder metadata...",
+      );
+
       // Import the processor
-      const { driveFileProcessor } = await import('./driveFileProcessor');
-      
+      const { driveFileProcessor } = await import("./driveFileProcessor");
+
       // Get ALL files with Excel placeholder metadata
       const query = sql`
         SELECT f.id, f.original_name, f.user_id
@@ -1539,84 +1674,102 @@ ${file.fileContent.toString()}`;
         )
         ORDER BY f.uploaded_at DESC
       `;
-      
+
       const result = await db.execute(query);
       const filesToProcess = result.rows;
-      
-      console.log(`Found ${filesToProcess.length} Excel files with placeholder metadata to process`);
-      
+
+      console.log(
+        `Found ${filesToProcess.length} Excel files with placeholder metadata to process`,
+      );
+
       if (filesToProcess.length === 0) {
         return res.json({
           success: true,
-          message: 'No files with placeholder metadata found',
-          totalFiles: 0
+          message: "No files with placeholder metadata found",
+          totalFiles: 0,
         });
       }
-      
+
       // Process in batches
       const batchSize = 3;
       let processedCount = 0;
       let failedCount = 0;
       const results: any[] = [];
-      
+
       for (let i = 0; i < filesToProcess.length; i += batchSize) {
         const batch = filesToProcess.slice(i, i + batchSize);
-        console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(filesToProcess.length/batchSize)}`);
-        
+        console.log(
+          `Processing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(filesToProcess.length / batchSize)}`,
+        );
+
         const batchPromises = batch.map(async (file) => {
           try {
             console.log(`🔄 Processing: ${file.original_name}`);
-            const success = await driveFileProcessor.processFileById(file.id as string, file.user_id as string);
+            const success = await driveFileProcessor.processFileById(
+              file.id as string,
+              file.user_id as string,
+            );
             if (success) {
               processedCount++;
               console.log(`✅ Successfully processed: ${file.original_name}`);
-              return { file: file.original_name, status: 'success' };
+              return { file: file.original_name, status: "success" };
             } else {
               failedCount++;
               console.log(`❌ Failed to process: ${file.original_name}`);
-              return { file: file.original_name, status: 'failed' };
+              return { file: file.original_name, status: "failed" };
             }
           } catch (error) {
             failedCount++;
             console.error(`❌ Error processing ${file.original_name}:`, error);
-            return { file: file.original_name, status: 'error', error: error instanceof Error ? error.message : 'Unknown error' };
+            return {
+              file: file.original_name,
+              status: "error",
+              error: error instanceof Error ? error.message : "Unknown error",
+            };
           }
         });
-        
+
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults);
-        
+
         // Small delay between batches
         if (i + batchSize < filesToProcess.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-      
-      console.log(`✅ Completed processing: ${processedCount} succeeded, ${failedCount} failed`);
-      
+
+      console.log(
+        `✅ Completed processing: ${processedCount} succeeded, ${failedCount} failed`,
+      );
+
       res.json({
         success: true,
         message: `Processed ${processedCount} files successfully, ${failedCount} failed`,
         totalFiles: filesToProcess.length,
         processedCount,
         failedCount,
-        results: results.slice(0, 20) // Show first 20 results
+        results: results.slice(0, 20), // Show first 20 results
       });
     } catch (error) {
-      console.error('Error processing Excel files:', error);
-      res.status(500).json({ 
-        error: 'Failed to process Excel files',
-        message: error instanceof Error ? error.message : 'Unknown error'
+      console.error("Error processing Excel files:", error);
+      res.status(500).json({
+        error: "Failed to process Excel files",
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Simple in-memory cache for search results (5 minute TTL)
-  const searchCache = new Map<string, { results: any[], timestamp: number }>();
+  const searchCache = new Map<string, { results: any[]; timestamp: number }>();
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   // Query enhancement and term expansion
-  function enhanceQuery(query: string): { original: string, expanded: string[], synonyms: string[], isAcademic: boolean } {
+  function enhanceQuery(query: string): {
+    original: string;
+    expanded: string[];
+    synonyms: string[];
+    isAcademic: boolean;
+  } {
     const original = query.toLowerCase();
     let expanded: string[] = [original];
     let synonyms: string[] = [];
@@ -1624,14 +1777,14 @@ ${file.fileContent.toString()}`;
 
     // Academic term expansions
     const academicTerms = {
-      'homework': ['hw', 'assignment', 'problem set', 'ampa', 'task'],
-      'lesson': ['class', 'teaching', 'education', 'instruction'],
-      'test': ['exam', 'quiz', 'assessment', 'evaluation'],
-      'study': ['learning', 'review', 'research', 'academic'],
-      'project': ['assignment', 'work', 'task', 'activity'],
-      'presentation': ['ppt', 'slide', 'talk', 'speech'],
-      'essay': ['paper', 'writing', 'composition', 'report'],
-      'debate': ['argument', 'discussion', 'speech', 'rhetoric']
+      homework: ["hw", "assignment", "problem set", "ampa", "task"],
+      lesson: ["class", "teaching", "education", "instruction"],
+      test: ["exam", "quiz", "assessment", "evaluation"],
+      study: ["learning", "review", "research", "academic"],
+      project: ["assignment", "work", "task", "activity"],
+      presentation: ["ppt", "slide", "talk", "speech"],
+      essay: ["paper", "writing", "composition", "report"],
+      debate: ["argument", "discussion", "speech", "rhetoric"],
     };
 
     // Check if query contains academic terms
@@ -1645,10 +1798,10 @@ ${file.fileContent.toString()}`;
 
     // Subject-specific expansions
     const subjectTerms = {
-      'math': ['mathematics', 'calculation', 'numbers', 'algebra', 'geometry'],
-      'english': ['literature', 'writing', 'language', 'grammar', 'reading'],
-      'science': ['biology', 'chemistry', 'physics', 'experiment', 'research'],
-      'history': ['historical', 'past', 'events', 'timeline', 'social studies']
+      math: ["mathematics", "calculation", "numbers", "algebra", "geometry"],
+      english: ["literature", "writing", "language", "grammar", "reading"],
+      science: ["biology", "chemistry", "physics", "experiment", "research"],
+      history: ["historical", "past", "events", "timeline", "social studies"],
     };
 
     for (const [subject, terms] of Object.entries(subjectTerms)) {
@@ -1659,18 +1812,23 @@ ${file.fileContent.toString()}`;
       }
     }
 
-    return { 
-      original, 
-      expanded: Array.from(new Set(expanded)), 
+    return {
+      original,
+      expanded: Array.from(new Set(expanded)),
       synonyms: Array.from(new Set(synonyms)),
-      isAcademic 
+      isAcademic,
     };
   }
 
   // Advanced SQL search with 4 strategies
-  async function advancedSqlSearch(query: string, userId: string, enhancedQuery: any, limit: number = 20) {
+  async function advancedSqlSearch(
+    query: string,
+    userId: string,
+    enhancedQuery: any,
+    limit: number = 20,
+  ) {
     const searchTerms = enhancedQuery.expanded;
-    
+
     // Strategy 1: Filename search (highest priority)
     const filenameResults = await db
       .select({
@@ -1696,7 +1854,7 @@ ${file.fileContent.toString()}`;
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
         openaiFileId: fileMetadata.openaiFileId,
-        extractedText: fileMetadata.extractedText
+        extractedText: fileMetadata.extractedText,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1704,14 +1862,14 @@ ${file.fileContent.toString()}`;
         and(
           eq(files.userId, userId),
           or(
-            ...searchTerms.map((term: string) => 
+            ...searchTerms.map((term: string) =>
               or(
-                sql`LOWER(${files.originalName}) LIKE ${'%' + term + '%'}`,
-                sql`LOWER(${files.filename}) LIKE ${'%' + term + '%'}`
-              )
-            )
-          )
-        )
+                sql`LOWER(${files.originalName}) LIKE ${"%" + term + "%"}`,
+                sql`LOWER(${files.filename}) LIKE ${"%" + term + "%"}`,
+              ),
+            ),
+          ),
+        ),
       )
       .limit(limit);
 
@@ -1740,7 +1898,7 @@ ${file.fileContent.toString()}`;
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
         openaiFileId: fileMetadata.openaiFileId,
-        extractedText: fileMetadata.extractedText
+        extractedText: fileMetadata.extractedText,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1748,18 +1906,19 @@ ${file.fileContent.toString()}`;
         and(
           eq(files.userId, userId),
           or(
-            ...searchTerms.map((term: string) => 
-              sql`${fileMetadata.categories} && ARRAY[${term}]::text[] OR EXISTS (
+            ...searchTerms.map(
+              (term: string) =>
+                sql`${fileMetadata.categories} && ARRAY[${term}]::text[] OR EXISTS (
                 SELECT 1 FROM unnest(COALESCE(${fileMetadata.categories}, '{}')) AS cat 
-                WHERE LOWER(cat) LIKE ${'%' + term + '%'}
-              )`
-            )
-          )
-        )
+                WHERE LOWER(cat) LIKE ${"%" + term + "%"}
+              )`,
+            ),
+          ),
+        ),
       )
       .limit(limit);
 
-    // Strategy 3: Keywords/hashtag search  
+    // Strategy 3: Keywords/hashtag search
     const keywordResults = await db
       .select({
         id: files.id,
@@ -1784,7 +1943,7 @@ ${file.fileContent.toString()}`;
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
         openaiFileId: fileMetadata.openaiFileId,
-        extractedText: fileMetadata.extractedText
+        extractedText: fileMetadata.extractedText,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1792,20 +1951,20 @@ ${file.fileContent.toString()}`;
         and(
           eq(files.userId, userId),
           or(
-            ...searchTerms.map((term: string) => 
+            ...searchTerms.map((term: string) =>
               or(
                 sql`EXISTS (
                   SELECT 1 FROM unnest(COALESCE(${fileMetadata.keywords}, '{}')) AS kw 
-                  WHERE LOWER(kw) LIKE ${'%' + term + '%'}
+                  WHERE LOWER(kw) LIKE ${"%" + term + "%"}
                 )`,
                 sql`EXISTS (
                   SELECT 1 FROM unnest(COALESCE(${fileMetadata.topics}, '{}')) AS tp 
-                  WHERE LOWER(tp) LIKE ${'%' + term + '%'}
-                )`
-              )
-            )
-          )
-        )
+                  WHERE LOWER(tp) LIKE ${"%" + term + "%"}
+                )`,
+              ),
+            ),
+          ),
+        ),
       )
       .limit(limit);
 
@@ -1834,7 +1993,7 @@ ${file.fileContent.toString()}`;
         confidence: fileMetadata.confidence,
         createdAt: fileMetadata.createdAt,
         openaiFileId: fileMetadata.openaiFileId,
-        extractedText: fileMetadata.extractedText
+        extractedText: fileMetadata.extractedText,
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
@@ -1842,11 +2001,12 @@ ${file.fileContent.toString()}`;
         and(
           eq(files.userId, userId),
           or(
-            ...searchTerms.map((term: string) => 
-              sql`LOWER(${fileMetadata.summary}) LIKE ${'%' + term + '%'}`
-            )
-          )
-        )
+            ...searchTerms.map(
+              (term: string) =>
+                sql`LOWER(${fileMetadata.summary}) LIKE ${"%" + term + "%"}`,
+            ),
+          ),
+        ),
       )
       .limit(limit);
 
@@ -1854,7 +2014,12 @@ ${file.fileContent.toString()}`;
   }
 
   // Enhanced scoring system
-  function calculateSearchScore(file: any, query: string, enhancedQuery: any, matchType: string): { score: number, explanation: string, matchDetails: string[] } {
+  function calculateSearchScore(
+    file: any,
+    query: string,
+    enhancedQuery: any,
+    matchType: string,
+  ): { score: number; explanation: string; matchDetails: string[] } {
     let score = 0.5; // Base score
     let matchDetails: string[] = [];
     let explanation = "";
@@ -1865,27 +2030,27 @@ ${file.fileContent.toString()}`;
 
     // Scoring based on match type
     switch (matchType) {
-      case 'filename':
+      case "filename":
         score = 1.0;
         explanation = "Filename match";
         matchDetails.push("Direct filename match");
         break;
-      case 'category':
+      case "category":
         score = 0.95;
-        explanation = "Category match"; 
+        explanation = "Category match";
         matchDetails.push("Category-based match");
         break;
-      case 'keyword':
-        score = 0.90;
+      case "keyword":
+        score = 0.9;
         explanation = "Keyword/topic match";
         matchDetails.push("Keyword or topic match");
         break;
-      case 'summary':
+      case "summary":
         score = 0.85;
         explanation = "Content summary match";
         matchDetails.push("Found in content summary");
         break;
-      case 'semantic':
+      case "semantic":
         score = 0.95; // High for semantic matches
         explanation = "AI semantic match";
         matchDetails.push("Semantically relevant content");
@@ -1898,7 +2063,9 @@ ${file.fileContent.toString()}`;
 
     // Recency boost (+5% for files uploaded in last 30 days)
     if (file.uploadedAt) {
-      const daysSinceUpload = (Date.now() - new Date(file.uploadedAt).getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceUpload =
+        (Date.now() - new Date(file.uploadedAt).getTime()) /
+        (1000 * 60 * 60 * 24);
       if (daysSinceUpload <= 30) {
         score += 0.05;
         matchDetails.push("Recent file boost");
@@ -1906,22 +2073,28 @@ ${file.fileContent.toString()}`;
     }
 
     // Academic boost for academic queries
-    if (isAcademic && file.categories?.some((cat: string) => 
-      ['Education', 'Academic', 'Teaching', 'Learning', 'School'].some(acadCat => 
-        cat.toLowerCase().includes(acadCat.toLowerCase())
+    if (
+      isAcademic &&
+      file.categories?.some((cat: string) =>
+        ["Education", "Academic", "Teaching", "Learning", "School"].some(
+          (acadCat) => cat.toLowerCase().includes(acadCat.toLowerCase()),
+        ),
       )
-    )) {
+    ) {
       score += 0.05;
       matchDetails.push("Academic content boost");
       explanation += " (academic priority)";
     }
 
     // Multiple term match boost
-    const termsFound = searchTerms.filter((term: string) => 
-      file.originalName?.toLowerCase().includes(term) ||
-      file.summary?.toLowerCase().includes(term) ||
-      file.categories?.some((cat: string) => cat.toLowerCase().includes(term)) ||
-      file.keywords?.some((kw: string) => kw.toLowerCase().includes(term))
+    const termsFound = searchTerms.filter(
+      (term: string) =>
+        file.originalName?.toLowerCase().includes(term) ||
+        file.summary?.toLowerCase().includes(term) ||
+        file.categories?.some((cat: string) =>
+          cat.toLowerCase().includes(term),
+        ) ||
+        file.keywords?.some((kw: string) => kw.toLowerCase().includes(term)),
     );
 
     if (termsFound.length > 1) {
@@ -1929,10 +2102,10 @@ ${file.fileContent.toString()}`;
       matchDetails.push(`Multiple terms matched (${termsFound.length})`);
     }
 
-    return { 
+    return {
       score: Math.min(1.0, score), // Cap at 1.0
-      explanation, 
-      matchDetails 
+      explanation,
+      matchDetails,
     };
   }
 
@@ -1941,12 +2114,16 @@ ${file.fileContent.toString()}`;
     try {
       const query = req.params.query as string;
       const userId = "demo-user";
-      
+
       // If no query provided, return all files (browse mode)
-      if (!query || query.trim() === '') {
-        console.log("No search query provided, returning all files (browse mode)");
+      if (!query || query.trim() === "") {
+        console.log(
+          "No search query provided, returning all files (browse mode)",
+        );
         const files = await storage.getFiles(userId, 50, 0);
-        console.log(`Browse mode: returning ${Array.isArray(files) ? files.length : 0} files`);
+        console.log(
+          `Browse mode: returning ${Array.isArray(files) ? files.length : 0} files`,
+        );
         res.json(files);
         return;
       }
@@ -1954,34 +2131,43 @@ ${file.fileContent.toString()}`;
       // Check cache first
       const cacheKey = `search:${userId}:${query.toLowerCase()}`;
       const cached = searchCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         console.log(`🚀 Returning cached results for: "${query}"`);
         res.json(cached.results);
         return;
       }
 
       console.log(`🔍 Enhanced dual search for: "${query}"`);
-      
+
       // Step 1: Query enhancement and term expansion
       const enhancedQuery = enhanceQuery(query);
-      console.log(`📈 Query enhanced: ${enhancedQuery.original} → [${enhancedQuery.expanded.join(', ')}]${enhancedQuery.isAcademic ? ' (academic)' : ''}`);
-      
+      console.log(
+        `📈 Query enhanced: ${enhancedQuery.original} → [${enhancedQuery.expanded.join(", ")}]${enhancedQuery.isAcademic ? " (academic)" : ""}`,
+      );
+
       let allResults: any[] = [];
 
       // Layer 1: Semantic Search using OpenAI Vector Store
       console.log("🤖 Layer 1: Performing semantic search...");
       let semanticResults: any[] = [];
       try {
-        const semanticSearchResults = await vectorIndexManager.semanticSearch(query, 10);
-        
+        const semanticSearchResults = await vectorIndexManager.semanticSearch(
+          query,
+          10,
+        );
+
         if (semanticSearchResults && semanticSearchResults.length > 0) {
-          console.log(`✅ Semantic search found ${semanticSearchResults.length} results`);
-          
+          console.log(
+            `✅ Semantic search found ${semanticSearchResults.length} results`,
+          );
+
           // Map semantic results to file IDs and get full file data
-          const openaiFileIds = semanticSearchResults.map(r => r.fileId).filter(Boolean);
-          
+          const openaiFileIds = semanticSearchResults
+            .map((r) => r.fileId)
+            .filter(Boolean);
+
           if (openaiFileIds.length > 0) {
-            // Get files that match the OpenAI file IDs  
+            // Get files that match the OpenAI file IDs
             const semanticFiles = await db
               .select({
                 id: files.id,
@@ -2006,22 +2192,29 @@ ${file.fileContent.toString()}`;
                 confidence: fileMetadata.confidence,
                 createdAt: fileMetadata.createdAt,
                 openaiFileId: fileMetadata.openaiFileId,
-        extractedText: fileMetadata.extractedText
+                extractedText: fileMetadata.extractedText,
               })
               .from(files)
               .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
               .where(
                 and(
                   eq(files.userId, userId),
-                  sql`${fileMetadata.openaiFileId} IN (${openaiFileIds.map(id => `'${id}'`).join(',')})`
-                )
+                  sql`${fileMetadata.openaiFileId} IN (${openaiFileIds.map((id) => `'${id}'`).join(",")})`,
+                ),
               );
-            
+
             // Enrich with semantic search data and scoring
-            semanticResults = semanticFiles.map(file => {
-              const semanticData = semanticSearchResults.find(sr => sr.fileId === file.openaiFileId);
-              const scoring = calculateSearchScore(file, query, enhancedQuery, 'semantic');
-              
+            semanticResults = semanticFiles.map((file) => {
+              const semanticData = semanticSearchResults.find(
+                (sr) => sr.fileId === file.openaiFileId,
+              );
+              const scoring = calculateSearchScore(
+                file,
+                query,
+                enhancedQuery,
+                "semantic",
+              );
+
               return {
                 ...file,
                 metadata: {
@@ -2033,20 +2226,22 @@ ${file.fileContent.toString()}`;
                   topics: file.topics,
                   confidence: file.confidence,
                   createdAt: file.createdAt,
-                  openaiFileId: file.openaiFileId
+                  openaiFileId: file.openaiFileId,
                 },
                 // Enhanced search enrichment
-                searchType: 'semantic',
+                searchType: "semantic",
                 relevanceScore: scoring.score,
                 searchExplanation: scoring.explanation,
                 matchedContent: semanticData?.matchedContent || [],
                 matchDetails: scoring.matchDetails,
-                documentType: 'document',
-                searchIntent: query
+                documentType: "document",
+                searchIntent: query,
               };
             });
-            
-            console.log(`📊 Enriched ${semanticResults.length} semantic results with enhanced scoring`);
+
+            console.log(
+              `📊 Enriched ${semanticResults.length} semantic results with enhanced scoring`,
+            );
           }
         } else {
           console.log("⚠️ No semantic results found");
@@ -2057,15 +2252,31 @@ ${file.fileContent.toString()}`;
       }
 
       // Layer 2: Advanced SQL Database Search (4 strategies)
-      console.log("🔍 Layer 2: Performing advanced SQL search with 4 strategies...");
-      
-      const sqlSearchResults = await advancedSqlSearch(query, userId, enhancedQuery, 15);
-      
+      console.log(
+        "🔍 Layer 2: Performing advanced SQL search with 4 strategies...",
+      );
+
+      const sqlSearchResults = await advancedSqlSearch(
+        query,
+        userId,
+        enhancedQuery,
+        15,
+      );
+
       // Process each strategy with appropriate scoring
-      const processStrategyResults = (results: any[], matchType: string, strategyName: string) => {
-        const processed = results.map(file => {
-          const scoring = calculateSearchScore(file, query, enhancedQuery, matchType);
-          
+      const processStrategyResults = (
+        results: any[],
+        matchType: string,
+        strategyName: string,
+      ) => {
+        const processed = results.map((file) => {
+          const scoring = calculateSearchScore(
+            file,
+            query,
+            enhancedQuery,
+            matchType,
+          );
+
           return {
             ...file,
             metadata: {
@@ -2077,72 +2288,104 @@ ${file.fileContent.toString()}`;
               topics: file.topics,
               confidence: file.confidence,
               createdAt: file.createdAt,
-              openaiFileId: file.openaiFileId
+              openaiFileId: file.openaiFileId,
             },
             // SQL search enrichment
-            searchType: 'sql',
+            searchType: "sql",
             searchStrategy: matchType,
             relevanceScore: scoring.score,
             searchExplanation: scoring.explanation,
-            matchedContent: enhancedQuery.expanded.filter(term => 
-              file.originalName?.toLowerCase().includes(term) ||
-              file.summary?.toLowerCase().includes(term)
+            matchedContent: enhancedQuery.expanded.filter(
+              (term) =>
+                file.originalName?.toLowerCase().includes(term) ||
+                file.summary?.toLowerCase().includes(term),
             ),
             matchDetails: scoring.matchDetails,
-            documentType: 'document',
-            searchIntent: `${strategyName} search for "${query}"`
+            documentType: "document",
+            searchIntent: `${strategyName} search for "${query}"`,
           };
         });
-        
-        console.log(`📋 ${strategyName}: ${processed.length} results (avg score: ${processed.length > 0 ? (processed.reduce((sum, r) => sum + r.relevanceScore, 0) / processed.length).toFixed(2) : 0})`);
+
+        console.log(
+          `📋 ${strategyName}: ${processed.length} results (avg score: ${processed.length > 0 ? (processed.reduce((sum, r) => sum + r.relevanceScore, 0) / processed.length).toFixed(2) : 0})`,
+        );
         return processed;
       };
 
       // Process results from each strategy
-      const filenameResults = processStrategyResults(sqlSearchResults.filenameResults, 'filename', 'Filename');
-      const categoryResults = processStrategyResults(sqlSearchResults.categoryResults, 'category', 'Category'); 
-      const keywordResults = processStrategyResults(sqlSearchResults.keywordResults, 'keyword', 'Keyword');
-      const summaryResults = processStrategyResults(sqlSearchResults.summaryResults, 'summary', 'Summary');
+      const filenameResults = processStrategyResults(
+        sqlSearchResults.filenameResults,
+        "filename",
+        "Filename",
+      );
+      const categoryResults = processStrategyResults(
+        sqlSearchResults.categoryResults,
+        "category",
+        "Category",
+      );
+      const keywordResults = processStrategyResults(
+        sqlSearchResults.keywordResults,
+        "keyword",
+        "Keyword",
+      );
+      const summaryResults = processStrategyResults(
+        sqlSearchResults.summaryResults,
+        "summary",
+        "Summary",
+      );
 
       // Combine all SQL results
-      const allSqlResults = [...filenameResults, ...categoryResults, ...keywordResults, ...summaryResults];
+      const allSqlResults = [
+        ...filenameResults,
+        ...categoryResults,
+        ...keywordResults,
+        ...summaryResults,
+      ];
 
       // Step 3: Result Merging & Deduplication
       console.log("🔗 Step 3: Merging and deduplicating results...");
-      
+
       // Combine semantic and SQL results
       const combinedResults = [...semanticResults, ...allSqlResults];
-      
+
       // Deduplicate by file ID, keeping highest scoring version
       const deduplicatedMap = new Map<string, any>();
-      
-      combinedResults.forEach(result => {
+
+      combinedResults.forEach((result) => {
         const existing = deduplicatedMap.get(result.id);
         if (!existing || result.relevanceScore > existing.relevanceScore) {
           deduplicatedMap.set(result.id, result);
-        } else if (existing && result.relevanceScore === existing.relevanceScore) {
+        } else if (
+          existing &&
+          result.relevanceScore === existing.relevanceScore
+        ) {
           // If same score, prefer semantic results
-          if (result.searchType === 'semantic' && existing.searchType === 'sql') {
+          if (
+            result.searchType === "semantic" &&
+            existing.searchType === "sql"
+          ) {
             deduplicatedMap.set(result.id, result);
           }
         }
       });
 
       allResults = Array.from(deduplicatedMap.values());
-      
+
       // Step 4: Final ranking and sorting
       console.log("🎯 Step 4: Final ranking and result optimization...");
-      
+
       allResults.sort((a, b) => {
         // Primary sort: relevance score (descending)
         if (Math.abs(a.relevanceScore - b.relevanceScore) > 0.01) {
           return b.relevanceScore - a.relevanceScore;
         }
-        
+
         // Secondary sort: prefer semantic matches
-        if (a.searchType === 'semantic' && b.searchType !== 'semantic') return -1;
-        if (a.searchType !== 'semantic' && b.searchType === 'semantic') return 1;
-        
+        if (a.searchType === "semantic" && b.searchType !== "semantic")
+          return -1;
+        if (a.searchType !== "semantic" && b.searchType === "semantic")
+          return 1;
+
         // Tertiary sort: upload date (newer first)
         const dateA = new Date(a.uploadedAt || 0).getTime();
         const dateB = new Date(b.uploadedAt || 0).getTime();
@@ -2158,21 +2401,28 @@ ${file.fileContent.toString()}`;
           expandedTerms: enhancedQuery.expanded,
           isAcademic: enhancedQuery.isAcademic,
           totalResults: allResults.length,
-          searchTimestamp: new Date().toISOString()
-        }
+          searchTimestamp: new Date().toISOString(),
+        },
       }));
 
       // Step 5: Cache results and return
       searchCache.set(cacheKey, {
         results: finalResults,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
-      console.log(`✅ Enhanced search completed: ${finalResults.length} results (${semanticResults.length} semantic, ${allSqlResults.length} SQL)`);
-      console.log(`🚀 Search performance: ${finalResults.slice(0, 3).map(r => `${r.originalName} (${r.relevanceScore.toFixed(2)})`).join(', ')}`);
+      console.log(
+        `✅ Enhanced search completed: ${finalResults.length} results (${semanticResults.length} semantic, ${allSqlResults.length} SQL)`,
+      );
+      console.log(
+        `🚀 Search performance: ${finalResults
+          .slice(0, 3)
+          .map((r) => `${r.originalName} (${r.relevanceScore.toFixed(2)})`)
+          .join(", ")}`,
+      );
 
       // Transform search results to match regular file listing structure
-      const transformedResults = finalResults.map(result => ({
+      const transformedResults = finalResults.map((result) => ({
         id: result.id,
         filename: result.filename,
         originalName: result.originalName,
@@ -2192,28 +2442,30 @@ ${file.fileContent.toString()}`;
         googleDriveMetadata: null,
         lastMetadataSync: null,
         // Create nested metadata structure like regular file listings
-        metadata: result.metadataId ? {
-          id: result.metadataId,
-          fileId: result.id,
-          extractedText: result.extractedText,
-          summary: result.summary,
-          categories: result.categories,
-          keywords: result.keywords,
-          topics: result.topics,
-          confidence: result.confidence,
-          createdAt: result.createdAt || new Date(),
-          embedding: null,
-          embeddingVector: null,
-          openaiFileId: result.openaiFileId,
-          openaiVectorStoreId: null,
-          aiAnalysis: null,
-          categorization: null,
-          namedEntities: null,
-          actionItems: null,
-          keyProcesses: null,
-          organizationPriority: null,
-          relevanceScores: null,
-        } : undefined,
+        metadata: result.metadataId
+          ? {
+              id: result.metadataId,
+              fileId: result.id,
+              extractedText: result.extractedText,
+              summary: result.summary,
+              categories: result.categories,
+              keywords: result.keywords,
+              topics: result.topics,
+              confidence: result.confidence,
+              createdAt: result.createdAt || new Date(),
+              embedding: null,
+              embeddingVector: null,
+              openaiFileId: result.openaiFileId,
+              openaiVectorStoreId: null,
+              aiAnalysis: null,
+              categorization: null,
+              namedEntities: null,
+              actionItems: null,
+              keyProcesses: null,
+              organizationPriority: null,
+              relevanceScores: null,
+            }
+          : undefined,
         // Preserve search-specific fields
         searchType: result.searchType,
         relevanceScore: result.relevanceScore,
@@ -2227,7 +2479,12 @@ ${file.fileContent.toString()}`;
       res.json(transformedResults);
     } catch (error) {
       console.error("❌ Enhanced search error:", error);
-      res.status(500).json({ error: "Search failed", message: error instanceof Error ? error.message : "Unknown error" });
+      res
+        .status(500)
+        .json({
+          error: "Search failed",
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
     }
   });
 
@@ -2247,7 +2504,9 @@ ${file.fileContent.toString()}`;
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error serving file:", error);
@@ -2263,45 +2522,52 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       const fileId = req.params.fileId;
-      
+
       // Get file info
       const file = await storage.getFile(fileId, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
-      
+
       // Try BYTEA first (faster for files ≤10MB), fallback to cloud storage
       const fileData = await storage.getFileData(fileId, userId);
-      
+
       if (fileData) {
         // Serve from BYTEA (faster)
-        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
+        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, "");
         res.set({
-          'Content-Type': file.mimeType,
-          'Content-Length': fileData.length.toString(),
-          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
-          'Cache-Control': 'private, max-age=3600'
+          "Content-Type": file.mimeType,
+          "Content-Length": fileData.length.toString(),
+          "Content-Disposition": `attachment; filename="${sanitizedFilename}"`,
+          "Cache-Control": "private, max-age=3600",
         });
         res.send(fileData);
-        console.log(`Served file ${file.originalName} from BYTEA (${fileData.length} bytes)`);
+        console.log(
+          `Served file ${file.originalName} from BYTEA (${fileData.length} bytes)`,
+        );
       } else {
         // Fallback to Google Cloud Storage
         const objectStorageService = new ObjectStorageService();
-        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        const objectFile = await objectStorageService.getObjectEntityFile(
+          file.objectPath,
+        );
         const [data] = await objectFile.download();
-        
-        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, '');
+
+        const sanitizedFilename = file.originalName.replace(/[^\w\-_\. ]/g, "");
         res.set({
-          'Content-Type': file.mimeType,
-          'Content-Length': data.length.toString(),
-          'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
-          'Cache-Control': 'private, max-age=3600'
+          "Content-Type": file.mimeType,
+          "Content-Length": data.length.toString(),
+          "Content-Disposition": `attachment; filename="${sanitizedFilename}"`,
+          "Cache-Control": "private, max-age=3600",
         });
         res.send(data);
-        console.log(`Served file ${file.originalName} from cloud storage (${data.length} bytes)`);
-        
+        console.log(
+          `Served file ${file.originalName} from cloud storage (${data.length} bytes)`,
+        );
+
         // Backfill BYTEA for small files
-        if (data.length <= 10 * 1024 * 1024) { // ≤10MB
+        if (data.length <= 10 * 1024 * 1024) {
+          // ≤10MB
           await storage.updateFileData(fileId, userId, data);
           console.log(`Backfilled BYTEA storage for ${file.originalName}`);
         }
@@ -2317,27 +2583,34 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       const fileId = req.params.id;
-      
+
       const file = await storage.getFile(fileId, userId);
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
-      
-      console.log(`🔄 Force reprocessing ${file.originalName} to test new vector storage system`);
-      
+
+      console.log(
+        `🔄 Force reprocessing ${file.originalName} to test new vector storage system`,
+      );
+
       // Reset status to processing
-      await storage.updateFileProcessingStatus(fileId, userId, "processing", "Force reprocessing to test OpenAI vector storage");
-      
+      await storage.updateFileProcessingStatus(
+        fileId,
+        userId,
+        "processing",
+        "Force reprocessing to test OpenAI vector storage",
+      );
+
       // Process file asynchronously with new vector storage
-      processFileAsync(fileId, userId).catch(err => {
+      processFileAsync(fileId, userId).catch((err) => {
         console.error(`Failed to reprocess ${fileId}:`, err);
       });
-      
-      res.json({ 
-        message: "Force reprocessing initiated", 
-        fileId, 
+
+      res.json({
+        message: "Force reprocessing initiated",
+        fileId,
         filename: file.originalName,
-        reason: "Testing new OpenAI vector storage system"
+        reason: "Testing new OpenAI vector storage system",
       });
     } catch (error) {
       console.error("Error force reprocessing file:", error);
@@ -2350,25 +2623,27 @@ ${file.fileContent.toString()}`;
     try {
       const userId = "demo-user";
       const batchSize = req.body.batchSize || 5; // Process in small batches to avoid API limits
-      
+
       // Get all files that need vector storage upgrade
-      const allFiles = await db.select()
+      const allFiles = await db
+        .select()
         .from(files)
         .where(eq(files.userId, userId))
         .orderBy(files.uploadedAt);
-      
-      console.log(`🚀 Starting bulk reprocessing of ${allFiles.length} files with OpenAI vector storage`);
-      
+
+      console.log(
+        `🚀 Starting bulk reprocessing of ${allFiles.length} files with OpenAI vector storage`,
+      );
+
       res.json({
         message: "Bulk reprocessing initiated",
         totalFiles: allFiles.length,
         batchSize,
-        estimatedDuration: `${Math.ceil(allFiles.length / batchSize * 10)} minutes`
+        estimatedDuration: `${Math.ceil((allFiles.length / batchSize) * 10)} minutes`,
       });
-      
+
       // Process files in batches asynchronously
       processAllFilesInBatches(allFiles, userId, batchSize);
-      
     } catch (error) {
       console.error("Error starting bulk reprocessing:", error);
       res.status(500).json({ error: "Failed to start bulk reprocessing" });
@@ -2379,15 +2654,25 @@ ${file.fileContent.toString()}`;
   app.post("/api/generate-content", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { prompt, fileIds, type, generateAudio, generateVideo, voice, videoStyle } = z.object({
-        prompt: z.string(),
-        fileIds: z.array(z.string()),
-        type: z.string(),
-        generateAudio: z.boolean().optional(),
-        generateVideo: z.boolean().optional(),
-        voice: z.string().optional(),
-        videoStyle: z.string().optional(),
-      }).parse(req.body);
+      const {
+        prompt,
+        fileIds,
+        type,
+        generateAudio,
+        generateVideo,
+        voice,
+        videoStyle,
+      } = z
+        .object({
+          prompt: z.string(),
+          fileIds: z.array(z.string()),
+          type: z.string(),
+          generateAudio: z.boolean().optional(),
+          generateVideo: z.boolean().optional(),
+          voice: z.string().optional(),
+          videoStyle: z.string().optional(),
+        })
+        .parse(req.body);
 
       // Get files and their content
       const files = await storage.getFilesByIds(fileIds, userId);
@@ -2396,78 +2681,102 @@ ${file.fileContent.toString()}`;
       }
 
       // Combine file contents for context
-      const fileContents = files.map(file => ({
+      const fileContents = files.map((file) => ({
         filename: file.filename,
         content: file.metadata?.extractedText || "",
-        category: file.metadata?.categories?.[0] || "uncategorized"
+        category: file.metadata?.categories?.[0] || "uncategorized",
       }));
 
       // Generate content using AI
-      const generatedContent = await generateContentFromFiles(prompt, fileContents, type);
-      
+      const generatedContent = await generateContentFromFiles(
+        prompt,
+        fileContents,
+        type,
+      );
+
       let audioBuffer = null;
       let videoBuffer = null;
-      
+
       if (generateAudio) {
         try {
-          audioBuffer = await generateTextToSpeech(generatedContent, voice || "alloy");
+          audioBuffer = await generateTextToSpeech(
+            generatedContent,
+            voice || "alloy",
+          );
         } catch (audioError) {
           console.error("Audio generation failed:", audioError);
           // Continue without audio if generation fails
         }
       }
-      
+
       if (generateVideo) {
         try {
           console.log("Starting video generation process...");
-          const { generateVideo: generateVideoFunc } = await import('./openai');
-          
+          const { generateVideo: generateVideoFunc } = await import("./openai");
+
           // Add timeout to prevent hanging
-          const videoPromise = generateVideoFunc(generatedContent, videoStyle || "natural", fileContents);
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Video generation timeout after 60 seconds")), 60000)
+          const videoPromise = generateVideoFunc(
+            generatedContent,
+            videoStyle || "natural",
+            fileContents,
           );
-          
-          videoBuffer = await Promise.race([videoPromise, timeoutPromise]) as Buffer;
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(new Error("Video generation timeout after 60 seconds")),
+              60000,
+            ),
+          );
+
+          videoBuffer = (await Promise.race([
+            videoPromise,
+            timeoutPromise,
+          ])) as Buffer;
           console.log("Video generation completed successfully");
-          
         } catch (videoError: any) {
           console.error("Video generation failed:", videoError);
-          
+
           // Check if it's a timeout or model availability issue
           const errorMessage = videoError?.message || "Unknown error";
-          let suggestion = "Please try again in a few minutes, or use audio generation instead.";
-          
+          let suggestion =
+            "Please try again in a few minutes, or use audio generation instead.";
+
           if (errorMessage.includes("timeout")) {
-            suggestion = "Video generation timed out. The models may be busy. Please try again with a shorter prompt or use audio generation.";
-          } else if (errorMessage.includes("503") || errorMessage.includes("loading")) {
-            suggestion = "The video generation models are currently loading. Please try again in 2-3 minutes.";
+            suggestion =
+              "Video generation timed out. The models may be busy. Please try again with a shorter prompt or use audio generation.";
+          } else if (
+            errorMessage.includes("503") ||
+            errorMessage.includes("loading")
+          ) {
+            suggestion =
+              "The video generation models are currently loading. Please try again in 2-3 minutes.";
           } else if (errorMessage.includes("unavailable")) {
-            suggestion = "Video generation is temporarily unavailable. Try audio generation instead.";
+            suggestion =
+              "Video generation is temporarily unavailable. Try audio generation instead.";
           }
-          
+
           // Return content with detailed error but don't fail the entire request
-          return res.json({ 
+          return res.json({
             content: generatedContent,
             error: `Video generation failed: ${errorMessage}`,
             suggestion,
-            videoGenerationAvailable: false
+            videoGenerationAvailable: false,
           });
         }
       }
-      
+
       const response: any = { content: generatedContent };
-      
+
       if (audioBuffer) {
-        response.audio = audioBuffer.toString('base64');
-        response.audioFormat = 'mp3';
+        response.audio = audioBuffer.toString("base64");
+        response.audioFormat = "mp3";
       }
-      
+
       if (videoBuffer) {
-        response.video = videoBuffer.toString('base64');
-        response.videoFormat = 'mp4';
+        response.video = videoBuffer.toString("base64");
+        response.videoFormat = "mp4";
       }
-      
+
       res.json(response);
     } catch (error) {
       console.error("Error generating content:", error);
@@ -2478,28 +2787,29 @@ ${file.fileContent.toString()}`;
   // Dedicated video generation endpoint
   app.post("/api/generate-video", async (req: any, res) => {
     try {
-      const { content, style } = z.object({
-        content: z.string(),
-        style: z.string().optional().default("professional")
-      }).parse(req.body);
+      const { content, style } = z
+        .object({
+          content: z.string(),
+          style: z.string().optional().default("professional"),
+        })
+        .parse(req.body);
 
       console.log("Generating slideshow video...");
-      const { generateVideo } = await import('./openai');
-      
+      const { generateVideo } = await import("./openai");
+
       const videoBuffer = await generateVideo(content, style);
-      
+
       // Send video as binary response
       res.set({
-        'Content-Type': 'video/mp4',
-        'Content-Length': videoBuffer.length.toString()
+        "Content-Type": "video/mp4",
+        "Content-Length": videoBuffer.length.toString(),
       });
       res.send(videoBuffer);
-      
     } catch (error: any) {
       console.error("Video generation error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate video",
-        message: error?.message || "Unknown error"
+        message: error?.message || "Unknown error",
       });
     }
   });
@@ -2508,17 +2818,31 @@ ${file.fileContent.toString()}`;
   app.post("/api/chat", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const { message, fileIds, chatHistory = [], conversationContext, provider, conversationId } = z.object({
-        message: z.string(),
-        fileIds: z.array(z.string()).optional().default([]),
-        chatHistory: z.array(z.object({
-          role: z.string(),
-          content: z.string()
-        })).optional().default([]),
-        conversationContext: z.any().optional(),
-        provider: z.enum(['openai', 'dify']).optional(),
-        conversationId: z.string().nullable().optional()
-      }).parse(req.body);
+      const {
+        message,
+        fileIds,
+        chatHistory = [],
+        conversationContext,
+        provider,
+        conversationId,
+      } = z
+        .object({
+          message: z.string(),
+          fileIds: z.array(z.string()).optional().default([]),
+          chatHistory: z
+            .array(
+              z.object({
+                role: z.string(),
+                content: z.string(),
+              }),
+            )
+            .optional()
+            .default([]),
+          conversationContext: z.any().optional(),
+          provider: z.enum(["openai", "dify"]).optional(),
+          conversationId: z.string().nullable().optional(),
+        })
+        .parse(req.body);
 
       // Skip oversight agent for Chat with Files page - allow natural conversation
       // The oversight agent was causing the "generate new prompt" issue
@@ -2540,38 +2864,46 @@ You have access to the user's uploaded documents and can discuss them naturally.
         aiProvider.setUserProvider(userId, provider);
       }
 
-      console.log(`Processing chat request with provider: ${aiProvider.getProvider(userId)}, message length: ${message.length}, files: ${fileIds.length}, conversationId: ${conversationId}`);
+      console.log(
+        `Processing chat request with provider: ${aiProvider.getProvider(userId)}, message length: ${message.length}, files: ${fileIds.length}, conversationId: ${conversationId}`,
+      );
 
       // Get context files
-      const files = fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
-      
+      const files =
+        fileIds.length > 0 ? await storage.getFilesByIds(fileIds, userId) : [];
+
       // Always include information about available files even if none selected
       // This helps maintain context about what files exist
       const allFiles = await storage.getFiles(userId, 100);
-      const fileListContext = allFiles.map(f => f.filename).join(', ');
-      
+      const fileListContext = allFiles.map((f) => f.filename).join(", ");
+
       // Extract file contents for the AI provider
-      const fileContents = files.length > 0 ? files.map(file => {
-        const text = file.metadata?.extractedText || "";
-        const summary = file.metadata?.summary || "";
-        const keywords = file.metadata?.keywords?.join(", ") || "";
-        
-        return `=== ${file.filename || file.originalName} ===
+      const fileContents =
+        files.length > 0
+          ? files.map((file) => {
+              const text = file.metadata?.extractedText || "";
+              const summary = file.metadata?.summary || "";
+              const keywords = file.metadata?.keywords?.join(", ") || "";
+
+              return `=== ${file.filename || file.originalName} ===
 Summary: ${summary}
 Keywords: ${keywords}
 Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
-      }) : [`Available files in system: ${fileListContext}`];
-      
+            })
+          : [`Available files in system: ${fileListContext}`];
+
       // Build chat messages array
       const messages = [
-        ...chatHistory.map(msg => ({
-          role: msg.role as 'user' | 'assistant' | 'system',
-          content: msg.content
+        ...chatHistory.map((msg) => ({
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content,
         })),
-        { role: 'user' as const, content: message }
+        { role: "user" as const, content: message },
       ];
-      
-      console.log(`Sending to AI provider with ${messages.length} messages, ${fileContents.length} file contexts`);
+
+      console.log(
+        `Sending to AI provider with ${messages.length} messages, ${fileContents.length} file contexts`,
+      );
 
       // Generate response using AI provider with simple prompt and conversation ID
       const result = await aiProvider.chatWithFiles(
@@ -2579,36 +2911,47 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         fileContents,
         systemPrompt,
         userId,
-        conversationId || undefined
+        conversationId || undefined,
       );
-      
-      console.log(`Received response from AI provider, length: ${result.response?.length || 0}, conversationId: ${result.conversationId}`);
-      
+
+      console.log(
+        `Received response from AI provider, length: ${result.response?.length || 0}, conversationId: ${result.conversationId}`,
+      );
+
       // Check if we got a valid response
-      if (!result.response || result.response === "No response generated" || result.response.length < 5) {
-        console.error('Invalid or empty response from AI provider:', result);
-        
+      if (
+        !result.response ||
+        result.response === "No response generated" ||
+        result.response.length < 5
+      ) {
+        console.error("Invalid or empty response from AI provider:", result);
+
         // Log more details for debugging
-        console.log('Provider:', aiProvider.getProvider(userId));
-        console.log('Message:', message);
-        console.log('Files count:', fileIds.length);
-        
+        console.log("Provider:", aiProvider.getProvider(userId));
+        console.log("Message:", message);
+        console.log("Files count:", fileIds.length);
+
         // Return a helpful error response
         res.status(500).json({
           error: "The AI service did not generate a proper response.",
-          suggestion: "This might be due to API configuration issues. Try switching to OpenAI provider or check your Dify API settings.",
-          response: "I apologize, but I couldn't generate a proper response. Please try again or switch to a different AI provider.",
-          provider: aiProvider.getProvider(userId)
+          suggestion:
+            "This might be due to API configuration issues. Try switching to OpenAI provider or check your Dify API settings.",
+          response:
+            "I apologize, but I couldn't generate a proper response. Please try again or switch to a different AI provider.",
+          provider: aiProvider.getProvider(userId),
         });
         return;
       }
-      
-      res.json({ 
+
+      res.json({
         response: result.response || "No response generated",
         relatedFiles: fileIds,
-        conversationContext: { topic: "General conversation", messages: chatHistory.length },
+        conversationContext: {
+          topic: "General conversation",
+          messages: chatHistory.length,
+        },
         provider: aiProvider.getProvider(userId),
-        conversationId: result.conversationId // Return conversation ID for Dify sessions
+        conversationId: result.conversationId, // Return conversation ID for Dify sessions
       });
     } catch (error: any) {
       console.error("Error in chat:", error);
@@ -2617,74 +2960,100 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         message: error?.message,
         name: error?.name,
         response: error?.response,
-        status: error?.status
+        status: error?.status,
       });
-      
+
       // Provide more detailed error information
       const errorMessage = error?.message || "Failed to process chat message";
-      const isApiKeyError = errorMessage.includes("API") || errorMessage.includes("credentials") || errorMessage.includes("configured");
+      const isApiKeyError =
+        errorMessage.includes("API") ||
+        errorMessage.includes("credentials") ||
+        errorMessage.includes("configured");
       const isDifyError = errorMessage.includes("Dify");
-      
-      res.status(500).json({ 
-        error: isApiKeyError 
+
+      res.status(500).json({
+        error: isApiKeyError
           ? "AI service not configured. Please check your API credentials."
-          : isDifyError 
+          : isDifyError
             ? "Failed to connect to Dify. Please ensure DIFY_API_KEY is configured correctly."
             : "Failed to process chat message. Please try again or switch AI providers.",
-        details: error?.message || undefined
+        details: error?.message || undefined,
       });
     }
   });
 
   // Bulk processing function for all files
-  async function processAllFilesInBatches(allFiles: any[], userId: string, batchSize: number) {
+  async function processAllFilesInBatches(
+    allFiles: any[],
+    userId: string,
+    batchSize: number,
+  ) {
     let processedCount = 0;
     let successCount = 0;
     let errorCount = 0;
-    
-    console.log(`📊 Processing ${allFiles.length} files in batches of ${batchSize}`);
-    
+
+    console.log(
+      `📊 Processing ${allFiles.length} files in batches of ${batchSize}`,
+    );
+
     for (let i = 0; i < allFiles.length; i += batchSize) {
       const batch = allFiles.slice(i, i + batchSize);
-      console.log(`🔄 Processing batch ${Math.ceil((i + 1) / batchSize)} of ${Math.ceil(allFiles.length / batchSize)}`);
-      
+      console.log(
+        `🔄 Processing batch ${Math.ceil((i + 1) / batchSize)} of ${Math.ceil(allFiles.length / batchSize)}`,
+      );
+
       // Process batch concurrently but with controlled concurrency
       const batchPromises = batch.map(async (file) => {
         try {
           // Update status to processing
-          await storage.updateFileProcessingStatus(file.id, userId, "processing", "Bulk reprocessing for OpenAI vector storage");
-          
+          await storage.updateFileProcessingStatus(
+            file.id,
+            userId,
+            "processing",
+            "Bulk reprocessing for OpenAI vector storage",
+          );
+
           // Process the file
           await processFileAsync(file.id, userId);
           successCount++;
-          console.log(`✅ Successfully reprocessed: ${file.originalName} (${successCount}/${allFiles.length})`);
-          
+          console.log(
+            `✅ Successfully reprocessed: ${file.originalName} (${successCount}/${allFiles.length})`,
+          );
         } catch (error) {
           errorCount++;
           console.error(`❌ Failed to reprocess ${file.originalName}:`, error);
-          await storage.updateFileProcessingStatus(file.id, userId, "error", `Bulk reprocess failed: ${error}`);
+          await storage.updateFileProcessingStatus(
+            file.id,
+            userId,
+            "error",
+            `Bulk reprocess failed: ${error}`,
+          );
         }
         processedCount++;
       });
-      
+
       // Wait for current batch to complete
       await Promise.allSettled(batchPromises);
-      
+
       // Add delay between batches to respect API rate limits
       if (i + batchSize < allFiles.length) {
-        console.log(`⏳ Batch complete. Waiting 10 seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 10000)); // 10 second delay
+        console.log(
+          `⏳ Batch complete. Waiting 10 seconds before next batch...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000)); // 10 second delay
       }
     }
-    
+
     console.log(`🎉 Bulk reprocessing completed!`);
-    console.log(`📊 Results: ${successCount} successful, ${errorCount} errors out of ${allFiles.length} total files`);
+    console.log(
+      `📊 Results: ${successCount} successful, ${errorCount} errors out of ${allFiles.length} total files`,
+    );
   }
 
   // Cleanup function for broken Excel import files
   async function cleanupBrokenExcelFiles(userId: string) {
-    console.log('🧹 Starting cleanup of broken Excel import files...');
-    
+    console.log("🧹 Starting cleanup of broken Excel import files...");
+
     // Get all files with fake Excel import paths that have no BYTEA data
     const result = await db.execute(sql`
       SELECT id, filename, object_path, google_drive_url, processing_status 
@@ -2694,28 +3063,40 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       AND file_content IS NULL
       AND processing_status IN ('pending', 'processing')
     `);
-    
+
     let cleanedCount = 0;
     for (const file of result.rows as any[]) {
       try {
-        let errorMessage = 'File was imported from Excel but file data is missing.';
+        let errorMessage =
+          "File was imported from Excel but file data is missing.";
         if (file.google_drive_url) {
           errorMessage += ` Original Google Drive URL: ${file.google_drive_url}. File may have been moved or access denied.`;
         }
-        
-        await storage.updateFileProcessingStatus(file.id, userId, "error", errorMessage);
+
+        await storage.updateFileProcessingStatus(
+          file.id,
+          userId,
+          "error",
+          errorMessage,
+        );
         cleanedCount++;
       } catch (error) {
         console.error(`Failed to mark file ${file.id} as error:`, error);
       }
     }
-    
-    console.log(`✅ Marked ${cleanedCount} broken Excel import files as errors`);
+
+    console.log(
+      `✅ Marked ${cleanedCount} broken Excel import files as errors`,
+    );
     return cleanedCount;
   }
 
   // Background processing function
-  async function processFileAsync(fileId: string, userId: string, rawFileData?: Buffer) {
+  async function processFileAsync(
+    fileId: string,
+    userId: string,
+    rawFileData?: Buffer,
+  ) {
     try {
       await storage.updateFileProcessingStatus(fileId, userId, "processing");
       console.log(`🚀 Starting 5-step file processing for file: ${fileId}`);
@@ -2732,9 +3113,12 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       if (rawFileData) {
         fileData = rawFileData;
         console.log("Using raw file data from upload");
-        
+
         // Store in BYTEA if ≤10MB
-        if (fileData.length <= 10 * 1024 * 1024 && !await storage.hasFileData(fileId, userId)) {
+        if (
+          fileData.length <= 10 * 1024 * 1024 &&
+          !(await storage.hasFileData(fileId, userId))
+        ) {
           await storage.updateFileData(fileId, userId, fileData);
           console.log(`Stored file data in BYTEA: ${file.filename}`);
         }
@@ -2746,102 +3130,166 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
           console.log("Retrieved file data from BYTEA");
         } else {
           // Check if this is a BYTEA-only file
-          const isByteaOnlyFile = file.objectPath.startsWith('/bytea/');
-          
+          const isByteaOnlyFile = file.objectPath.startsWith("/bytea/");
+
           if (isByteaOnlyFile) {
-            console.error(`❌ BYTEA-only file has no BYTEA data: ${file.filename}`);
-            throw new Error(`File data not found: ${file.filename} was supposed to be in BYTEA storage but isn't available`);
+            console.error(
+              `❌ BYTEA-only file has no BYTEA data: ${file.filename}`,
+            );
+            throw new Error(
+              `File data not found: ${file.filename} was supposed to be in BYTEA storage but isn't available`,
+            );
           }
-          
+
           // For /excel-import/ files, try to download from Google Drive if available
-          if (file.objectPath.startsWith('/excel-import/')) {
+          if (file.objectPath.startsWith("/excel-import/")) {
             // Check if we have Google Drive URL to download from
             if (file.googleDriveUrl) {
-              console.log(`📥 Downloading Excel import file from Google Drive: ${file.filename}`);
+              console.log(
+                `📥 Downloading Excel import file from Google Drive: ${file.filename}`,
+              );
               try {
-                const googleDriveService = new (await import('./googleDriveService')).GoogleDriveService();
-                const downloadedBuffer = await googleDriveService.downloadFile(file.googleDriveUrl);
-                
+                const googleDriveService = new (
+                  await import("./googleDriveService")
+                ).GoogleDriveService();
+                const downloadedBuffer = await googleDriveService.downloadFile(
+                  file.googleDriveUrl,
+                );
+
                 if (downloadedBuffer && downloadedBuffer.length > 0) {
                   fileData = downloadedBuffer;
-                  console.log(`✅ Downloaded ${file.filename} from Google Drive: ${downloadedBuffer.length} bytes`);
-                  
+                  console.log(
+                    `✅ Downloaded ${file.filename} from Google Drive: ${downloadedBuffer.length} bytes`,
+                  );
+
                   // Store in BYTEA if ≤10MB for faster future access
                   if (downloadedBuffer.length <= 10 * 1024 * 1024) {
-                    await storage.updateFileData(fileId, userId, downloadedBuffer);
-                    console.log(`💾 Stored in BYTEA for fast access: ${file.filename}`);
+                    await storage.updateFileData(
+                      fileId,
+                      userId,
+                      downloadedBuffer,
+                    );
+                    console.log(
+                      `💾 Stored in BYTEA for fast access: ${file.filename}`,
+                    );
                   }
                 } else {
-                  throw new Error('Downloaded file is empty');
+                  throw new Error("Downloaded file is empty");
                 }
               } catch (downloadError) {
-                console.error(`❌ Failed to download from Google Drive: ${downloadError}`);
-                await storage.updateFileProcessingStatus(fileId, userId, "error", 
-                  `Failed to download from Google Drive: ${downloadError}`);
+                console.error(
+                  `❌ Failed to download from Google Drive: ${downloadError}`,
+                );
+                await storage.updateFileProcessingStatus(
+                  fileId,
+                  userId,
+                  "error",
+                  `Failed to download from Google Drive: ${downloadError}`,
+                );
                 return;
               }
             } else {
               // For placeholder files (100 bytes), check if filename indicates Google Drive file
-              if (file.size === 100 && file.filename.includes('drive.google.com')) {
+              if (
+                file.size === 100 &&
+                file.filename.includes("drive.google.com")
+              ) {
                 // Extract URL from filename if stored there
                 const possibleUrl = file.filename;
-                console.log(`🔄 Attempting to download placeholder file from Google Drive URL in filename: ${possibleUrl}`);
+                console.log(
+                  `🔄 Attempting to download placeholder file from Google Drive URL in filename: ${possibleUrl}`,
+                );
                 try {
-                  const googleDriveService = new (await import('./googleDriveService')).GoogleDriveService();
-                  const downloadedBuffer = await googleDriveService.downloadFile(possibleUrl);
-                  
+                  const googleDriveService = new (
+                    await import("./googleDriveService")
+                  ).GoogleDriveService();
+                  const downloadedBuffer =
+                    await googleDriveService.downloadFile(possibleUrl);
+
                   if (downloadedBuffer && downloadedBuffer.length > 0) {
                     fileData = downloadedBuffer;
-                    console.log(`✅ Downloaded ${file.filename} from Google Drive (via filename URL): ${downloadedBuffer.length} bytes`);
-                    
+                    console.log(
+                      `✅ Downloaded ${file.filename} from Google Drive (via filename URL): ${downloadedBuffer.length} bytes`,
+                    );
+
                     // Store in BYTEA if ≤10MB
                     if (downloadedBuffer.length <= 10 * 1024 * 1024) {
-                      await storage.updateFileData(fileId, userId, downloadedBuffer);
-                      console.log(`💾 Stored in BYTEA for fast access: ${file.filename}`);
+                      await storage.updateFileData(
+                        fileId,
+                        userId,
+                        downloadedBuffer,
+                      );
+                      console.log(
+                        `💾 Stored in BYTEA for fast access: ${file.filename}`,
+                      );
                     }
                   } else {
-                    throw new Error('Downloaded file is empty');
+                    throw new Error("Downloaded file is empty");
                   }
                 } catch (downloadError) {
-                  console.error(`❌ Failed to download from Google Drive URL in filename: ${downloadError}`);
-                  await storage.updateFileProcessingStatus(fileId, userId, "error", 
-                    `Failed to download from Google Drive: ${downloadError}`);
+                  console.error(
+                    `❌ Failed to download from Google Drive URL in filename: ${downloadError}`,
+                  );
+                  await storage.updateFileProcessingStatus(
+                    fileId,
+                    userId,
+                    "error",
+                    `Failed to download from Google Drive: ${downloadError}`,
+                  );
                   return;
                 }
               } else {
                 // Try cloud storage as fallback
                 try {
-                  const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+                  const objectFile =
+                    await objectStorageService.getObjectEntityFile(
+                      file.objectPath,
+                    );
                   const [downloadedData] = await objectFile.download();
                   fileData = downloadedData;
-                  console.log(`✅ Retrieved Excel import file from cloud storage: ${file.filename}`);
+                  console.log(
+                    `✅ Retrieved Excel import file from cloud storage: ${file.filename}`,
+                  );
                 } catch (cloudError) {
-                  console.warn(`⚠️ Excel import file not available in cloud or Drive: ${file.filename}`);
-                  await storage.updateFileProcessingStatus(fileId, userId, "error", 
-                    `File data not available - no download source`);
+                  console.warn(
+                    `⚠️ Excel import file not available in cloud or Drive: ${file.filename}`,
+                  );
+                  await storage.updateFileProcessingStatus(
+                    fileId,
+                    userId,
+                    "error",
+                    `File data not available - no download source`,
+                  );
                   return;
                 }
               }
             }
-          }
-          else {
+          } else {
             // Fallback to Google Cloud Storage for real cloud paths
             try {
-              const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+              const objectFile = await objectStorageService.getObjectEntityFile(
+                file.objectPath,
+              );
               const [downloadedData] = await objectFile.download();
               fileData = downloadedData;
               console.log("Retrieved file data from cloud storage");
-              
+
               // Backfill BYTEA if ≤10MB
               if (fileData.length <= 10 * 1024 * 1024) {
                 await storage.updateFileData(fileId, userId, fileData);
                 console.log(`Backfilled BYTEA storage: ${file.filename}`);
               }
             } catch (cloudError) {
-              console.error(`❌ Cloud storage error for ${file.filename}: ${cloudError}`);
+              console.error(
+                `❌ Cloud storage error for ${file.filename}: ${cloudError}`,
+              );
               // Mark as error if both BYTEA and cloud storage fail
-              await storage.updateFileProcessingStatus(fileId, userId, "error", 
-                `File not accessible: missing from both BYTEA and cloud storage`);
+              await storage.updateFileProcessingStatus(
+                fileId,
+                userId,
+                "error",
+                `File not accessible: missing from both BYTEA and cloud storage`,
+              );
               throw cloudError;
             }
           }
@@ -2852,33 +3300,44 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       // 📋 STEP 1: TEXT EXTRACTION
       // ========================================================================================
       console.log(`📄 Step 1/5: Text Extraction for ${file.originalName}`);
-      const extractedText = await extractTextFromFile(fileData, file.mimeType, file.originalName);
-      console.log(`✅ Step 1 complete: Extracted ${extractedText.length} characters`);
+      const extractedText = await extractTextFromFile(
+        fileData,
+        file.mimeType,
+        file.originalName,
+      );
+      console.log(
+        `✅ Step 1 complete: Extracted ${extractedText.length} characters`,
+      );
 
       // ========================================================================================
       // 🤖 STEP 2: AI ANALYSIS
       // ========================================================================================
       console.log(`🤖 Step 2/5: AI Analysis using GPT-5`);
-      const metadata = await extractFileMetadata(extractedText, file.originalName);
+      const metadata = await extractFileMetadata(
+        extractedText,
+        file.originalName,
+      );
       console.log(`✅ Step 2 complete: Generated comprehensive metadata`);
 
       // ========================================================================================
-      // 🏷️ STEP 3: CATEGORIZATION 
+      // 🏷️ STEP 3: CATEGORIZATION
       // ========================================================================================
       console.log(`🏷️ Step 3/5: Advanced Categorization`);
       // Using the traditional metadata for now, but enhanced version will be added via vector manager
-      
+
       // ========================================================================================
       // 📊 STEP 4: VECTOR STORAGE (OpenAI Vector Store API)
       // ========================================================================================
       console.log(`📊 Step 4/5: Vector Storage using OpenAI Vector Store API`);
       let vectorMetadata = null;
-      
+
       // Only attempt vector storage if we have sufficient content
       if (extractedText && extractedText.trim().length >= 100) {
         try {
-          console.log(`🚀 Attempting to add ${file.originalName} to OpenAI Vector Store...`);
-          
+          console.log(
+            `🚀 Attempting to add ${file.originalName} to OpenAI Vector Store...`,
+          );
+
           vectorMetadata = await vectorIndexManager.addFileToIndex(
             extractedText,
             file.originalName,
@@ -2886,36 +3345,42 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
               fileId: file.id,
               mimeType: file.mimeType,
               size: file.size,
-              uploadedAt: file.uploadedAt
-            }
+              uploadedAt: file.uploadedAt,
+            },
           );
-          
-          console.log(`✅ Step 4 SUCCESSFUL: Added to OpenAI vector store with ID ${vectorMetadata.openaiFileId}`);
+
+          console.log(
+            `✅ Step 4 SUCCESSFUL: Added to OpenAI vector store with ID ${vectorMetadata.openaiFileId}`,
+          );
           console.log(`📊 Vector storage details:`, {
             openaiFileId: vectorMetadata.openaiFileId,
             vectorStoreId: vectorMetadata.vectorStoreId,
             hasAiAnalysis: !!vectorMetadata.aiAnalysis,
             hasCategorization: !!vectorMetadata.categorization,
             namedEntitiesCount: vectorMetadata.namedEntities?.length || 0,
-            actionItemsCount: vectorMetadata.actionItems?.length || 0
+            actionItemsCount: vectorMetadata.actionItems?.length || 0,
           });
-          
         } catch (error: any) {
-          console.error(`❌ Step 4 FAILED: Vector storage error for ${file.originalName}:`, error?.message);
+          console.error(
+            `❌ Step 4 FAILED: Vector storage error for ${file.originalName}:`,
+            error?.message,
+          );
           console.error(`🔧 Continuing with legacy approach (pgvector only)`);
-          
+
           // Don't fail the entire processing - continue with legacy approach
           vectorMetadata = null;
-          
+
           // Log the specific error for debugging
-          if (error?.message?.includes('authentication')) {
+          if (error?.message?.includes("authentication")) {
             console.error(`🔑 OpenAI API authentication issue detected`);
-          } else if (error?.message?.includes('quota')) {
+          } else if (error?.message?.includes("quota")) {
             console.error(`💳 OpenAI API quota/billing issue detected`);
           }
         }
       } else {
-        console.log(`⏭️ Skipping vector storage: insufficient content (${extractedText?.length || 0} chars)`);
+        console.log(
+          `⏭️ Skipping vector storage: insufficient content (${extractedText?.length || 0} chars)`,
+        );
       }
 
       // ========================================================================================
@@ -2941,13 +3406,15 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       // Add OpenAI Vector Store data if successful
       if (vectorMetadata) {
         comprehensiveMetadata.openaiFileId = vectorMetadata.openaiFileId;
-        comprehensiveMetadata.openaiVectorStoreId = vectorMetadata.vectorStoreId;
+        comprehensiveMetadata.openaiVectorStoreId =
+          vectorMetadata.vectorStoreId;
         comprehensiveMetadata.aiAnalysis = vectorMetadata.aiAnalysis;
         comprehensiveMetadata.categorization = vectorMetadata.categorization;
         comprehensiveMetadata.namedEntities = vectorMetadata.namedEntities;
         comprehensiveMetadata.actionItems = vectorMetadata.actionItems;
         comprehensiveMetadata.keyProcesses = vectorMetadata.keyProcesses;
-        comprehensiveMetadata.organizationPriority = vectorMetadata.categorization?.organizationPriority || 0.5;
+        comprehensiveMetadata.organizationPriority =
+          vectorMetadata.categorization?.organizationPriority || 0.5;
       }
 
       // Save comprehensive metadata
@@ -2955,9 +3422,13 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
 
       await storage.updateFileProcessedAt(fileId, userId);
 
-      console.log(`✅ Step 5 complete: Stored comprehensive metadata in database`);
-      console.log(`🎉 Successfully completed 5-step processing for: ${file.originalName}`);
-      
+      console.log(
+        `✅ Step 5 complete: Stored comprehensive metadata in database`,
+      );
+      console.log(
+        `🎉 Successfully completed 5-step processing for: ${file.originalName}`,
+      );
+
       // Log processing summary
       const processingResults = {
         fileName: file.originalName,
@@ -2966,13 +3437,18 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         categories: metadata.categories,
         confidence: metadata.confidence,
         vectorStoreId: vectorMetadata?.openaiFileId,
-        organizationPriority: vectorMetadata?.categorization?.organizationPriority || 0.5
+        organizationPriority:
+          vectorMetadata?.categorization?.organizationPriority || 0.5,
       };
       console.log(`📊 Processing Results:`, processingResults);
-
     } catch (error: any) {
       console.error(`❌ Error in 5-step processing for file ${fileId}:`, error);
-      await storage.updateFileProcessingStatus(fileId, userId, "error", error?.message || "Unknown error");
+      await storage.updateFileProcessingStatus(
+        fileId,
+        userId,
+        "error",
+        error?.message || "Unknown error",
+      );
     }
   }
 
@@ -2993,9 +3469,10 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
   app.get("/api/folders", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const parentId = req.query.parentId === 'null' ? null : req.query.parentId;
+      const parentId =
+        req.query.parentId === "null" ? null : req.query.parentId;
       console.log(`Getting folders for parent: ${parentId}`);
-      
+
       const folders = await storage.getFolders(userId, parentId);
       res.json(folders);
     } catch (error) {
@@ -3007,21 +3484,26 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
   app.post("/api/folders", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      const folderData = z.object({
-        name: z.string().min(1),
-        parentId: z.string().optional().nullable(),
-        color: z.string().optional(),
-        description: z.string().optional(),
-      }).parse(req.body);
+      const folderData = z
+        .object({
+          name: z.string().min(1),
+          parentId: z.string().optional().nullable(),
+          color: z.string().optional(),
+          description: z.string().optional(),
+        })
+        .parse(req.body);
 
-      const folder = await storage.createFolder({
-        path: `/${folderData.name}`,
-        name: folderData.name,
-        userId: userId,
-        color: folderData.color || undefined,
-        description: folderData.description || undefined,
-        parentId: folderData.parentId || null,
-      }, userId);
+      const folder = await storage.createFolder(
+        {
+          path: `/${folderData.name}`,
+          name: folderData.name,
+          userId: userId,
+          color: folderData.color || undefined,
+          description: folderData.description || undefined,
+          parentId: folderData.parentId || null,
+        },
+        userId,
+      );
       res.status(201).json(folder);
     } catch (error) {
       console.error("Error creating folder:", error);
@@ -3033,11 +3515,13 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const userId = "demo-user";
       const { id } = req.params;
-      const updates = z.object({
-        name: z.string().min(1).optional(),
-        color: z.string().optional(),
-        description: z.string().optional(),
-      }).parse(req.body);
+      const updates = z
+        .object({
+          name: z.string().min(1).optional(),
+          color: z.string().optional(),
+          description: z.string().optional(),
+        })
+        .parse(req.body);
 
       await storage.updateFolder(id, userId, updates);
       const folder = await storage.getFolder(id, userId);
@@ -3065,7 +3549,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const userId = "demo-user";
       const { id } = req.params;
-      const folderId = id === 'root' ? null : id;
+      const folderId = id === "root" ? null : id;
 
       const files = await storage.getFilesInFolder(folderId, userId);
       res.json(files);
@@ -3080,87 +3564,108 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const userId = "demo-user";
       const { folderIds = [], filter = "all" } = req.body;
-      
+
       const allFiles = await storage.getFiles(userId, 1000);
       const folders = await storage.getAllFolders(userId);
-      
+
       // Function to filter files based on the selected filter
       const applyFilter = (files: any[]) => {
         switch (filter) {
           case "transcribed":
-            return files.filter(file => 
-              file.metadata?.extractedText && 
-              !file.metadata.extractedText.startsWith('File reference:') &&
-              file.metadata.extractedText.length > 100 &&
-              file.processingStatus === 'completed'
+            return files.filter(
+              (file) =>
+                file.metadata?.extractedText &&
+                !file.metadata.extractedText.startsWith("File reference:") &&
+                file.metadata.extractedText.length > 100 &&
+                file.processingStatus === "completed",
             );
           case "pending":
-            return files.filter(file => file.processingStatus === 'pending');
+            return files.filter((file) => file.processingStatus === "pending");
           case "processing":
-            return files.filter(file => file.processingStatus === 'processing');
+            return files.filter(
+              (file) => file.processingStatus === "processing",
+            );
           case "failed":
-            return files.filter(file => file.processingStatus === 'error' || file.processingStatus === 'failed');
+            return files.filter(
+              (file) =>
+                file.processingStatus === "error" ||
+                file.processingStatus === "failed",
+            );
           case "all":
           default:
             return files;
         }
       };
-      
+
       // Function to get all folder IDs recursively
-      const getAllSubfolderIds = async (parentId: string): Promise<string[]> => {
+      const getAllSubfolderIds = async (
+        parentId: string,
+      ): Promise<string[]> => {
         let allIds = [parentId];
-        const subfolders = folders.filter(f => f.parentId === parentId);
-        
+        const subfolders = folders.filter((f) => f.parentId === parentId);
+
         for (const subfolder of subfolders) {
           const deeperIds = await getAllSubfolderIds(subfolder.id);
           allIds = [...allIds, ...deeperIds];
         }
-        
+
         return allIds;
       };
-      
+
       // Calculate file counts for each requested folder
-      const folderCounts: Record<string, { 
-        totalFiles: number; 
-        processedFiles: number;
-        errorFiles: number;
-        transcribedFiles: number;
-        pendingFiles: number;
-        processingFiles: number;
-        filteredFiles: number;
-        folderName: string;
-      }> = {};
-      
+      const folderCounts: Record<
+        string,
+        {
+          totalFiles: number;
+          processedFiles: number;
+          errorFiles: number;
+          transcribedFiles: number;
+          pendingFiles: number;
+          processingFiles: number;
+          filteredFiles: number;
+          folderName: string;
+        }
+      > = {};
+
       // Handle special case where folderIds contains "all" - get all root folders
       let actualFolderIds = folderIds;
       if (folderIds.includes("all")) {
         // Get all root folders (folders with no parent)
-        const rootFolders = folders.filter(f => !f.parentId);
-        actualFolderIds = rootFolders.map(f => f.id);
+        const rootFolders = folders.filter((f) => !f.parentId);
+        actualFolderIds = rootFolders.map((f) => f.id);
       }
-      
+
       for (const folderId of actualFolderIds) {
         const allFolderIds = await getAllSubfolderIds(folderId);
-        const folderFiles = allFiles.filter(file => 
-          file.folderId && allFolderIds.includes(file.folderId)
+        const folderFiles = allFiles.filter(
+          (file) => file.folderId && allFolderIds.includes(file.folderId),
         );
-        
+
         // Get filtered files for the current filter
         const filteredFiles = applyFilter(folderFiles);
-        
-        const folder = folders.find(f => f.id === folderId);
+
+        const folder = folders.find((f) => f.id === folderId);
         folderCounts[folderId] = {
           totalFiles: folderFiles.length,
-          processedFiles: folderFiles.filter(f => f.processingStatus === 'completed').length,
-          errorFiles: folderFiles.filter(f => f.processingStatus === 'error').length,
-          transcribedFiles: applyFilter(folderFiles.filter(f => filter === "transcribed")).length,
-          pendingFiles: folderFiles.filter(f => f.processingStatus === 'pending').length,
-          processingFiles: folderFiles.filter(f => f.processingStatus === 'processing').length,
+          processedFiles: folderFiles.filter(
+            (f) => f.processingStatus === "completed",
+          ).length,
+          errorFiles: folderFiles.filter((f) => f.processingStatus === "error")
+            .length,
+          transcribedFiles: applyFilter(
+            folderFiles.filter((f) => filter === "transcribed"),
+          ).length,
+          pendingFiles: folderFiles.filter(
+            (f) => f.processingStatus === "pending",
+          ).length,
+          processingFiles: folderFiles.filter(
+            (f) => f.processingStatus === "processing",
+          ).length,
           filteredFiles: filteredFiles.length,
-          folderName: folder?.name || 'Unknown'
+          folderName: folder?.name || "Unknown",
         };
       }
-      
+
       res.json(folderCounts);
     } catch (error) {
       console.error("Error getting folder file counts:", error);
@@ -3172,9 +3677,11 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const userId = "demo-user";
       const { fileId } = req.params;
-      const { folderId } = z.object({
-        folderId: z.string().nullable(),
-      }).parse(req.body);
+      const { folderId } = z
+        .object({
+          folderId: z.string().nullable(),
+        })
+        .parse(req.body);
 
       await storage.moveFileToFolder(fileId, folderId, userId);
       res.status(204).send();
@@ -3188,57 +3695,64 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
   app.post("/api/files/backfill-dual-storage", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
+
       // Get all files that don't have BYTEA data yet
       // Get files that could benefit from BYTEA caching (≤10MB without file_content)
-      const filesToBackfill = await storage.getFiles(userId, 100).then(files => 
-        files.filter(f => f.size <= 10 * 1024 * 1024 && !f.fileContent)
-      );
-      
+      const filesToBackfill = await storage
+        .getFiles(userId, 100)
+        .then((files) =>
+          files.filter((f) => f.size <= 10 * 1024 * 1024 && !f.fileContent),
+        );
+
       if (filesToBackfill.length === 0) {
-        return res.json({ message: "All files already have dual storage", count: 0 });
+        return res.json({
+          message: "All files already have dual storage",
+          count: 0,
+        });
       }
-      
+
       console.log(`Starting backfill for ${filesToBackfill.length} files...`);
-      
+
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
-      
+
       for (const file of filesToBackfill) {
         try {
-          console.log(`Backfilling file: ${file.originalName} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-          
+          console.log(
+            `Backfilling file: ${file.originalName} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
+          );
+
           // Download from cloud storage
-          const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+          const objectFile = await objectStorageService.getObjectEntityFile(
+            file.objectPath,
+          );
           const [fileData] = await objectFile.download();
-          
+
           // Store in database
           await storage.updateFileData(file.id, userId, fileData);
           // Storage type is now automatically hybrid for all files
-          
+
           successCount++;
           console.log(`✓ Backfilled: ${file.originalName}`);
-          
         } catch (error: any) {
           errorCount++;
-          const errorMsg = `Failed to backfill ${file.originalName}: ${error?.message || 'Unknown error'}`;
+          const errorMsg = `Failed to backfill ${file.originalName}: ${error?.message || "Unknown error"}`;
           errors.push(errorMsg);
           console.error(errorMsg);
         }
       }
-      
+
       const result = {
         message: `Backfill completed: ${successCount} successful, ${errorCount} failed`,
         successful: successCount,
         failed: errorCount,
         total: filesToBackfill.length,
-        errors: errors
+        errors: errors,
       };
-      
+
       console.log("Backfill summary:", result);
       res.json(result);
-      
     } catch (error) {
       console.error("Error in backfill operation:", error);
       res.status(500).json({ error: "Failed to backfill dual storage" });
@@ -3249,7 +3763,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
   app.get("/api/files/problematic", async (req: any, res) => {
     try {
       const userId = "demo-user";
-      
+
       // Find files with poor extraction quality
       const allFiles = await db
         .select({
@@ -3259,39 +3773,43 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
           processingStatus: files.processingStatus,
           googleDriveId: files.googleDriveId,
           extractedText: fileMetadata.extractedText,
-          summary: fileMetadata.summary
+          summary: fileMetadata.summary,
         })
         .from(files)
         .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
         .where(eq(files.userId, userId));
-      
-      const problematicFiles = allFiles.filter(file => {
+
+      const problematicFiles = allFiles.filter((file) => {
         // Check if file has placeholder text or empty extraction
-        const hasPlaceholderText = file.extractedText && 
-          (file.extractedText.startsWith('File reference:') || 
-           file.extractedText.length < 50);
-        
+        const hasPlaceholderText =
+          file.extractedText &&
+          (file.extractedText.startsWith("File reference:") ||
+            file.extractedText.length < 50);
+
         // Check if file is marked as completed but has poor extraction
-        const isPoorlyProcessed = file.processingStatus === 'completed' && 
+        const isPoorlyProcessed =
+          file.processingStatus === "completed" &&
           (!file.extractedText || hasPlaceholderText);
-        
+
         // Check if it's a Google Drive file that might need re-downloading
         const isGoogleDriveFile = !!file.googleDriveId;
-        
+
         return isPoorlyProcessed || (hasPlaceholderText && isGoogleDriveFile);
       });
-      
+
       res.json({
         total: problematicFiles.length,
         files: problematicFiles,
         categories: {
-          placeholderText: problematicFiles.filter(f => 
-            f.extractedText?.startsWith('File reference:')).length,
-          emptyExtraction: problematicFiles.filter(f => 
-            !f.extractedText || f.extractedText.length < 50).length,
-          googleDriveFiles: problematicFiles.filter(f => 
-            f.googleDriveId).length
-        }
+          placeholderText: problematicFiles.filter((f) =>
+            f.extractedText?.startsWith("File reference:"),
+          ).length,
+          emptyExtraction: problematicFiles.filter(
+            (f) => !f.extractedText || f.extractedText.length < 50,
+          ).length,
+          googleDriveFiles: problematicFiles.filter((f) => f.googleDriveId)
+            .length,
+        },
       });
     } catch (error) {
       console.error("Error finding problematic files:", error);
@@ -3304,9 +3822,9 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const userId = "demo-user";
       const { fileIds, fixAll = false } = req.body;
-      
+
       let filesToFix = [];
-      
+
       if (fixAll) {
         // Get all problematic files
         const allFiles = await db
@@ -3314,51 +3832,54 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
             id: files.id,
             filename: files.filename,
             googleDriveId: files.googleDriveId,
-            extractedText: fileMetadata.extractedText
+            extractedText: fileMetadata.extractedText,
           })
           .from(files)
           .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
           .where(eq(files.userId, userId));
-        
-        filesToFix = allFiles.filter(file => {
-          const hasPlaceholderText = file.extractedText && 
-            (file.extractedText.startsWith('File reference:') || 
-             file.extractedText.length < 50);
-          return hasPlaceholderText;
-        }).map(f => f.id);
+
+        filesToFix = allFiles
+          .filter((file) => {
+            const hasPlaceholderText =
+              file.extractedText &&
+              (file.extractedText.startsWith("File reference:") ||
+                file.extractedText.length < 50);
+            return hasPlaceholderText;
+          })
+          .map((f) => f.id);
       } else if (fileIds && Array.isArray(fileIds)) {
         filesToFix = fileIds;
       }
-      
+
       if (filesToFix.length === 0) {
         return res.status(400).json({ error: "No files to fix" });
       }
-      
+
       // Update files to pending for re-processing
       const updatedFiles = [];
       for (const fileId of filesToFix) {
         const [file] = await db
           .update(files)
-          .set({ 
-            processingStatus: 'pending',
-            processingError: null
+          .set({
+            processingStatus: "pending",
+            processingError: null,
           })
           .where(eq(files.id, fileId))
           .returning();
-        
+
         if (file) {
           updatedFiles.push(file);
           console.log(`Queued ${file.filename} for proper processing`);
         }
       }
-      
-      res.json({ 
+
+      res.json({
         message: `Queued ${updatedFiles.length} problematic files for re-processing`,
-        files: updatedFiles.map(f => ({
+        files: updatedFiles.map((f) => ({
           id: f.id,
           filename: f.filename,
-          status: f.processingStatus
-        }))
+          status: f.processingStatus,
+        })),
       });
     } catch (error) {
       console.error("Error fixing problematic files:", error);
@@ -3371,47 +3892,52 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
     try {
       const { folderIds = [] } = req.body;
       const userId = "demo-user";
-      
+
       // Get all files
       const allFiles = await storage.getFiles(userId, 1000);
-      
+
       let filesToReprocess = [];
-      
+
       if (folderIds.length > 0) {
         // Get all folder IDs including subfolders
-        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+        const getAllSubfolderIds = async (
+          parentIds: string[],
+        ): Promise<string[]> => {
           let allFolderIds = [...parentIds];
           const folders = await storage.getAllFolders(userId);
-          
+
           for (const parentId of parentIds) {
-            const subfolders = folders.filter(f => f.parentId === parentId);
+            const subfolders = folders.filter((f) => f.parentId === parentId);
             if (subfolders.length > 0) {
-              const subfolderIds = subfolders.map(f => f.id);
+              const subfolderIds = subfolders.map((f) => f.id);
               allFolderIds = [...allFolderIds, ...subfolderIds];
               const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
               allFolderIds = [...allFolderIds, ...deeperSubfolders];
             }
           }
-          
+
           return Array.from(new Set(allFolderIds));
         };
-        
+
         const allFolderIds = await getAllSubfolderIds(folderIds);
-        filesToReprocess = allFiles.filter(file => 
-          file.processingStatus === "error" && 
-          file.folderId && 
-          allFolderIds.includes(file.folderId)
+        filesToReprocess = allFiles.filter(
+          (file) =>
+            file.processingStatus === "error" &&
+            file.folderId &&
+            allFolderIds.includes(file.folderId),
         );
       } else {
         // Reprocess all error files
-        filesToReprocess = allFiles.filter(file => file.processingStatus === "error");
+        filesToReprocess = allFiles.filter(
+          (file) => file.processingStatus === "error",
+        );
       }
-      
+
       console.log(`Found ${filesToReprocess.length} files to reprocess`);
-      
+
       let successCount = 0;
       let errorCount = 0;
-      
+
       for (const file of filesToReprocess) {
         try {
           await storage.updateFileProcessingStatus(file.id, "pending", userId);
@@ -3422,14 +3948,13 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
           console.error(`Failed to queue ${file.originalName}:`, error);
         }
       }
-      
+
       res.json({
         message: `Reprocessing queued: ${successCount} files`,
         success: successCount,
         failed: errorCount,
-        total: filesToReprocess.length
+        total: filesToReprocess.length,
       });
-      
     } catch (error) {
       console.error("Error reprocessing files:", error);
       res.status(500).json({ error: "Failed to reprocess error files" });
@@ -3446,27 +3971,33 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
 
       // Collect content from selected files and folders
       let contentSources: string[] = [];
-      
+
       // Add additional context if provided
       if (additionalContext && additionalContext.trim()) {
         contentSources.push(`Additional Context: ${additionalContext.trim()}`);
       }
-      
+
       // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
         const files = await storage.getFiles(userId, 1000); // Increased limit
-        const selectedFiles = files.filter(file => fileIds.includes(file.id));
-        
-        console.log(`Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
-        
+        const selectedFiles = files.filter((file) => fileIds.includes(file.id));
+
+        console.log(
+          `Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`,
+        );
+
         for (const file of selectedFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
               // Include content regardless of processing status if we have extracted text
-              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              contentSources.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             } else if (file.processingStatus === "error") {
-              console.log(`File ${file.originalName} is in error status with no extracted text`);
+              console.log(
+                `File ${file.originalName} is in error status with no extracted text`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -3477,42 +4008,48 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       // Get content from selected folders - including subfolders recursively
       if (folderIds.length > 0) {
         const allFiles = await storage.getFiles(userId, 1000); // Get more files
-        
+
         // Function to get all folder IDs recursively
-        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+        const getAllSubfolderIds = async (
+          parentIds: string[],
+        ): Promise<string[]> => {
           let allFolderIds = [...parentIds];
           const folders = await storage.getAllFolders(userId);
-          
+
           for (const parentId of parentIds) {
-            const subfolders = folders.filter(f => f.parentId === parentId);
+            const subfolders = folders.filter((f) => f.parentId === parentId);
             if (subfolders.length > 0) {
-              const subfolderIds = subfolders.map(f => f.id);
+              const subfolderIds = subfolders.map((f) => f.id);
               allFolderIds = [...allFolderIds, ...subfolderIds];
               // Recursively get subfolders of subfolders
               const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
               allFolderIds = [...allFolderIds, ...deeperSubfolders];
             }
           }
-          
+
           return Array.from(new Set(allFolderIds)); // Remove duplicates
         };
-        
+
         // Get all folder IDs including subfolders
         const allFolderIds = await getAllSubfolderIds(folderIds);
-        console.log(`Processing ${allFolderIds.length} folders (including subfolders)`);
-        
-        const folderFiles = allFiles.filter(file => 
-          file.folderId && allFolderIds.includes(file.folderId)
+        console.log(
+          `Processing ${allFolderIds.length} folders (including subfolders)`,
         );
-        
+
+        const folderFiles = allFiles.filter(
+          (file) => file.folderId && allFolderIds.includes(file.folderId),
+        );
+
         console.log(`Found ${folderFiles.length} files in selected folders`);
-        
+
         for (const file of folderFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
               // Include content regardless of processing status if we have extracted text
-              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              contentSources.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -3524,21 +4061,22 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
 
       // If no content found, return error with helpful message
       if (contentSources.length === 0) {
-        return res.status(400).json({ 
-          error: "No content found in selected files or folders. Please select files or folders that have content, or try processing them again." 
+        return res.status(400).json({
+          error:
+            "No content found in selected files or folders. Please select files or folders that have content, or try processing them again.",
         });
       }
 
       // Combine all content for context
       const combinedContent = contentSources.join("\n\n---\n\n");
-      
+
       // Generate structured lesson prompts using AI Provider
       const { AIProviderService } = await import("./aiProvider");
       const aiProvider = new AIProviderService();
-      
+
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -3583,7 +4121,7 @@ CRITICAL: Each generated prompt MUST explicitly include the required output form
 - Warm-up prompt must include: "Generate your response as flashcards with front and back content for each card."
 - Content prompt must include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
 - Practice prompt must include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
-- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`
+- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`,
           },
           {
             role: "user",
@@ -3600,12 +4138,12 @@ MANDATORY: Each prompt you generate MUST include explicit output format instruct
 - Practice prompt MUST include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
 - Homework prompt MUST include: "Generate your response as quiz questions with answer keys included."
 
-Do not forget to include these format specifications in each individual prompt you create.`
-          }
+Do not forget to include these format specifications in each individual prompt you create.`,
+          },
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
-        max_tokens: 3000
+        max_tokens: 3000,
       });
 
       const result = completion.choices[0].message.content;
@@ -3614,13 +4152,13 @@ Do not forget to include these format specifications in each individual prompt y
       }
 
       const parsedResult = JSON.parse(result);
-      
+
       res.json(parsedResult);
     } catch (error) {
       console.error("Error generating lesson prompts:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate lesson prompts",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -3628,30 +4166,43 @@ Do not forget to include these format specifications in each individual prompt y
   // Generate consolidated teacher agent prompt
   app.post("/api/generate-teacher-prompt", async (req: any, res) => {
     try {
-      const { fileIds = [], folderIds = [], additionalContext, courseTitle, targetAudience, provider = 'openai' } = req.body;
+      const {
+        fileIds = [],
+        folderIds = [],
+        additionalContext,
+        courseTitle,
+        targetAudience,
+        provider = "openai",
+      } = req.body;
 
       const userId = "demo-user";
       let contentSources: string[] = [];
-      
+
       if (additionalContext && additionalContext.trim()) {
         contentSources.push(`Additional Context: ${additionalContext.trim()}`);
       }
-      
+
       // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
         const files = await storage.getFiles(userId, 1000); // Increased limit
-        const selectedFiles = files.filter(file => fileIds.includes(file.id));
-        
-        console.log(`Teacher prompt: Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
-        
+        const selectedFiles = files.filter((file) => fileIds.includes(file.id));
+
+        console.log(
+          `Teacher prompt: Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`,
+        );
+
         for (const file of selectedFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
               // Include content regardless of processing status if we have extracted text
-              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              contentSources.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             } else if (file.processingStatus === "error") {
-              console.log(`File ${file.originalName} is in error status with no extracted text`);
+              console.log(
+                `File ${file.originalName} is in error status with no extracted text`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -3662,42 +4213,50 @@ Do not forget to include these format specifications in each individual prompt y
       // Get content from selected folders - including subfolders recursively
       if (folderIds.length > 0) {
         const allFiles = await storage.getFiles(userId, 1000); // Get more files
-        
+
         // Function to get all folder IDs recursively
-        const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+        const getAllSubfolderIds = async (
+          parentIds: string[],
+        ): Promise<string[]> => {
           let allFolderIds = [...parentIds];
           const folders = await storage.getAllFolders(userId);
-          
+
           for (const parentId of parentIds) {
-            const subfolders = folders.filter(f => f.parentId === parentId);
+            const subfolders = folders.filter((f) => f.parentId === parentId);
             if (subfolders.length > 0) {
-              const subfolderIds = subfolders.map(f => f.id);
+              const subfolderIds = subfolders.map((f) => f.id);
               allFolderIds = [...allFolderIds, ...subfolderIds];
               // Recursively get subfolders of subfolders
               const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
               allFolderIds = [...allFolderIds, ...deeperSubfolders];
             }
           }
-          
+
           return Array.from(new Set(allFolderIds)); // Remove duplicates
         };
-        
+
         // Get all folder IDs including subfolders
         const allFolderIds = await getAllSubfolderIds(folderIds);
-        console.log(`Teacher prompt: Processing ${allFolderIds.length} folders (including subfolders)`);
-        
-        const folderFiles = allFiles.filter(file => 
-          file.folderId && allFolderIds.includes(file.folderId)
+        console.log(
+          `Teacher prompt: Processing ${allFolderIds.length} folders (including subfolders)`,
         );
-        
-        console.log(`Teacher prompt: Found ${folderFiles.length} files in selected folders`);
-        
+
+        const folderFiles = allFiles.filter(
+          (file) => file.folderId && allFolderIds.includes(file.folderId),
+        );
+
+        console.log(
+          `Teacher prompt: Found ${folderFiles.length} files in selected folders`,
+        );
+
         for (const file of folderFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
               // Include content regardless of processing status if we have extracted text
-              contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              contentSources.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -3705,42 +4264,55 @@ Do not forget to include these format specifications in each individual prompt y
         }
       }
 
-      console.log(`Teacher prompt: Total content sources found: ${contentSources.length}`);
+      console.log(
+        `Teacher prompt: Total content sources found: ${contentSources.length}`,
+      );
 
       if (contentSources.length === 0) {
-        return res.status(400).json({ 
-          error: "No content found in selected files or folders. Please select files or folders that have content, or try processing them again." 
+        return res.status(400).json({
+          error:
+            "No content found in selected files or folders. Please select files or folders that have content, or try processing them again.",
         });
       }
 
       const combinedContent = contentSources.join("\n\n---\n\n");
-      
+
       // Get list of selected files and folders for the prompt display
       let filesList: string[] = [];
       let foldersList: string[] = [];
-      
+
       if (fileIds.length > 0) {
         const allFiles = await storage.getFiles(userId, 100);
         const selectedFileNames = allFiles
-          .filter(file => fileIds.includes(file.id) && file.processingStatus === "completed")
-          .map(file => `• ${file.originalName}`);
+          .filter(
+            (file) =>
+              fileIds.includes(file.id) &&
+              file.processingStatus === "completed",
+          )
+          .map((file) => `• ${file.originalName}`);
         filesList = selectedFileNames;
-        console.log(`Selected files for prompt: ${filesList.length} files`, filesList);
+        console.log(
+          `Selected files for prompt: ${filesList.length} files`,
+          filesList,
+        );
       }
-      
+
       if (folderIds.length > 0) {
         const allFolders = await storage.getAllFolders(userId);
         const selectedFolderNames = allFolders
-          .filter(folder => folderIds.includes(folder.id))
-          .map(folder => `• ${folder.name}`);
+          .filter((folder) => folderIds.includes(folder.id))
+          .map((folder) => `• ${folder.name}`);
         foldersList = selectedFolderNames;
-        console.log(`Selected folders for prompt: ${foldersList.length} folders`, foldersList);
+        console.log(
+          `Selected folders for prompt: ${foldersList.length} folders`,
+          foldersList,
+        );
       }
-      
-      // Generate comprehensive teacher agent prompt (for display)
-      const teacherPrompt = `# Master Teacher Agent for: ${courseTitle || 'Educational Course'}
 
-## Target Audience: ${targetAudience || 'General learners'}
+      // Generate comprehensive teacher agent prompt (for display)
+      const teacherPrompt = `# Master Teacher Agent for: ${courseTitle || "Educational Course"}
+
+## Target Audience: ${targetAudience || "General learners"}
 
 You are an experienced educator designing a complete course structure. Based on the provided content, you will act as a comprehensive teacher agent that creates educational materials across 5 key sections.
 
@@ -3778,8 +4350,8 @@ Your course should follow this 5-section structure:
 - **Output Format: Quiz questions with detailed answer keys** included
 
 ## Content Source Material:
-${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}\n` : ''}
-${filesList.length === 0 && foldersList.length === 0 && !additionalContext ? 'No specific files or folders selected.' : ''}
+${filesList.length > 0 ? `**Files:**\n${filesList.join("\n")}\n\n` : ""}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join("\n")}\n\n` : ""}${additionalContext ? `**Additional Context:**\n${additionalContext}\n` : ""}
+${filesList.length === 0 && foldersList.length === 0 && !additionalContext ? "No specific files or folders selected." : ""}
 
 ## Instructions for Teacher Agent:
 1. Analyze all provided content thoroughly
@@ -3804,18 +4376,18 @@ When you generate content, make it practical, engaging, and directly connected t
 
       // Create the full prompt with actual content for execution
       const teacherPromptWithContent = teacherPrompt.replace(
-        `## Content Source Material:\n${filesList.length > 0 ? `**Files:**\n${filesList.join('\n')}\n` : ''}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join('\n')}\n` : ''}${additionalContext ? `**Additional Context:**\n${additionalContext}` : ''}`,
-        `## Content Source Material:\n${combinedContent}`
+        `## Content Source Material:\n${filesList.length > 0 ? `**Files:**\n${filesList.join("\n")}\n` : ""}${foldersList.length > 0 ? `**Folders:**\n${foldersList.join("\n")}\n` : ""}${additionalContext ? `**Additional Context:**\n${additionalContext}` : ""}`,
+        `## Content Source Material:\n${combinedContent}`,
       );
 
       // Generate pre-filled sections using OpenAI
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
+
       const sectionPrompt = `Based on the following content, create a structured course with 5 sections. Provide specific, detailed content for each section.
 
-Course Title: ${courseTitle || 'Educational Course'}
-Target Audience: ${targetAudience || 'General learners'}
+Course Title: ${courseTitle || "Educational Course"}
+Target Audience: ${targetAudience || "General learners"}
 
 Content to base the course on:
 ${combinedContent.substring(0, 3000)} // Limit content to avoid token limits
@@ -3843,69 +4415,79 @@ Please provide content for each section in the following format:
           messages: [
             {
               role: "system",
-              content: "You are a master teacher creating structured lesson content. Provide specific, actionable content for each section based on the provided materials. Be detailed and practical."
+              content:
+                "You are a master teacher creating structured lesson content. Provide specific, actionable content for each section based on the provided materials. Be detailed and practical.",
             },
             {
               role: "user",
-              content: sectionPrompt
-            }
+              content: sectionPrompt,
+            },
           ],
           temperature: 0.7,
-          max_tokens: 2000
+          max_tokens: 2000,
         });
 
         const generatedContent = completion.choices[0].message.content || "";
-        
+
         // Parse the generated content into sections
         const sections = {
           introduction: "",
           warmup: "",
           mainContent: "",
           practice: "",
-          wrapup: ""
+          wrapup: "",
         };
-        
+
         // Extract content for each section
-        const introMatch = generatedContent.match(/##\s*Introduction\s*\n([\s\S]*?)(?=##\s*Warm-up|$)/i);
-        const warmupMatch = generatedContent.match(/##\s*Warm-up.*?\n([\s\S]*?)(?=##\s*Main\s*Content|$)/i);
-        const mainMatch = generatedContent.match(/##\s*Main\s*Content\s*\n([\s\S]*?)(?=##\s*Practice|$)/i);
-        const practiceMatch = generatedContent.match(/##\s*Practice.*?\n([\s\S]*?)(?=##\s*Wrap-up|$)/i);
-        const wrapupMatch = generatedContent.match(/##\s*Wrap-up.*?\n([\s\S]*?)$/i);
-        
+        const introMatch = generatedContent.match(
+          /##\s*Introduction\s*\n([\s\S]*?)(?=##\s*Warm-up|$)/i,
+        );
+        const warmupMatch = generatedContent.match(
+          /##\s*Warm-up.*?\n([\s\S]*?)(?=##\s*Main\s*Content|$)/i,
+        );
+        const mainMatch = generatedContent.match(
+          /##\s*Main\s*Content\s*\n([\s\S]*?)(?=##\s*Practice|$)/i,
+        );
+        const practiceMatch = generatedContent.match(
+          /##\s*Practice.*?\n([\s\S]*?)(?=##\s*Wrap-up|$)/i,
+        );
+        const wrapupMatch = generatedContent.match(
+          /##\s*Wrap-up.*?\n([\s\S]*?)$/i,
+        );
+
         if (introMatch) sections.introduction = introMatch[1].trim();
         if (warmupMatch) sections.warmup = warmupMatch[1].trim();
         if (mainMatch) sections.mainContent = mainMatch[1].trim();
         if (practiceMatch) sections.practice = practiceMatch[1].trim();
         if (wrapupMatch) sections.wrapup = wrapupMatch[1].trim();
-        
+
         // Update the teacher prompt with the generated sections content
         const updatedTeacherPrompt = generatedContent;
-        
-        res.json({ 
+
+        res.json({
           teacherPrompt: updatedTeacherPrompt, // Now contains the generated sections
           teacherPromptWithContent: teacherPromptWithContent, // Full prompt for execution
-          courseTitle: courseTitle || 'Educational Course',
-          targetAudience: targetAudience || 'General learners',
+          courseTitle: courseTitle || "Educational Course",
+          targetAudience: targetAudience || "General learners",
           contentSourcesCount: contentSources.length,
-          sections: sections // Send parsed sections for the UI
+          sections: sections, // Send parsed sections for the UI
         });
       } catch (openaiError) {
         console.error("Error generating sections with OpenAI:", openaiError);
         // Fallback to original response if OpenAI fails
-        res.json({ 
+        res.json({
           teacherPrompt,
           teacherPromptWithContent,
-          courseTitle: courseTitle || 'Educational Course',
-          targetAudience: targetAudience || 'General learners',
-          contentSourcesCount: contentSources.length
+          courseTitle: courseTitle || "Educational Course",
+          targetAudience: targetAudience || "General learners",
+          contentSourcesCount: contentSources.length,
         });
       }
-
     } catch (error) {
       console.error("Error generating teacher prompt:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate teacher prompt",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -3913,30 +4495,30 @@ Please provide content for each section in the following format:
   // Execute teacher agent prompt
   app.post("/api/execute-teacher-prompt", async (req: any, res) => {
     try {
-      const { teacherPrompt, provider = 'openai' } = req.body;
-      
+      const { teacherPrompt, provider = "openai" } = req.body;
+
       const { AIProviderService } = await import("./aiProvider");
       const aiProvider = new AIProviderService();
-      
-      const systemPrompt = "You are a master teacher and curriculum designer with expertise in creating comprehensive educational experiences. Generate complete, structured educational content following the specified format requirements.";
-      
+
+      const systemPrompt =
+        "You are a master teacher and curriculum designer with expertise in creating comprehensive educational experiences. Generate complete, structured educational content following the specified format requirements.";
+
       // Set the provider
       aiProvider.setDefaultProvider(provider as "openai" | "dify");
-      
+
       const result = await aiProvider.chatWithFiles(
         [{ role: "user" as "user", content: teacherPrompt }],
         [], // No files
         systemPrompt,
-        "demo-user"
+        "demo-user",
       );
 
       res.json({ content: result });
-
     } catch (error) {
       console.error("Error executing teacher prompt:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to execute teacher prompt",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -3944,15 +4526,22 @@ Please provide content for each section in the following format:
   // Chat with teacher agent
   app.post("/api/chat-teacher-agent", async (req: any, res) => {
     try {
-      const { message, chatHistory = [], teacherContext, fileIds = [], folderIds = [], provider = 'openai' } = req.body;
-      
+      const {
+        message,
+        chatHistory = [],
+        teacherContext,
+        fileIds = [],
+        folderIds = [],
+        provider = "openai",
+      } = req.body;
+
       // Get actual file and folder content if provided
       let fileContent = "";
       let folderContent = "";
-      
+
       if (fileIds.length > 0 || folderIds.length > 0) {
         const userId = "demo-user"; // Use hardcoded user ID like other routes
-        
+
         // Get files content
         if (fileIds.length > 0) {
           const selectedFiles = await storage.getFilesByIds(fileIds, userId);
@@ -3963,11 +4552,14 @@ Please provide content for each section in the following format:
             }
           }
         }
-        
-        // Get folder files content  
+
+        // Get folder files content
         if (folderIds.length > 0) {
           for (const folderId of folderIds) {
-            const folderFiles = await storage.getFilesByFolder(folderId, userId);
+            const folderFiles = await storage.getFilesByFolder(
+              folderId,
+              userId,
+            );
             for (const file of folderFiles) {
               const metadata = await storage.getFileMetadata(file.id, userId);
               if (metadata?.extractedText) {
@@ -3977,7 +4569,7 @@ Please provide content for each section in the following format:
           }
         }
       }
-      
+
       // Build conversation history
       const messages = [
         {
@@ -4019,7 +4611,9 @@ When teaching or responding:
 - Flow naturally through the material with specific questions to check understanding
 - End with specific questions for students to ponder: "Think about how [concept] applies to [real scenario]"
 
-${teacherContext ? `Current Course Context and Materials:
+${
+  teacherContext
+    ? `Current Course Context and Materials:
 ${teacherContext}
 
 You have full access to all the content from the selected files and folders. You can:
@@ -4027,66 +4621,67 @@ You have full access to all the content from the selected files and folders. You
 - Quote directly from the source documents when relevant
 - Explain concepts using the exact terminology from the files
 - Draw connections between different parts of the materials
-- Answer questions about any specific details in the documents` : ''}
+- Answer questions about any specific details in the documents`
+    : ""
+}
 
-${fileContent ? `\nActual File Content:\n${fileContent}` : ''}
-${folderContent ? `\nActual Folder Content:\n${folderContent}` : ''}
+${fileContent ? `\nActual File Content:\n${fileContent}` : ""}
+${folderContent ? `\nActual Folder Content:\n${folderContent}` : ""}
 
 Remember: 
 - You're GIVING the lesson as a real teacher would, not explaining its structure
 - Ask DIRECT, SPECIFIC questions about the topic throughout your teaching
 - Mention supplementary materials you'll provide (flashcards, PowerPoint, quizzes) but don't actually create them
 - Base all your questions and examples on the actual content from the uploaded files/folders
-- Encourage active participation by asking students to answer your specific questions`
+- Encourage active participation by asking students to answer your specific questions`,
         },
         ...chatHistory.map((msg: any) => ({
           role: msg.role,
-          content: msg.content
+          content: msg.content,
         })),
         {
           role: "user",
-          content: message
-        }
+          content: message,
+        },
       ];
 
       // Use AI provider service instead of direct OpenAI
       const { AIProviderService } = await import("./aiProvider");
       const aiProvider = new AIProviderService();
-      
+
       // Build messages array for AI provider
       const aiMessages = [
         ...chatHistory.map((msg: any) => ({
           role: msg.role as "user" | "assistant",
-          content: msg.content
+          content: msg.content,
         })),
         {
           role: "user" as "user",
-          content: message
-        }
+          content: message,
+        },
       ];
-      
+
       const systemPrompt = messages[0].content; // Extract system prompt
-      
-      // Get file contents 
+
+      // Get file contents
       const fileContentArray = fileContent ? [fileContent] : [];
-      
+
       // Set the provider
       aiProvider.setDefaultProvider(provider as "openai" | "dify");
-      
+
       const result = await aiProvider.chatWithFiles(
         aiMessages,
         fileContentArray,
         systemPrompt,
-        "demo-user"
+        "demo-user",
       );
-      
-      res.json({ response: result });
 
+      res.json({ response: result });
     } catch (error) {
       console.error("Error chatting with teacher agent:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to chat with teacher agent",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -4095,19 +4690,19 @@ Remember:
   app.post("/api/teacher-chat-sessions", async (req: any, res) => {
     try {
       const userId = "demo-user"; // Use hardcoded user ID like other routes
-      const { 
-        title, 
-        courseTitle, 
+      const {
+        title,
+        courseTitle,
         targetAudience,
         teachingStyle,
-        expertiseSubject, 
-        teacherPrompt, 
+        expertiseSubject,
+        teacherPrompt,
         teacherContent,
         chatHistory,
         selectedFiles,
-        selectedFolders 
+        selectedFolders,
       } = req.body;
-      
+
       const session = await storage.saveTeacherChatSession({
         title,
         courseTitle,
@@ -4120,16 +4715,16 @@ Remember:
         selectedFiles,
         selectedFolders,
         isPublic: 0,
-        userId
+        userId,
       });
-      
+
       res.json(session);
     } catch (error) {
       console.error("Error saving chat session:", error);
       res.status(500).json({ error: "Failed to save chat session" });
     }
   });
-  
+
   // Get user's teacher chat sessions
   app.get("/api/teacher-chat-sessions", async (req: any, res) => {
     try {
@@ -4141,50 +4736,58 @@ Remember:
       res.status(500).json({ error: "Failed to get chat sessions" });
     }
   });
-  
+
   // Get shared teacher chat session
-  app.get("/api/teacher-chat-sessions/share/:shareId", async (req: any, res) => {
-    try {
-      const { shareId } = req.params;
-      const session = await storage.getTeacherChatSessionByShareId(shareId);
-      
-      if (!session || session.isPublic !== 1) {
-        return res.status(404).json({ error: "Session not found or not public" });
+  app.get(
+    "/api/teacher-chat-sessions/share/:shareId",
+    async (req: any, res) => {
+      try {
+        const { shareId } = req.params;
+        const session = await storage.getTeacherChatSessionByShareId(shareId);
+
+        if (!session || session.isPublic !== 1) {
+          return res
+            .status(404)
+            .json({ error: "Session not found or not public" });
+        }
+
+        res.json(session);
+      } catch (error) {
+        console.error("Error getting shared session:", error);
+        res.status(500).json({ error: "Failed to get shared session" });
       }
-      
-      res.json(session);
-    } catch (error) {
-      console.error("Error getting shared session:", error);
-      res.status(500).json({ error: "Failed to get shared session" });
-    }
-  });
-  
+    },
+  );
+
   // Update session sharing status
-  app.patch("/api/teacher-chat-sessions/:sessionId/share", async (req: any, res) => {
-    try {
-      const userId = "demo-user"; // Use hardcoded user ID like other routes
-      const { sessionId } = req.params;
-      const { isPublic } = req.body;
-      
-      const session = await storage.updateTeacherChatSessionSharing(
-        sessionId, 
-        userId, 
-        isPublic ? 1 : 0
-      );
-      
-      res.json(session);
-    } catch (error) {
-      console.error("Error updating session sharing:", error);
-      res.status(500).json({ error: "Failed to update session sharing" });
-    }
-  });
-  
+  app.patch(
+    "/api/teacher-chat-sessions/:sessionId/share",
+    async (req: any, res) => {
+      try {
+        const userId = "demo-user"; // Use hardcoded user ID like other routes
+        const { sessionId } = req.params;
+        const { isPublic } = req.body;
+
+        const session = await storage.updateTeacherChatSessionSharing(
+          sessionId,
+          userId,
+          isPublic ? 1 : 0,
+        );
+
+        res.json(session);
+      } catch (error) {
+        console.error("Error updating session sharing:", error);
+        res.status(500).json({ error: "Failed to update session sharing" });
+      }
+    },
+  );
+
   // Delete teacher chat session
   app.delete("/api/teacher-chat-sessions/:sessionId", async (req: any, res) => {
     try {
       const userId = "demo-user"; // Use hardcoded user ID like other routes
       const { sessionId } = req.params;
-      
+
       await storage.deleteTeacherChatSession(sessionId, userId);
       res.json({ success: true });
     } catch (error) {
@@ -4197,81 +4800,82 @@ Remember:
   app.post("/api/teacher-speak", async (req: any, res) => {
     try {
       const { text, voice = "alloy" } = req.body;
-      
+
       if (!text) {
         return res.status(400).json({ error: "Text is required" });
       }
-      
+
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
+
       const mp3 = await openai.audio.speech.create({
         model: "tts-1", // Using tts-1 for faster generation (not tts-1-hd)
         voice: voice as any,
         input: text,
-        speed: 1.0 // Normal speed on server, we'll speed up on client
+        speed: 1.0, // Normal speed on server, we'll speed up on client
       });
-      
+
       const buffer = Buffer.from(await mp3.arrayBuffer());
-      
+
       res.set({
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': buffer.length.toString(),
+        "Content-Type": "audio/mpeg",
+        "Content-Length": buffer.length.toString(),
       });
-      
+
       res.send(buffer);
-      
     } catch (error) {
       console.error("Error generating speech:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate speech",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Validation Reports API endpoints
-  
+
   // Create validation report from chat session
   app.post("/api/validation-reports/validate", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { PDFGenerator } = await import("./pdfGenerator");
       const { ValidationService } = await import("./validationService");
-      
-      const {
-        sessionId,
-        originalParameters,
-        chatHistory,
-        reportTitle
-      } = req.body;
-      
+
+      const { sessionId, originalParameters, chatHistory, reportTitle } =
+        req.body;
+
       if (!originalParameters || !chatHistory) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
-      
+
       // Extract parameters from chat session
-      const actualParameters = ValidationService.extractParametersFromChatSession(chatHistory);
-      
+      const actualParameters =
+        ValidationService.extractParametersFromChatSession(chatHistory);
+
       // If sessionId provided, also get session data
       if (sessionId) {
         const sessions = await storage.getUserTeacherChatSessions(userId);
-        const session = sessions.find(s => s.id === sessionId);
+        const session = sessions.find((s) => s.id === sessionId);
         if (session) {
           // Override with session data if available
-          if (session.courseTitle) actualParameters.courseTitle = session.courseTitle;
-          if (session.targetAudience) actualParameters.targetAudience = session.targetAudience;
-          if (session.teachingStyle) actualParameters.teachingStyle = session.teachingStyle;
-          if (session.expertiseSubject) actualParameters.expertiseSubject = session.expertiseSubject;
+          if (session.courseTitle)
+            actualParameters.courseTitle = session.courseTitle;
+          if (session.targetAudience)
+            actualParameters.targetAudience = session.targetAudience;
+          if (session.teachingStyle)
+            actualParameters.teachingStyle = session.teachingStyle;
+          if (session.expertiseSubject)
+            actualParameters.expertiseSubject = session.expertiseSubject;
         }
       }
-      
+
       // Compare parameters
-      const { deviations, complianceScore } = ValidationService.compareParameters(
-        originalParameters,
-        actualParameters
-      );
-      
+      const { deviations, complianceScore } =
+        ValidationService.compareParameters(
+          originalParameters,
+          actualParameters,
+        );
+
       // Create validation report
       const report = await storage.createValidationReport({
         userId,
@@ -4280,29 +4884,33 @@ Remember:
         actualParameters,
         deviations,
         complianceScore,
-        reportTitle: reportTitle || `Validation Report - ${new Date().toLocaleDateString()}`,
+        reportTitle:
+          reportTitle ||
+          `Validation Report - ${new Date().toLocaleDateString()}`,
         reportData: {
-          reportTitle: reportTitle || `Validation Report - ${new Date().toLocaleDateString()}`,
+          reportTitle:
+            reportTitle ||
+            `Validation Report - ${new Date().toLocaleDateString()}`,
           sessionId,
           originalParameters,
           actualParameters,
           deviations,
           complianceScore,
-          createdAt: new Date()
+          createdAt: new Date(),
         },
-        reportPdfPath: null // Will be generated on demand
+        reportPdfPath: null, // Will be generated on demand
       });
-      
+
       res.json(report);
     } catch (error) {
       console.error("Error creating validation report:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create validation report",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
-  
+
   // Get all validation reports for user
   app.get("/api/validation-reports", async (req: any, res) => {
     try {
@@ -4314,62 +4922,64 @@ Remember:
       res.status(500).json({ error: "Failed to get validation reports" });
     }
   });
-  
+
   // Get single validation report
   app.get("/api/validation-reports/:reportId", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { reportId } = req.params;
-      
+
       const report = await storage.getValidationReport(reportId, userId);
-      
+
       if (!report) {
         return res.status(404).json({ error: "Report not found" });
       }
-      
+
       res.json(report);
     } catch (error) {
       console.error("Error getting validation report:", error);
       res.status(500).json({ error: "Failed to get validation report" });
     }
   });
-  
+
   // Download validation report as PDF
   app.get("/api/validation-reports/:reportId/pdf", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { reportId } = req.params;
-      
+
       const report = await storage.getValidationReport(reportId, userId);
-      
+
       if (!report) {
         return res.status(404).json({ error: "Report not found" });
       }
-      
+
       const { PDFGenerator } = await import("./pdfGenerator");
-      
+
       // Generate PDF from report data
-      const pdfBuffer = await PDFGenerator.generateValidationReport(report.reportData as any);
-      
+      const pdfBuffer = await PDFGenerator.generateValidationReport(
+        report.reportData as any,
+      );
+
       res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="validation-report-${reportId}.pdf"`,
-        'Content-Length': pdfBuffer.length.toString()
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="validation-report-${reportId}.pdf"`,
+        "Content-Length": pdfBuffer.length.toString(),
       });
-      
+
       res.send(pdfBuffer);
     } catch (error) {
       console.error("Error generating PDF report:", error);
       res.status(500).json({ error: "Failed to generate PDF report" });
     }
   });
-  
+
   // Delete validation report
   app.delete("/api/validation-reports/:reportId", async (req: any, res) => {
     try {
       const userId = "demo-user";
       const { reportId } = req.params;
-      
+
       await storage.deleteValidationReport(reportId, userId);
       res.json({ success: true });
     } catch (error) {
@@ -4377,12 +4987,12 @@ Remember:
       res.status(500).json({ error: "Failed to delete validation report" });
     }
   });
-  
+
   // Test endpoint to validate a sample session
   app.post("/api/validation-reports/test", async (req: any, res) => {
     try {
       const { ValidationService } = await import("./validationService");
-      
+
       // Sample original parameters
       const originalParameters = {
         courseTitle: "Introduction to Algebra",
@@ -4391,30 +5001,40 @@ Remember:
         expertiseSubject: "mathematics",
         actionTypes: ["lecture", "discussion", "activity"],
         durations: [15, 20, 25],
-        difficultyLevels: ["beginner", "intermediate"]
+        difficultyLevels: ["beginner", "intermediate"],
       };
-      
+
       // Sample chat history (simulating actual usage)
       const chatHistory = [
         { role: "user", content: "Can you explain this concept?" },
-        { role: "assistant", content: "Let me provide a visual explanation of algebra concepts. For beginners, we'll start with basic equations. This will involve some hands-on activities and discussion." },
+        {
+          role: "assistant",
+          content:
+            "Let me provide a visual explanation of algebra concepts. For beginners, we'll start with basic equations. This will involve some hands-on activities and discussion.",
+        },
         { role: "user", content: "Can we make it more advanced?" },
-        { role: "assistant", content: "Sure! Let's move to intermediate level concepts. We'll include more analytical problems and advanced exercises." }
+        {
+          role: "assistant",
+          content:
+            "Sure! Let's move to intermediate level concepts. We'll include more analytical problems and advanced exercises.",
+        },
       ];
-      
+
       // Extract and compare
-      const actualParameters = ValidationService.extractParametersFromChatSession(chatHistory);
-      const { deviations, complianceScore } = ValidationService.compareParameters(
-        originalParameters,
-        actualParameters
-      );
-      
+      const actualParameters =
+        ValidationService.extractParametersFromChatSession(chatHistory);
+      const { deviations, complianceScore } =
+        ValidationService.compareParameters(
+          originalParameters,
+          actualParameters,
+        );
+
       res.json({
         originalParameters,
         actualParameters,
         deviations,
         complianceScore,
-        message: "Test validation completed successfully"
+        message: "Test validation completed successfully",
       });
     } catch (error) {
       console.error("Error in test validation:", error);
@@ -4423,150 +5043,172 @@ Remember:
   });
 
   // Excel file processing endpoints
-  
-  // Process uploaded Excel file
-  app.post("/api/excel/process", uploadDisk.single('file'), async (req: any, res) => {
-    try {
-      const userId = "demo-user";
-      
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
 
-      // Check if it's an Excel file
-      const validExtensions = ['.xlsx', '.xls', '.csv'];
-      const fileExtension = path.extname(req.file.originalname).toLowerCase();
-      
-      if (!validExtensions.includes(fileExtension)) {
-        // Clean up uploaded file
+  // Process uploaded Excel file
+  app.post(
+    "/api/excel/process",
+    uploadDisk.single("file"),
+    async (req: any, res) => {
+      try {
+        const userId = "demo-user";
+
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        // Check if it's an Excel file
+        const validExtensions = [".xlsx", ".xls", ".csv"];
+        const fileExtension = path.extname(req.file.originalname).toLowerCase();
+
+        if (!validExtensions.includes(fileExtension)) {
+          // Clean up uploaded file
+          if (req.file.path) {
+            fs.unlinkSync(req.file.path);
+          }
+          return res.status(400).json({
+            error:
+              "Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file",
+          });
+        }
+
+        console.log("Processing Excel file:", req.file.originalname);
+
+        // Import and use the fixed Excel processor
+        const { ExcelProcessorFixed } = await import("./excelProcessorFixed");
+        const processor = new ExcelProcessorFixed(userId);
+
+        // Process the Excel file with original filename
+        const result = await processor.processExcelFile(
+          req.file.path,
+          req.file.originalname,
+        );
+
+        // Clean up the uploaded file
         if (req.file.path) {
           fs.unlinkSync(req.file.path);
         }
-        return res.status(400).json({ 
-          error: "Invalid file type. Please upload an Excel file (.xlsx, .xls) or CSV file" 
-        });
-      }
 
-      console.log('Processing Excel file:', req.file.originalname);
-      
-      // Import and use the fixed Excel processor
-      const { ExcelProcessorFixed } = await import("./excelProcessorFixed");
-      const processor = new ExcelProcessorFixed(userId);
-      
-      // Process the Excel file with original filename
-      const result = await processor.processExcelFile(req.file.path, req.file.originalname);
-      
-      // Clean up the uploaded file
-      if (req.file.path) {
-        fs.unlinkSync(req.file.path);
-      }
-      
-      console.log('Excel processing complete:', result.summary);
-      
-      // Automatically trigger processing of all imported files
-      if (result.filesCreated && result.filesCreated > 0) {
-        console.log(`🚀 Auto-processing ${result.filesCreated} imported files from Excel...`);
-        
-        // Import the drive processor properly
-        const driveProcessor = await import('./driveFileProcessor');
-        
-        // Get ALL recently created files (not just ones with metadata)
-        const recentFiles = await db
-          .select({
-            id: files.id,
-            originalName: files.originalName,
-            userId: files.userId,
-            objectPath: files.objectPath
-          })
-          .from(files)
-          .where(
-            and(
-              eq(files.userId, userId),
-              eq(files.processingStatus, 'pending')
+        console.log("Excel processing complete:", result.summary);
+
+        // Automatically trigger processing of all imported files
+        if (result.filesCreated && result.filesCreated > 0) {
+          console.log(
+            `🚀 Auto-processing ${result.filesCreated} imported files from Excel...`,
+          );
+
+          // Import the drive processor properly
+          const driveProcessor = await import("./driveFileProcessor");
+
+          // Get ALL recently created files (not just ones with metadata)
+          const recentFiles = await db
+            .select({
+              id: files.id,
+              originalName: files.originalName,
+              userId: files.userId,
+              objectPath: files.objectPath,
+            })
+            .from(files)
+            .where(
+              and(
+                eq(files.userId, userId),
+                eq(files.processingStatus, "pending"),
+              ),
             )
-          )
-          .orderBy(desc(files.uploadedAt))
-          .limit(result.filesCreated);
-        
-        console.log(`Found ${recentFiles.length} Excel-imported files to process`);
-        
-        // Process files immediately
-        let processedCount = 0;
-        let failedCount = 0;
-        
-        // Process all files using driveFileProcessor for Google Drive files
-        for (const file of recentFiles) {
-          try {
-            console.log(`🔄 Processing: ${file.originalName}`);
-            
-            // Check if it's a Google Drive file
-            if (file.objectPath && file.objectPath.includes('drive.google.com')) {
-              // Use driveFileProcessor for Google Drive files
-              const success = await driveProcessor.driveFileProcessor.processFileById(file.id, file.userId);
-              if (success) {
-                processedCount++;
-                console.log(`✅ Processed Google Drive file: ${file.originalName}`);
+            .orderBy(desc(files.uploadedAt))
+            .limit(result.filesCreated);
+
+          console.log(
+            `Found ${recentFiles.length} Excel-imported files to process`,
+          );
+
+          // Process files immediately
+          let processedCount = 0;
+          let failedCount = 0;
+
+          // Process all files using driveFileProcessor for Google Drive files
+          for (const file of recentFiles) {
+            try {
+              console.log(`🔄 Processing: ${file.originalName}`);
+
+              // Check if it's a Google Drive file
+              if (
+                file.objectPath &&
+                file.objectPath.includes("drive.google.com")
+              ) {
+                // Use driveFileProcessor for Google Drive files
+                const success =
+                  await driveProcessor.driveFileProcessor.processFileById(
+                    file.id,
+                    file.userId,
+                  );
+                if (success) {
+                  processedCount++;
+                  console.log(
+                    `✅ Processed Google Drive file: ${file.originalName}`,
+                  );
+                } else {
+                  failedCount++;
+                  console.log(`❌ Failed to process: ${file.originalName}`);
+                }
               } else {
-                failedCount++;
-                console.log(`❌ Failed to process: ${file.originalName}`);
+                // Use regular processFileAsync for other files
+                await processFileAsync(file.id, file.userId);
+                processedCount++;
+                console.log(`✅ Processed regular file: ${file.originalName}`);
               }
-            } else {
-              // Use regular processFileAsync for other files
-              await processFileAsync(file.id, file.userId);
-              processedCount++;
-              console.log(`✅ Processed regular file: ${file.originalName}`);
+            } catch (error) {
+              console.error(`Failed to process ${file.originalName}:`, error);
+              failedCount++;
             }
-          } catch (error) {
-            console.error(`Failed to process ${file.originalName}:`, error);
-            failedCount++;
+          }
+
+          console.log(
+            `✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`,
+          );
+
+          // Start background processing for remaining files
+          if (recentFiles.length > processedCount) {
+            setTimeout(async () => {
+              console.log(`📦 Processing remaining files in background...`);
+              // Continue processing any remaining files that weren't processed in the loop
+            }, 1000);
+          }
+
+          res.json({
+            success: true,
+            ...result,
+            message: `Created ${result.filesCreated} files. Processing ${recentFiles.length} files with AI transcription...`,
+            processingStatus: {
+              total: result.filesCreated,
+              queued: recentFiles.length,
+              processing: true,
+            },
+          });
+        } else {
+          res.json({
+            success: true,
+            ...result,
+          });
+        }
+      } catch (error) {
+        console.error("Error processing Excel file:", error);
+
+        // Clean up uploaded file on error
+        if (req.file && req.file.path) {
+          try {
+            fs.unlinkSync(req.file.path);
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
           }
         }
-        
-        console.log(`✅ Excel auto-processing complete: ${processedCount} succeeded, ${failedCount} failed`);
-        
-        // Start background processing for remaining files
-        if (recentFiles.length > processedCount) {
-          setTimeout(async () => {
-            console.log(`📦 Processing remaining files in background...`);
-            // Continue processing any remaining files that weren't processed in the loop
-          }, 1000);
-        }
-        
-        res.json({
-          success: true,
-          ...result,
-          message: `Created ${result.filesCreated} files. Processing ${recentFiles.length} files with AI transcription...`,
-          processingStatus: {
-            total: result.filesCreated,
-            queued: recentFiles.length,
-            processing: true
-          }
-        });
-      } else {
-        res.json({
-          success: true,
-          ...result
+
+        res.status(500).json({
+          error: "Failed to process Excel file",
+          details: error instanceof Error ? error.message : "Unknown error",
         });
       }
-      
-    } catch (error) {
-      console.error("Error processing Excel file:", error);
-      
-      // Clean up uploaded file on error
-      if (req.file && req.file.path) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch (cleanupError) {
-          console.error("Error cleaning up file:", cleanupError);
-        }
-      }
-      
-      res.status(500).json({ 
-        error: "Failed to process Excel file",
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
+    },
+  );
 
   // Get Excel upload URL for client-side upload
   app.post("/api/excel/upload-url", async (req: any, res) => {
@@ -4585,28 +5227,30 @@ Remember:
     try {
       const userId = "demo-user";
       const { fileUrl, fileName } = req.body;
-      
+
       if (!fileUrl) {
         return res.status(400).json({ error: "No file URL provided" });
       }
 
       // Download the file first
-      const tempPath = path.join('/tmp', `excel-${nanoid()}.xlsx`);
-      
+      const tempPath = path.join("/tmp", `excel-${nanoid()}.xlsx`);
+
       // If it's an internal object storage URL, download it
       // Otherwise, fetch from external URL
-      if (fileUrl.startsWith('/objects/')) {
+      if (fileUrl.startsWith("/objects/")) {
         // Internal object storage - need to download
         const objectStorageService = new ObjectStorageService();
         // TODO: Implement download method
-        return res.status(501).json({ error: "Internal object download not yet implemented" });
+        return res
+          .status(501)
+          .json({ error: "Internal object download not yet implemented" });
       } else {
         // External URL - fetch it
         const response = await fetch(fileUrl);
         if (!response.ok) {
           throw new Error(`Failed to download file: ${response.statusText}`);
         }
-        
+
         const buffer = await response.arrayBuffer();
         fs.writeFileSync(tempPath, Buffer.from(buffer));
       }
@@ -4615,20 +5259,19 @@ Remember:
       const { ExcelProcessorFixed } = await import("./excelProcessorFixed");
       const processor = new ExcelProcessorFixed(userId);
       const result = await processor.processExcelFile(tempPath, fileName);
-      
+
       // Clean up
       fs.unlinkSync(tempPath);
-      
+
       res.json({
         success: true,
-        ...result
+        ...result,
       });
-      
     } catch (error) {
       console.error("Error processing Excel from URL:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to process Excel file from URL",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -4641,17 +5284,19 @@ Remember:
 
       // Collect all content from database as context
       let allContent: string[] = [];
-      
+
       // Get content from selected files and folders (same as before)
       if (fileIds.length > 0) {
         const files = await storage.getFiles(userId, 100);
-        const selectedFiles = files.filter(file => fileIds.includes(file.id));
-        
+        const selectedFiles = files.filter((file) => fileIds.includes(file.id));
+
         for (const file of selectedFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
-              allContent.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              allContent.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -4661,13 +5306,17 @@ Remember:
 
       if (folderIds.length > 0) {
         const files = await storage.getFiles(userId, 100);
-        const folderFiles = files.filter(file => file.folderId && folderIds.includes(file.folderId));
-        
+        const folderFiles = files.filter(
+          (file) => file.folderId && folderIds.includes(file.folderId),
+        );
+
         for (const file of folderFiles) {
           try {
             const metadata = await storage.getFileMetadata(file.id, userId);
             if (metadata?.extractedText) {
-              allContent.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+              allContent.push(
+                `File: ${file.originalName}\n${metadata.extractedText}`,
+              );
             }
           } catch (error) {
             console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -4677,13 +5326,21 @@ Remember:
 
       // Also get broader context from all processed files for richer content generation
       const allFiles = await storage.getFiles(userId, 50);
-      const processedFiles = allFiles.filter(f => f.processingStatus === 'completed');
-      
-      for (const file of processedFiles.slice(0, 10)) { // Limit to avoid token overflow
+      const processedFiles = allFiles.filter(
+        (f) => f.processingStatus === "completed",
+      );
+
+      for (const file of processedFiles.slice(0, 10)) {
+        // Limit to avoid token overflow
         try {
           const metadata = await storage.getFileMetadata(file.id, userId);
-          if (metadata?.extractedText && !allContent.some(content => content.includes(file.originalName))) {
-            allContent.push(`Reference File: ${file.originalName}\n${metadata.extractedText.substring(0, 2000)}`);
+          if (
+            metadata?.extractedText &&
+            !allContent.some((content) => content.includes(file.originalName))
+          ) {
+            allContent.push(
+              `Reference File: ${file.originalName}\n${metadata.extractedText.substring(0, 2000)}`,
+            );
           }
         } catch (error) {
           // Silent fail for reference content
@@ -4691,27 +5348,39 @@ Remember:
       }
 
       const combinedContent = allContent.join("\n\n---\n\n");
-      
+
       // Add format requirements to prompt if not already present
       const formatRequirements = {
-        'introduction': 'Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes.',
-        'content': 'Generate your response as PowerPoint slides with detailed slide content and speaker notes.',
-        'practice': 'Generate your response as quiz questions with multiple choice, true/false, or short answer format.',
-        'homework': 'Generate your response as quiz questions with answer keys included.',
-        'warmup': 'Generate your response as flashcards with front and back content for each card.'
+        introduction:
+          "Generate your response as PowerPoint slides with clear slide titles, bullet points, and speaker notes.",
+        content:
+          "Generate your response as PowerPoint slides with detailed slide content and speaker notes.",
+        practice:
+          "Generate your response as quiz questions with multiple choice, true/false, or short answer format.",
+        homework:
+          "Generate your response as quiz questions with answer keys included.",
+        warmup:
+          "Generate your response as flashcards with front and back content for each card.",
       };
-      
+
       let enhancedPrompt = prompt;
-      const requirement = formatRequirements[promptType as keyof typeof formatRequirements];
-      
-      if (requirement && !prompt.toLowerCase().includes('generate your response as') && !prompt.toLowerCase().includes('powerpoint') && !prompt.toLowerCase().includes('flashcard') && !prompt.toLowerCase().includes('quiz')) {
+      const requirement =
+        formatRequirements[promptType as keyof typeof formatRequirements];
+
+      if (
+        requirement &&
+        !prompt.toLowerCase().includes("generate your response as") &&
+        !prompt.toLowerCase().includes("powerpoint") &&
+        !prompt.toLowerCase().includes("flashcard") &&
+        !prompt.toLowerCase().includes("quiz")
+      ) {
         enhancedPrompt = `${prompt}\n\n${requirement}`;
       }
-      
+
       // Execute the prompt with OpenAI
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
@@ -4719,7 +5388,7 @@ Remember:
             role: "system",
             content: `You are executing a specialized lesson creation prompt. Use the provided content from the user's database to create high-quality educational material. Be specific, practical, and engaging. Reference the actual content when relevant.
 
-Your response should be well-formatted, detailed, and ready to use in an educational setting. Include specific examples, activities, or materials based on the content provided.`
+Your response should be well-formatted, detailed, and ready to use in an educational setting. Include specific examples, activities, or materials based on the content provided.`,
           },
           {
             role: "user",
@@ -4729,24 +5398,24 @@ Based on the following content from the database:
 
 ${combinedContent}
 
-Please generate detailed, specific lesson content following the prompt above.`
-          }
+Please generate detailed, specific lesson content following the prompt above.`,
+          },
         ],
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
       });
 
       const result = completion.choices[0].message.content;
       if (!result) {
         throw new Error("No response from OpenAI");
       }
-      
+
       res.json({ content: result });
     } catch (error) {
       console.error("Error executing lesson prompt:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to execute lesson prompt",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
@@ -4754,11 +5423,21 @@ Please generate detailed, specific lesson content following the prompt above.`
   // Avatar chat endpoint with natural voice synthesis
   app.post("/api/avatar-chat", async (req: any, res) => {
     try {
-      const { message, avatarId, personality, chatHistory = [], conversationContext, voiceEnabled = false, voiceModel = "alloy" } = req.body;
+      const {
+        message,
+        avatarId,
+        personality,
+        chatHistory = [],
+        conversationContext,
+        voiceEnabled = false,
+        voiceModel = "alloy",
+      } = req.body;
       const userId = "demo-user";
 
       if (!message || !avatarId || !personality) {
-        return res.status(400).json({ error: "Message, avatarId, and personality are required" });
+        return res
+          .status(400)
+          .json({ error: "Message, avatarId, and personality are required" });
       }
 
       const OpenAI = (await import("openai")).default;
@@ -4766,11 +5445,8 @@ Please generate detailed, specific lesson content following the prompt above.`
 
       // Process with oversight agent
       const { processWithOversight } = await import("./oversightAgent");
-      const { oversightInstructions, updatedContext } = await processWithOversight(
-        message,
-        chatHistory,
-        conversationContext
-      );
+      const { oversightInstructions, updatedContext } =
+        await processWithOversight(message, chatHistory, conversationContext);
 
       // Get user's file context for enhanced responses
       let fileContext = "";
@@ -4781,17 +5457,20 @@ Please generate detailed, specific lesson content following the prompt above.`
       try {
         // Get user statistics
         userStats = await storage.getFileStats(userId);
-        
+
         // Get recent files (last 10)
         recentFiles = await storage.getFiles(userId, 10, 0);
-        
+
         // Get file categories
         const rawCategories = await storage.getCategories(userId);
         categories = rawCategories.slice(0, 5); // Top 5 categories
 
         // Check if user is asking about specific files or wants to search
-        const isFileRelated = /(?:files?|documents?|search|find|uploaded|analyze|summary|content)/i.test(message);
-        
+        const isFileRelated =
+          /(?:files?|documents?|search|find|uploaded|analyze|summary|content)/i.test(
+            message,
+          );
+
         if (isFileRelated || userStats.totalFiles > 0) {
           fileContext = `
 User's File Library Context:
@@ -4801,22 +5480,34 @@ User's File Library Context:
 - Error Files: ${userStats.errorFiles}
 - Total Size: ${(userStats.totalSize / (1024 * 1024)).toFixed(1)}MB
 
-Top Categories: ${categories.map(c => `${c.category} (${c.count})`).join(", ")}
+Top Categories: ${categories.map((c) => `${c.category} (${c.count})`).join(", ")}
 
-Recent Files: ${recentFiles.slice(0, 5).map(f => `${f.originalName} (${f.mimeType})`).join(", ")}
+Recent Files: ${recentFiles
+            .slice(0, 5)
+            .map((f) => `${f.originalName} (${f.mimeType})`)
+            .join(", ")}
 
 Note: You can help users search, analyze, and manage their files. If they ask about specific content, suggest using the search feature or browsing their files.`;
         }
 
         // If the message seems like a search query, try to provide search results
         if (/(?:search|find|look for|where|what files)/i.test(message)) {
-          const searchTerms = message.replace(/(?:search|find|look for|where|what files|do I have)/gi, '').trim();
+          const searchTerms = message
+            .replace(
+              /(?:search|find|look for|where|what files|do I have)/gi,
+              "",
+            )
+            .trim();
           if (searchTerms.length > 2) {
             try {
-              const searchResults = await storage.searchFiles(searchTerms, userId, 5);
+              const searchResults = await storage.searchFiles(
+                searchTerms,
+                userId,
+                5,
+              );
               if (searchResults.length > 0) {
                 fileContext += `\n\nSearch Results for "${searchTerms}":
-${searchResults.map(f => `- ${f.originalName}: ${f.metadata?.summary || 'No summary available'}`).join('\n')}`;
+${searchResults.map((f) => `- ${f.originalName}: ${f.metadata?.summary || "No summary available"}`).join("\n")}`;
               }
             } catch (searchError) {
               console.log("Search error in avatar chat:", searchError);
@@ -4855,23 +5546,23 @@ IMPORTANT: Be natural and conversational. Avoid being robotic or overly formal. 
 - Sound human, not like a customer service bot
 
 When discussing files or documents, be helpful but conversational.
-Keep responses appropriately sized - usually 1-3 paragraphs unless asked for more.`
-        }
+Keep responses appropriately sized - usually 1-3 paragraphs unless asked for more.`,
+        },
       ];
 
       // Add recent chat history for context (limit to last 5 exchanges)
       const recentHistory = chatHistory.slice(-10);
       for (const msg of recentHistory) {
         conversationMessages.push({
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content
+          role: msg.role === "user" ? "user" : "assistant",
+          content: msg.content,
         });
       }
 
       // Add the current user message
       conversationMessages.push({
         role: "user",
-        content: message
+        content: message,
       });
 
       const completion = await openai.chat.completions.create({
@@ -4880,7 +5571,7 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
         temperature: 0.9, // Slightly higher for more natural variation
         max_tokens: 1000,
         presence_penalty: 0.1, // Encourage variety
-        frequency_penalty: 0.1 // Reduce repetition
+        frequency_penalty: 0.1, // Reduce repetition
       });
 
       const result = completion.choices[0].message.content;
@@ -4896,7 +5587,7 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
           // alloy: neutral and fast
           // echo: male voice
           // fable: British accent
-          // onyx: deep male voice  
+          // onyx: deep male voice
           // nova: female voice
           // shimmer: soft female voice
           const voiceResponse = await openai.audio.speech.create({
@@ -4904,60 +5595,64 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
             voice: voiceModel as any, // Use the selected voice model
             input: result,
             response_format: "mp3",
-            speed: 1.0 // Natural speaking speed
+            speed: 1.0, // Natural speaking speed
           });
 
           // Convert to base64 for easy transmission
           const audioBuffer = Buffer.from(await voiceResponse.arrayBuffer());
-          audioBase64 = audioBuffer.toString('base64');
+          audioBase64 = audioBuffer.toString("base64");
         } catch (voiceError) {
           console.error("Error generating voice:", voiceError);
           // Continue without voice if it fails
         }
       }
 
-      res.json({ 
+      res.json({
         response: result,
         audioData: audioBase64,
-        conversationContext: updatedContext 
+        conversationContext: updatedContext,
       });
     } catch (error) {
       console.error("Error in avatar chat:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to get avatar response",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });
 
   // Automatic background processing loop for pending files
   const startAutomaticProcessing = async () => {
-    console.log('🤖 Starting automatic file processing loop...');
-    
+    console.log("🤖 Starting automatic file processing loop...");
+
     const processPendingFiles = async () => {
       try {
         const userId = "demo-user";
-        
+
         // First, mark files stuck for >1 hour as error
-        const stuckFiles = await db.select()
+        const stuckFiles = await db
+          .select()
           .from(files)
           .where(
             and(
-              eq(files.processingStatus, 'processing'),
-              sql`${files.uploadedAt} < NOW() - INTERVAL '1 hour'`
-            )
+              eq(files.processingStatus, "processing"),
+              sql`${files.uploadedAt} < NOW() - INTERVAL '1 hour'`,
+            ),
           );
-        
+
         for (const stuckFile of stuckFiles) {
-          console.log(`🔴 Marking file stuck >1h as error: ${stuckFile.originalName}`);
-          await db.update(files)
+          console.log(
+            `🔴 Marking file stuck >1h as error: ${stuckFile.originalName}`,
+          );
+          await db
+            .update(files)
             .set({
-              processingStatus: 'error',
-              processingError: 'Processing stuck for more than 1 hour'
+              processingStatus: "error",
+              processingError: "Processing stuck for more than 1 hour",
             })
             .where(eq(files.id, stuckFile.id));
         }
-        
+
         // Get files that need processing (pending OR completed with placeholder content)
         // This includes files imported from Excel that have placeholder content
         const pendingFiles = await db
@@ -4972,58 +5667,80 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
                 // Also process "completed" files that still have placeholder content
                 and(
                   eq(files.processingStatus, "completed"),
-                  sql`"file_metadata"."extracted_text" LIKE 'File reference:%'`
-                )
-              )
-            )
+                  sql`"file_metadata"."extracted_text" LIKE 'File reference:%'`,
+                ),
+              ),
+            ),
           )
           .limit(5);
-        
+
         if (pendingFiles.length > 0) {
-          console.log(`🔄 Found ${pendingFiles.length} files to process automatically (including Excel imports with placeholder content)`);
-          
+          console.log(
+            `🔄 Found ${pendingFiles.length} files to process automatically (including Excel imports with placeholder content)`,
+          );
+
           // Import the drive processor for Google Drive files
-          const { driveFileProcessor } = await import('./driveFileProcessor');
-          
+          const { driveFileProcessor } = await import("./driveFileProcessor");
+
           for (const result of pendingFiles) {
             // Extract file data from joined result
             const file = result.files || result;
-            
+
             try {
               console.log(`📄 Auto-processing: ${file.originalName}`);
-              
+
               // Check if this is a Google Drive file
-              if (file.googleDriveUrl || file.storageType === 'google-drive') {
+              if (file.googleDriveUrl || file.storageType === "google-drive") {
                 // Use drive processor for Google Drive files
-                console.log(`  → Using Google Drive processor for ${file.originalName}`);
+                console.log(
+                  `  → Using Google Drive processor for ${file.originalName}`,
+                );
                 await driveFileProcessor.processFileById(file.id, userId);
-                console.log(`✅ Successfully auto-processed: ${file.originalName}`);
+                console.log(
+                  `✅ Successfully auto-processed: ${file.originalName}`,
+                );
               } else {
                 // Use regular processing for uploaded files (includes OCR)
-                console.log(`  → Using regular processor for ${file.originalName}`);
+                console.log(
+                  `  → Using regular processor for ${file.originalName}`,
+                );
                 await processFileAsync(file.id, userId);
                 // Success message is logged inside processFileAsync if successful
               }
             } catch (error: any) {
-              console.error(`❌ Failed to auto-process ${file.originalName}:`, error.message);
-              
+              console.error(
+                `❌ Failed to auto-process ${file.originalName}:`,
+                error.message,
+              );
+
               // Mark file as error in database
               try {
-                const errorMessage = error?.message || 'Processing failed';
-                await db.update(files)
+                const errorMessage = error?.message || "Processing failed";
+                await db
+                  .update(files)
                   .set({
-                    processingStatus: 'error',
-                    processingError: errorMessage
+                    processingStatus: "error",
+                    processingError: errorMessage,
                   })
                   .where(eq(files.id, file.id));
-                console.log(`🔴 Marked ${file.originalName} as error in database`);
-                
+                console.log(
+                  `🔴 Marked ${file.originalName} as error in database`,
+                );
+
                 // If it's an "Object not found" error, schedule for automatic cleanup
-                if (errorMessage.includes('Object not found') || errorMessage.includes('not found')) {
-                  console.log(`🧹 File ${file.originalName} marked for cleanup due to missing object`);
+                if (
+                  errorMessage.includes("Object not found") ||
+                  errorMessage.includes("not found")
+                ) {
+                  console.log(
+                    `🧹 File ${file.originalName} marked for cleanup due to missing object`,
+                  );
                 }
               } catch (updateError) {
-                console.error(`Failed to update error status for ${file.originalName}:`, updateError);
+                console.error(
+                  `Failed to update error status for ${file.originalName}:`,
+                  updateError,
+                );
               }
               // Don't continue processing this file
               continue;
@@ -5031,87 +5748,97 @@ Keep responses appropriately sized - usually 1-3 paragraphs unless asked for mor
           }
         }
       } catch (error) {
-        console.error('Error in automatic processing loop:', error);
+        console.error("Error in automatic processing loop:", error);
       }
     };
-    
+
     // Run immediately on startup
     processPendingFiles();
-    
+
     // Then run every 30 seconds
     setInterval(processPendingFiles, 30000);
   };
-  
+
   // Start the automatic processing loop only in development
   // In production, this causes memory issues with large video files
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     startAutomaticProcessing();
   } else {
-    console.log('🚫 Automatic processing disabled in production to prevent memory issues');
+    console.log(
+      "🚫 Automatic processing disabled in production to prevent memory issues",
+    );
   }
-  
+
   // Start automatic cleanup for missing objects
   const startAutomaticCleanup = () => {
     const cleanupMissingObjects = async () => {
       try {
         const userId = "demo-user";
-        
+
         // Find files with "Object not found" or similar storage errors
-        const missingFiles = await db.select()
+        const missingFiles = await db
+          .select()
           .from(files)
           .where(
             and(
               eq(files.userId, userId),
-              eq(files.processingStatus, 'error'),
+              eq(files.processingStatus, "error"),
               or(
-                like(files.processingError, '%Object not found%'),
-                like(files.processingError, '%not found%'),
-                like(files.processingError, '%404%'),
-                like(files.processingError, '%NoSuchKey%')
-              )
-            )
+                like(files.processingError, "%Object not found%"),
+                like(files.processingError, "%not found%"),
+                like(files.processingError, "%404%"),
+                like(files.processingError, "%NoSuchKey%"),
+              ),
+            ),
           )
           .limit(10); // Clean up 10 at a time to avoid overwhelming
-        
+
         if (missingFiles.length > 0) {
-          console.log(`🧹 Auto-cleanup: Found ${missingFiles.length} missing files to clean up`);
-          
+          console.log(
+            `🧹 Auto-cleanup: Found ${missingFiles.length} missing files to clean up`,
+          );
+
           let cleanedCount = 0;
           for (const file of missingFiles) {
             try {
               // Delete file metadata first
-              await db.delete(fileMetadata)
+              await db
+                .delete(fileMetadata)
                 .where(eq(fileMetadata.fileId, file.id));
-              
+
               // Delete the file record
-              await db.delete(files)
-                .where(eq(files.id, file.id));
-                
+              await db.delete(files).where(eq(files.id, file.id));
+
               console.log(`🗑️ Auto-cleaned missing file: ${file.originalName}`);
               cleanedCount++;
             } catch (error) {
-              console.error(`Failed to auto-clean file ${file.originalName}:`, error);
+              console.error(
+                `Failed to auto-clean file ${file.originalName}:`,
+                error,
+              );
             }
           }
-          
+
           if (cleanedCount > 0) {
-            console.log(`✅ Auto-cleanup completed: removed ${cleanedCount} missing files from database`);
+            console.log(
+              `✅ Auto-cleanup completed: removed ${cleanedCount} missing files from database`,
+            );
           }
         }
       } catch (error) {
-        console.error('Error in automatic cleanup:', error);
+        console.error("Error in automatic cleanup:", error);
       }
     };
-    
+
     // Run cleanup every 5 minutes
     setInterval(cleanupMissingObjects, 5 * 60 * 1000);
-    
+
     // Run initial cleanup after 30 seconds
     setTimeout(cleanupMissingObjects, 30000);
   };
-  
-  // Start automatic cleanup only in development  
-  if (process.env.NODE_ENV !== 'production') {
+
+  // Start automatic cleanup only in development
+  if (process.env.NODE_ENV !== "production") {
     startAutomaticCleanup();
   }
 

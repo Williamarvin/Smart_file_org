@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -9,11 +15,39 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BookOpen, Clock, FileText, PenTool, Home, Loader2, FolderOpen, Play, Pause, CheckCircle, Circle, MessageSquare, Volume2, Save, Share2, History, Edit, Send } from "lucide-react";
+import {
+  BookOpen,
+  Clock,
+  FileText,
+  PenTool,
+  Home,
+  Loader2,
+  FolderOpen,
+  Play,
+  Pause,
+  CheckCircle,
+  Circle,
+  MessageSquare,
+  Volume2,
+  Save,
+  Share2,
+  History,
+  Edit,
+  Send,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
-import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
+import {
+  AIProviderToggle,
+  AIProviderInfo,
+} from "@/components/ai-provider-toggle";
 
 interface File {
   id: string;
@@ -46,10 +80,15 @@ interface TeacherSection {
   id: string;
   title: string;
   content: string;
-  actionType: 'ppt' | 'audio' | 'video' | 'flashcards' | 'quiz' | 'discussion';
+  actionType: "ppt" | "audio" | "video" | "flashcards" | "quiz" | "discussion";
   duration: number; // in minutes
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  teachingStyle: 'visual' | 'storytelling' | 'hands-on' | 'discussion' | 'analytical';
+  difficulty: "beginner" | "intermediate" | "advanced";
+  teachingStyle:
+    | "visual"
+    | "storytelling"
+    | "hands-on"
+    | "discussion"
+    | "analytical";
 }
 
 export default function GenerateLessons() {
@@ -58,64 +97,116 @@ export default function GenerateLessons() {
   const [additionalContext, setAdditionalContext] = useState<string>("");
   const [generatedPrompts, setGeneratedPrompts] = useState<LessonPrompt[]>([]);
   const [executingPrompts, setExecutingPrompts] = useState<string[]>([]);
-  const [folderFileCounts, setFolderFileCounts] = useState<Record<string, {
-    totalFiles: number;
-    processedFiles: number;
-    errorFiles: number;
-    folderName: string;
-  }>>({});
-  
+  const [folderFileCounts, setFolderFileCounts] = useState<
+    Record<
+      string,
+      {
+        totalFiles: number;
+        processedFiles: number;
+        errorFiles: number;
+        folderName: string;
+      }
+    >
+  >({});
+
   // Teacher Agent states
   const [teacherMode, setTeacherMode] = useState<boolean>(false);
   const [courseTitle, setCourseTitle] = useState<string>("");
   const [targetAudience, setTargetAudience] = useState<string>("");
-  const [teacherExpertiseSubject, setTeacherExpertiseSubject] = useState<string>("general");
-  const [globalTeachingStyle, setGlobalTeachingStyle] = useState<string>("analytical");
+  const [teacherExpertiseSubject, setTeacherExpertiseSubject] =
+    useState<string>("general");
+  const [globalTeachingStyle, setGlobalTeachingStyle] =
+    useState<string>("analytical");
   const [teacherPrompt, setTeacherPrompt] = useState<string>(""); // Display version
-  const [teacherPromptWithContent, setTeacherPromptWithContent] = useState<string>(""); // Execution version
+  const [teacherPromptWithContent, setTeacherPromptWithContent] =
+    useState<string>(""); // Execution version
   const [teacherContent, setTeacherContent] = useState<string>("");
-  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ role: string; content: string }>
+  >([]);
   const [chatInput, setChatInput] = useState<string>("");
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(
+    null,
+  );
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState<boolean>(false);
   const [savedSessions, setSavedSessions] = useState<any[]>([]);
   const [showSavedSessions, setShowSavedSessions] = useState(false);
   const [sessionTitle, setSessionTitle] = useState("");
   const [shareUrl, setShareUrl] = useState("");
-  
+
   // Validation Reports states
   const [validationReports, setValidationReports] = useState<any[]>([]);
   const [showValidationReports, setShowValidationReports] = useState(false);
   const [isCreatingReport, setIsCreatingReport] = useState(false);
-  
+
   // Teacher sections for structured prompt
   const [teacherSections, setTeacherSections] = useState<TeacherSection[]>([
-    { id: '1', title: 'Introduction', content: '', actionType: 'ppt', duration: 5, difficulty: 'beginner', teachingStyle: 'visual' },
-    { id: '2', title: 'Warm-up Activities', content: '', actionType: 'flashcards', duration: 10, difficulty: 'beginner', teachingStyle: 'hands-on' },
-    { id: '3', title: 'Main Content', content: '', actionType: 'ppt', duration: 20, difficulty: 'intermediate', teachingStyle: 'analytical' },
-    { id: '4', title: 'Practice Activities', content: '', actionType: 'quiz', duration: 15, difficulty: 'intermediate', teachingStyle: 'hands-on' },
-    { id: '5', title: 'Wrap-up & Homework', content: '', actionType: 'discussion', duration: 10, difficulty: 'intermediate', teachingStyle: 'discussion' }
+    {
+      id: "1",
+      title: "Introduction",
+      content: "",
+      actionType: "ppt",
+      duration: 5,
+      difficulty: "beginner",
+      teachingStyle: "visual",
+    },
+    {
+      id: "2",
+      title: "Warm-up Activities",
+      content: "",
+      actionType: "flashcards",
+      duration: 10,
+      difficulty: "beginner",
+      teachingStyle: "hands-on",
+    },
+    {
+      id: "3",
+      title: "Main Content",
+      content: "",
+      actionType: "ppt",
+      duration: 20,
+      difficulty: "intermediate",
+      teachingStyle: "analytical",
+    },
+    {
+      id: "4",
+      title: "Practice Activities",
+      content: "",
+      actionType: "quiz",
+      duration: 15,
+      difficulty: "intermediate",
+      teachingStyle: "hands-on",
+    },
+    {
+      id: "5",
+      title: "Wrap-up & Homework",
+      content: "",
+      actionType: "discussion",
+      duration: 10,
+      difficulty: "intermediate",
+      teachingStyle: "discussion",
+    },
   ]);
-  
+
   const queryClient = useQueryClient();
-  
+
   // Get current AI provider status
   const { data: providerStatus } = useQuery<{
-    currentProvider: 'openai' | 'dify';
+    currentProvider: "openai" | "dify";
     providers: {
-      openai: { available: boolean; configured: boolean; };
-      dify: { available: boolean; configured: boolean; };
+      openai: { available: boolean; configured: boolean };
+      dify: { available: boolean; configured: boolean };
     };
   }>({
-    queryKey: ['/api/providers/status'],
+    queryKey: ["/api/providers/status"],
   });
-  
+
   // Auto-speak teacher responses
   const speakTeacherResponse = async (text: string) => {
     try {
       console.log("=== SPEECH DEBUG START ===");
       console.log("Text to speak (first 100 chars):", text.substring(0, 100));
-      
+
       // Stop any currently playing audio
       if (currentAudio) {
         console.log("Stopping previous audio");
@@ -123,13 +214,13 @@ export default function GenerateLessons() {
         currentAudio.currentTime = 0;
         setCurrentAudio(null);
       }
-      
+
       setIsGeneratingSpeech(true);
-      
+
       // Truncate text to avoid API timeout, but keep it reasonable
       const textToSpeak = text.substring(0, 800);
       console.log("Sending text length:", textToSpeak.length);
-      
+
       const response = await fetch("/api/teacher-speak", {
         method: "POST",
         headers: {
@@ -137,64 +228,64 @@ export default function GenerateLessons() {
         },
         body: JSON.stringify({
           text: textToSpeak,
-          voice: "alloy" // Using alloy voice as it's most reliable
+          voice: "alloy", // Using alloy voice as it's most reliable
         }),
       });
-      
+
       console.log("API Response status:", response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API Error:", errorText);
         throw new Error(`Speech API failed: ${response.status} - ${errorText}`);
       }
-      
+
       const blob = await response.blob();
       console.log("Blob size:", blob.size, "type:", blob.type);
-      
+
       if (blob.size === 0) {
         throw new Error("Received empty audio blob");
       }
-      
+
       const audioUrl = URL.createObjectURL(blob);
       const audio = new Audio(audioUrl);
-      
+
       // Add all event handlers before attempting to play
       audio.onloadedmetadata = () => {
         console.log("Audio metadata loaded, duration:", audio.duration);
       };
-      
+
       audio.oncanplaythrough = () => {
         console.log("Audio can play through");
       };
-      
+
       audio.onplay = () => {
         console.log("Audio started playing");
       };
-      
+
       audio.onerror = (e) => {
         console.error("Audio playback error:", e);
         console.error("Audio error details:", audio.error);
         setCurrentAudio(null);
         setIsGeneratingSpeech(false);
       };
-      
+
       audio.onended = () => {
         console.log("Audio playback ended");
         setCurrentAudio(null);
         URL.revokeObjectURL(audioUrl);
       };
-      
+
       // Set volume to ensure it's audible
       audio.volume = 1.0;
-      
+
       setCurrentAudio(audio);
       setIsGeneratingSpeech(false);
-      
+
       // Try to play with user interaction fallback
       console.log("Attempting to play audio...");
       const playPromise = audio.play();
-      
+
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
@@ -204,20 +295,27 @@ export default function GenerateLessons() {
             console.error("Play promise rejected:", error);
             // Try to play on next user interaction
             console.log("Will retry on next user interaction");
-            document.addEventListener('click', () => {
-              audio.play().catch(e => console.error("Retry play failed:", e));
-            }, { once: true });
+            document.addEventListener(
+              "click",
+              () => {
+                audio
+                  .play()
+                  .catch((e) => console.error("Retry play failed:", e));
+              },
+              { once: true },
+            );
           });
       }
-      
+
       console.log("=== SPEECH DEBUG END ===");
-      
     } catch (error) {
       console.error("=== SPEECH ERROR ===");
       console.error("Error details:", error);
       setCurrentAudio(null);
       setIsGeneratingSpeech(false);
-      alert("Speech generation failed. Check browser console (F12) for details.");
+      alert(
+        "Speech generation failed. Check browser console (F12) for details.",
+      );
     }
   };
 
@@ -234,7 +332,7 @@ export default function GenerateLessons() {
   useEffect(() => {
     const fetchFolderCounts = async () => {
       if (folders.length === 0) return;
-      
+
       try {
         const response = await fetch("/api/folders/file-counts", {
           method: "POST",
@@ -242,10 +340,10 @@ export default function GenerateLessons() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            folderIds: folders.map((f: any) => f.id)
+            folderIds: folders.map((f: any) => f.id),
           }),
         });
-        
+
         if (response.ok) {
           const counts = await response.json();
           setFolderFileCounts(counts);
@@ -254,7 +352,7 @@ export default function GenerateLessons() {
         console.error("Error fetching folder counts:", error);
       }
     };
-    
+
     fetchFolderCounts();
   }, [folders]);
 
@@ -272,11 +370,11 @@ export default function GenerateLessons() {
           additionalContext: additionalContext.trim() || undefined,
         }),
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to generate lesson prompts');
+        throw new Error("Failed to generate lesson prompts");
       }
-      
+
       return response.json();
     },
     onSuccess: (data: any) => {
@@ -286,36 +384,36 @@ export default function GenerateLessons() {
           title: "Introduction Agent",
           prompt: data.prompts.introduction,
           icon: <BookOpen className="h-5 w-5" />,
-          description: "Generate engaging lesson introductions"
+          description: "Generate engaging lesson introductions",
         },
         {
           type: "warmup",
-          title: "Warm-Up Agent", 
+          title: "Warm-Up Agent",
           prompt: data.prompts.warmup,
           icon: <Clock className="h-5 w-5" />,
-          description: "Create warm-up activities and icebreakers"
+          description: "Create warm-up activities and icebreakers",
         },
         {
           type: "content",
           title: "Content Agent",
           prompt: data.prompts.content,
           icon: <FileText className="h-5 w-5" />,
-          description: "Develop main lesson content and materials"
+          description: "Develop main lesson content and materials",
         },
         {
           type: "practice",
           title: "Practice Agent",
           prompt: data.prompts.practice,
           icon: <PenTool className="h-5 w-5" />,
-          description: "Design practice exercises and activities"
+          description: "Design practice exercises and activities",
         },
         {
           type: "homework",
           title: "Homework Agent",
           prompt: data.prompts.homework,
           icon: <Home className="h-5 w-5" />,
-          description: "Create homework assignments and assessments"
-        }
+          description: "Create homework assignments and assessments",
+        },
       ];
       setGeneratedPrompts(prompts);
     },
@@ -324,8 +422,8 @@ export default function GenerateLessons() {
   // Execute individual prompt against database
   const executePrompt = async (promptType: string, prompt: string) => {
     try {
-      setExecutingPrompts(prev => [...prev, promptType]);
-      
+      setExecutingPrompts((prev) => [...prev, promptType]);
+
       const response = await fetch("/api/execute-lesson-prompt", {
         method: "POST",
         headers: {
@@ -338,66 +436,76 @@ export default function GenerateLessons() {
           folderIds: selectedFolders,
         }),
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to execute prompt');
+        throw new Error("Failed to execute prompt");
       }
-      
+
       const data = await response.json();
-      
+
       // Update the specific prompt with generated content
-      setGeneratedPrompts(prev => 
-        prev.map(p => 
-          p.type === promptType 
-            ? { ...p, generatedContent: data.content }
-            : p
-        )
+      setGeneratedPrompts((prev) =>
+        prev.map((p) =>
+          p.type === promptType ? { ...p, generatedContent: data.content } : p,
+        ),
       );
     } catch (error) {
-      console.error('Error executing prompt:', error);
+      console.error("Error executing prompt:", error);
     } finally {
-      setExecutingPrompts(prev => prev.filter(type => type !== promptType));
+      setExecutingPrompts((prev) => prev.filter((type) => type !== promptType));
     }
   };
 
   // Helper function to parse prompt into sections
   const parsePromptIntoSections = (prompt: string): TeacherSection[] => {
     const defaultSections = [...teacherSections];
-    
+
     // Try to extract content for each section from the prompt
-    const introMatch = prompt.match(/Introduction[:\s]*(.*?)(?=Warm-up|Main Content|Practice|Wrap-up|$)/i);
-    const warmupMatch = prompt.match(/Warm-up[:\s]*(.*?)(?=Main Content|Practice|Wrap-up|$)/i);
-    const mainMatch = prompt.match(/Main Content[:\s]*(.*?)(?=Practice|Wrap-up|$)/i);
+    const introMatch = prompt.match(
+      /Introduction[:\s]*(.*?)(?=Warm-up|Main Content|Practice|Wrap-up|$)/i,
+    );
+    const warmupMatch = prompt.match(
+      /Warm-up[:\s]*(.*?)(?=Main Content|Practice|Wrap-up|$)/i,
+    );
+    const mainMatch = prompt.match(
+      /Main Content[:\s]*(.*?)(?=Practice|Wrap-up|$)/i,
+    );
     const practiceMatch = prompt.match(/Practice[:\s]*(.*?)(?=Wrap-up|$)/i);
     const wrapupMatch = prompt.match(/Wrap-up[:\s]*(.*?)$/i);
-    
+
     if (introMatch) defaultSections[0].content = introMatch[1].trim();
     if (warmupMatch) defaultSections[1].content = warmupMatch[1].trim();
     if (mainMatch) defaultSections[2].content = mainMatch[1].trim();
     if (practiceMatch) defaultSections[3].content = practiceMatch[1].trim();
     if (wrapupMatch) defaultSections[4].content = wrapupMatch[1].trim();
-    
+
     // If no matches found, just put the entire prompt in the main content
-    if (!introMatch && !warmupMatch && !mainMatch && !practiceMatch && !wrapupMatch) {
+    if (
+      !introMatch &&
+      !warmupMatch &&
+      !mainMatch &&
+      !practiceMatch &&
+      !wrapupMatch
+    ) {
       defaultSections[2].content = prompt;
     }
-    
+
     return defaultSections;
   };
-  
+
   // Function to consolidate sections into a single prompt
   const consolidateSectionsIntoPrompt = (): string => {
     let consolidatedPrompt = `Course: ${courseTitle}\nTarget Audience: ${targetAudience}\n`;
     consolidatedPrompt += `Teacher Expertise: ${teacherExpertiseSubject}\nTeaching Style: ${globalTeachingStyle}\n\n`;
     let totalTime = 0;
-    
-    teacherSections.forEach(section => {
+
+    teacherSections.forEach((section) => {
       totalTime += section.duration;
       consolidatedPrompt += `## ${section.title}\n`;
       consolidatedPrompt += `**Duration:** ${section.duration} minutes | **Format:** ${section.actionType.toUpperCase()} | **Difficulty:** ${section.difficulty} | **Section Style:** ${section.teachingStyle}\n\n`;
-      consolidatedPrompt += `${section.content || '[Content to be added]'}\n\n`;
+      consolidatedPrompt += `${section.content || "[Content to be added]"}\n\n`;
     });
-    
+
     consolidatedPrompt += `\nTotal Duration: ${totalTime} minutes\n`;
     return consolidatedPrompt;
   };
@@ -405,14 +513,18 @@ export default function GenerateLessons() {
   // Generate teacher prompt mutation
   const generateTeacherPromptMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/generate-teacher-prompt", {
-        fileIds: selectedFiles,
-        folderIds: selectedFolders,
-        additionalContext,
-        courseTitle,
-        targetAudience,
-        provider: providerStatus?.currentProvider || 'openai' // Include current provider
-      });
+      const response = await apiRequest(
+        "POST",
+        "/api/generate-teacher-prompt",
+        {
+          fileIds: selectedFiles,
+          folderIds: selectedFolders,
+          additionalContext,
+          courseTitle,
+          targetAudience,
+          provider: providerStatus?.currentProvider || "openai", // Include current provider
+        },
+      );
       return response.json();
     },
     onSuccess: (data: any) => {
@@ -441,7 +553,7 @@ export default function GenerateLessons() {
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/execute-teacher-prompt", {
         teacherPrompt: teacherPromptWithContent, // Use the version with full content
-        provider: providerStatus?.currentProvider || 'openai' // Include current provider
+        provider: providerStatus?.currentProvider || "openai", // Include current provider
       });
       return response.json();
     },
@@ -459,38 +571,41 @@ export default function GenerateLessons() {
         teacherContext: teacherContent,
         fileIds: selectedFiles,
         folderIds: selectedFolders,
-        provider: providerStatus?.currentProvider || 'openai' // Include current provider
+        provider: providerStatus?.currentProvider || "openai", // Include current provider
       });
       return response.json();
     },
     onSuccess: async (data: any) => {
       const userMessage = chatInput;
-      setChatMessages(prev => [
+      setChatMessages((prev) => [
         ...prev,
         { role: "user", content: userMessage },
-        { role: "assistant", content: data.response }
+        { role: "assistant", content: data.response },
       ]);
       setChatInput("");
-      
+
       // Automatically speak the teacher's response
-      console.log("Speaking teacher response:", data.response.substring(0, 50) + "...");
+      console.log(
+        "Speaking teacher response:",
+        data.response.substring(0, 50) + "...",
+      );
       await speakTeacherResponse(data.response);
     },
   });
 
   const handleFileToggle = (fileId: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(fileId) 
-        ? prev.filter(id => id !== fileId)
-        : [...prev, fileId]
+    setSelectedFiles((prev) =>
+      prev.includes(fileId)
+        ? prev.filter((id) => id !== fileId)
+        : [...prev, fileId],
     );
   };
 
   const handleFolderToggle = (folderId: string) => {
-    setSelectedFolders(prev => 
-      prev.includes(folderId) 
-        ? prev.filter(id => id !== folderId)
-        : [...prev, folderId]
+    setSelectedFolders((prev) =>
+      prev.includes(folderId)
+        ? prev.filter((id) => id !== folderId)
+        : [...prev, folderId],
     );
   };
 
@@ -523,25 +638,30 @@ export default function GenerateLessons() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">Generate Lessons</h1>
           <p className="text-muted-foreground">
-            Select files and folders to generate structured lesson prompts for different educational agents.
+            Select files and folders to generate structured lesson prompts for
+            different educational agents.
           </p>
         </div>
-        
+
         {/* Mode Toggle */}
         <div className="flex items-center space-x-4 p-4 border rounded-lg bg-muted/20">
           <span className="text-sm font-medium">Mode:</span>
           <RadioGroup
-            value={teacherMode ? 'teacher' : 'agents'}
-            onValueChange={(value) => setTeacherMode(value === 'teacher')}
+            value={teacherMode ? "teacher" : "agents"}
+            onValueChange={(value) => setTeacherMode(value === "teacher")}
             className="flex space-x-6"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="agents" id="agents" />
-              <Label htmlFor="agents" className="text-sm">Individual Agents</Label>
+              <Label htmlFor="agents" className="text-sm">
+                Individual Agents
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="teacher" id="teacher" />
-              <Label htmlFor="teacher" className="text-sm">Master Teacher Agent</Label>
+              <Label htmlFor="teacher" className="text-sm">
+                Master Teacher Agent
+              </Label>
             </div>
           </RadioGroup>
         </div>
@@ -554,7 +674,8 @@ export default function GenerateLessons() {
             <CardHeader>
               <CardTitle>Select Content Sources</CardTitle>
               <CardDescription>
-                Choose files and folders to use as reference material for lesson generation
+                Choose files and folders to use as reference material for lesson
+                generation
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -564,23 +685,36 @@ export default function GenerateLessons() {
                   <div>
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <FolderOpen className="h-4 w-4" />
-                      Folders ({selectedFolders.length} selected{selectedFolders.length > 0 && folderFileCounts && 
-                        ` - ${selectedFolders.reduce((total, id) => 
-                          total + (folderFileCounts[id]?.totalFiles || 0), 0)} files total`})
+                      Folders ({selectedFolders.length} selected
+                      {selectedFolders.length > 0 &&
+                        folderFileCounts &&
+                        ` - ${selectedFolders.reduce(
+                          (total, id) =>
+                            total + (folderFileCounts[id]?.totalFiles || 0),
+                          0,
+                        )} files total`}
+                      )
                     </h4>
                     <ScrollArea className="h-48 border rounded-md p-2">
                       <div className="space-y-2">
                         {(folders as Folder[]).map((folder: Folder) => {
                           const counts = folderFileCounts[folder.id];
-                          const isSelected = selectedFolders.includes(folder.id);
-                          
+                          const isSelected = selectedFolders.includes(
+                            folder.id,
+                          );
+
                           return (
-                            <div key={folder.id} className={`flex items-center justify-between p-2 rounded-lg hover:bg-muted ${isSelected ? 'bg-muted' : ''}`}>
+                            <div
+                              key={folder.id}
+                              className={`flex items-center justify-between p-2 rounded-lg hover:bg-muted ${isSelected ? "bg-muted" : ""}`}
+                            >
                               <div className="flex items-center space-x-2 flex-1">
                                 <Checkbox
                                   id={`folder-${folder.id}`}
                                   checked={isSelected}
-                                  onCheckedChange={() => handleFolderToggle(folder.id)}
+                                  onCheckedChange={() =>
+                                    handleFolderToggle(folder.id)
+                                  }
                                 />
                                 <label
                                   htmlFor={`folder-${folder.id}`}
@@ -595,12 +729,18 @@ export default function GenerateLessons() {
                                     {counts.totalFiles} files
                                   </Badge>
                                   {counts.processedFiles > 0 && (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
                                       {counts.processedFiles} processed
                                     </Badge>
                                   )}
                                   {counts.errorFiles > 0 && (
-                                    <Badge variant="destructive" className="text-xs">
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
+                                    >
                                       {counts.errorFiles} errors
                                     </Badge>
                                   )}
@@ -625,7 +765,10 @@ export default function GenerateLessons() {
                   <ScrollArea className="h-64 border rounded-md p-2">
                     <div className="space-y-2">
                       {(files as File[]).map((file: File) => (
-                        <div key={file.id} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted">
+                        <div
+                          key={file.id}
+                          className="flex items-center space-x-2 p-2 rounded-lg hover:bg-muted"
+                        >
                           <Checkbox
                             id={`file-${file.id}`}
                             checked={selectedFiles.includes(file.id)}
@@ -647,8 +790,12 @@ export default function GenerateLessons() {
                                   {file.category}
                                 </Badge>
                               )}
-                              <Badge 
-                                variant={file.processingStatus === "completed" ? "default" : "destructive"}
+                              <Badge
+                                variant={
+                                  file.processingStatus === "completed"
+                                    ? "default"
+                                    : "destructive"
+                                }
                                 className="text-xs"
                               >
                                 {file.processingStatus}
@@ -668,8 +815,12 @@ export default function GenerateLessons() {
                     Additional Context (Optional)
                   </h4>
                   <div className="space-y-2">
-                    <Label htmlFor="additional-context" className="text-sm text-muted-foreground">
-                      Provide any additional information, requirements, or context for the lesson generation
+                    <Label
+                      htmlFor="additional-context"
+                      className="text-sm text-muted-foreground"
+                    >
+                      Provide any additional information, requirements, or
+                      context for the lesson generation
                     </Label>
                     <Textarea
                       id="additional-context"
@@ -680,7 +831,10 @@ export default function GenerateLessons() {
                       className="resize-none"
                     />
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>This context will be included in all generated lesson prompts</span>
+                      <span>
+                        This context will be included in all generated lesson
+                        prompts
+                      </span>
                       <span>{additionalContext.length} characters</span>
                     </div>
                   </div>
@@ -689,10 +843,14 @@ export default function GenerateLessons() {
                 {/* Teacher Agent Configuration */}
                 {teacherMode && (
                   <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-                    <h4 className="font-medium text-blue-900">Teacher Agent Configuration</h4>
+                    <h4 className="font-medium text-blue-900">
+                      Teacher Agent Configuration
+                    </h4>
                     <div className="space-y-3">
                       <div>
-                        <Label htmlFor="course-title" className="text-sm">Course Title</Label>
+                        <Label htmlFor="course-title" className="text-sm">
+                          Course Title
+                        </Label>
                         <Input
                           id="course-title"
                           placeholder="Enter course title (e.g., Introduction to Machine Learning)"
@@ -701,7 +859,9 @@ export default function GenerateLessons() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="target-audience" className="text-sm">Target Audience</Label>
+                        <Label htmlFor="target-audience" className="text-sm">
+                          Target Audience
+                        </Label>
                         <Input
                           id="target-audience"
                           placeholder="Enter target audience (e.g., High school students, College freshmen)"
@@ -711,7 +871,9 @@ export default function GenerateLessons() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="teaching-style" className="text-sm">Teaching Style</Label>
+                          <Label htmlFor="teaching-style" className="text-sm">
+                            Teaching Style
+                          </Label>
                           <Select
                             value={globalTeachingStyle}
                             onValueChange={setGlobalTeachingStyle}
@@ -720,16 +882,31 @@ export default function GenerateLessons() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="visual">Visual (diagrams & images)</SelectItem>
-                              <SelectItem value="storytelling">Storytelling (narrative)</SelectItem>
-                              <SelectItem value="hands-on">Hands-on (practical)</SelectItem>
-                              <SelectItem value="discussion">Discussion (interactive)</SelectItem>
-                              <SelectItem value="analytical">Analytical (detailed)</SelectItem>
+                              <SelectItem value="visual">
+                                Visual (diagrams & images)
+                              </SelectItem>
+                              <SelectItem value="storytelling">
+                                Storytelling (narrative)
+                              </SelectItem>
+                              <SelectItem value="hands-on">
+                                Hands-on (practical)
+                              </SelectItem>
+                              <SelectItem value="discussion">
+                                Discussion (interactive)
+                              </SelectItem>
+                              <SelectItem value="analytical">
+                                Analytical (detailed)
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor="expertise-subject" className="text-sm">Teacher Expertise Subject</Label>
+                          <Label
+                            htmlFor="expertise-subject"
+                            className="text-sm"
+                          >
+                            Teacher Expertise Subject
+                          </Label>
                           <Select
                             value={teacherExpertiseSubject}
                             onValueChange={setTeacherExpertiseSubject}
@@ -738,14 +915,26 @@ export default function GenerateLessons() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="mathematics">Mathematics</SelectItem>
+                              <SelectItem value="mathematics">
+                                Mathematics
+                              </SelectItem>
                               <SelectItem value="science">Science</SelectItem>
-                              <SelectItem value="language-arts">Language Arts</SelectItem>
-                              <SelectItem value="social-studies">Social Studies</SelectItem>
-                              <SelectItem value="computer-science">Computer Science</SelectItem>
+                              <SelectItem value="language-arts">
+                                Language Arts
+                              </SelectItem>
+                              <SelectItem value="social-studies">
+                                Social Studies
+                              </SelectItem>
+                              <SelectItem value="computer-science">
+                                Computer Science
+                              </SelectItem>
                               <SelectItem value="arts">Arts & Music</SelectItem>
-                              <SelectItem value="physical-education">Physical Education</SelectItem>
-                              <SelectItem value="general">General Education</SelectItem>
+                              <SelectItem value="physical-education">
+                                Physical Education
+                              </SelectItem>
+                              <SelectItem value="general">
+                                General Education
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -756,20 +945,36 @@ export default function GenerateLessons() {
 
                 <div className="space-y-4">
                   <Button
-                    onClick={teacherMode ? () => generateTeacherPromptMutation.mutate() : handleGeneratePrompts}
+                    onClick={
+                      teacherMode
+                        ? () => generateTeacherPromptMutation.mutate()
+                        : handleGeneratePrompts
+                    }
                     disabled={
-                      (selectedFiles.length === 0 && selectedFolders.length === 0 && !additionalContext.trim()) ||
-                      (teacherMode ? generateTeacherPromptMutation.isPending : generatePromptsMutation.isPending)
+                      (selectedFiles.length === 0 &&
+                        selectedFolders.length === 0 &&
+                        !additionalContext.trim()) ||
+                      (teacherMode
+                        ? generateTeacherPromptMutation.isPending
+                        : generatePromptsMutation.isPending)
                     }
                     className="w-full"
                   >
-                    {(teacherMode ? generateTeacherPromptMutation.isPending : generatePromptsMutation.isPending) ? (
+                    {(
+                      teacherMode
+                        ? generateTeacherPromptMutation.isPending
+                        : generatePromptsMutation.isPending
+                    ) ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {teacherMode ? 'Generating Teacher Prompt...' : 'Generating Prompts...'}
+                        {teacherMode
+                          ? "Generating Teacher Prompt..."
+                          : "Generating Prompts..."}
                       </>
+                    ) : teacherMode ? (
+                      "Generate Teacher Prompt"
                     ) : (
-                      teacherMode ? "Generate Teacher Prompt" : "Generate Lesson Prompts"
+                      "Generate Lesson Prompts"
                     )}
                   </Button>
                 </div>
@@ -785,27 +990,36 @@ export default function GenerateLessons() {
               <CardHeader>
                 <CardTitle>Generated Lesson Prompts</CardTitle>
                 <CardDescription>
-                  AI-generated prompts for different lesson agents. Click "Execute Prompt" to generate actual lesson content.
+                  AI-generated prompts for different lesson agents. Click
+                  "Execute Prompt" to generate actual lesson content.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {generatedPrompts.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Select files and folders, then click "Generate Lesson Prompts" to create structured prompts for lesson agents.</p>
+                    <p>
+                      Select files and folders, then click "Generate Lesson
+                      Prompts" to create structured prompts for lesson agents.
+                    </p>
                   </div>
                 ) : (
                   <ScrollArea className="h-[600px]">
                     <div className="space-y-4">
                       {generatedPrompts.map((prompt, index) => (
-                        <Card key={prompt.type} className="border-l-4 border-l-primary">
+                        <Card
+                          key={prompt.type}
+                          className="border-l-4 border-l-primary"
+                        >
                           <CardHeader className="pb-3">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-primary/10 rounded-lg">
                                 {prompt.icon}
                               </div>
                               <div>
-                                <CardTitle className="text-lg">{prompt.title}</CardTitle>
+                                <CardTitle className="text-lg">
+                                  {prompt.title}
+                                </CardTitle>
                                 <CardDescription className="text-sm">
                                   {prompt.description}
                                 </CardDescription>
@@ -816,11 +1030,17 @@ export default function GenerateLessons() {
                             <div className="space-y-4">
                               <div className="bg-muted/50 rounded-lg p-4">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h5 className="font-medium text-sm">Agent Prompt:</h5>
+                                  <h5 className="font-medium text-sm">
+                                    Agent Prompt:
+                                  </h5>
                                   <Button
                                     size="sm"
-                                    onClick={() => executePrompt(prompt.type, prompt.prompt)}
-                                    disabled={executingPrompts.includes(prompt.type)}
+                                    onClick={() =>
+                                      executePrompt(prompt.type, prompt.prompt)
+                                    }
+                                    disabled={executingPrompts.includes(
+                                      prompt.type,
+                                    )}
                                     className="h-8"
                                   >
                                     {executingPrompts.includes(prompt.type) ? (
@@ -837,12 +1057,14 @@ export default function GenerateLessons() {
                                   {prompt.prompt}
                                 </p>
                               </div>
-                              
+
                               {prompt.generatedContent && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                   <div className="flex items-center gap-2 mb-3">
                                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <h5 className="font-medium text-sm text-green-800">Generated Content:</h5>
+                                    <h5 className="font-medium text-sm text-green-800">
+                                      Generated Content:
+                                    </h5>
                                   </div>
                                   <div className="prose prose-sm max-w-none">
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap text-green-700">
@@ -869,7 +1091,8 @@ export default function GenerateLessons() {
                   <CardHeader>
                     <CardTitle>Master Teacher Agent</CardTitle>
                     <CardDescription>
-                      Select files and folders, then generate a consolidated teacher prompt to create a comprehensive course.
+                      Select files and folders, then generate a consolidated
+                      teacher prompt to create a comprehensive course.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -877,9 +1100,13 @@ export default function GenerateLessons() {
                       <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p className="mb-2">No teacher prompt generated yet.</p>
                       <p className="text-sm">
-                        1. Select your content sources (files/folders) on the left<br/>
-                        2. Enter course title and target audience<br/>
-                        3. Click "Generate Teacher Prompt" to create the consolidated prompt
+                        1. Select your content sources (files/folders) on the
+                        left
+                        <br />
+                        2. Enter course title and target audience
+                        <br />
+                        3. Click "Generate Teacher Prompt" to create the
+                        consolidated prompt
                       </p>
                     </div>
                   </CardContent>
@@ -892,22 +1119,32 @@ export default function GenerateLessons() {
                   <CardHeader>
                     <CardTitle>Course Structure Editor</CardTitle>
                     <CardDescription>
-                      Edit each section of your course. Customize content, select action types, and set duration for each part.
+                      Edit each section of your course. Customize content,
+                      select action types, and set duration for each part.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
                       {/* Section Editors */}
                       {teacherSections.map((section, index) => (
-                        <div key={section.id} className="border rounded-lg p-4 space-y-3">
+                        <div
+                          key={section.id}
+                          className="border rounded-lg p-4 space-y-3"
+                        >
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-lg">{section.title}</h4>
-                            <Badge variant="outline">{section.duration} min</Badge>
+                            <h4 className="font-medium text-lg">
+                              {section.title}
+                            </h4>
+                            <Badge variant="outline">
+                              {section.duration} min
+                            </Badge>
                           </div>
-                          
+
                           {/* Content Editor */}
                           <div className="space-y-2">
-                            <Label htmlFor={`content-${section.id}`}>Content</Label>
+                            <Label htmlFor={`content-${section.id}`}>
+                              Content
+                            </Label>
                             <Textarea
                               id={`content-${section.id}`}
                               value={section.content}
@@ -920,11 +1157,13 @@ export default function GenerateLessons() {
                               className="min-h-[100px]"
                             />
                           </div>
-                          
+
                           {/* Action Type and Duration */}
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor={`action-${section.id}`}>Action Type</Label>
+                              <Label htmlFor={`action-${section.id}`}>
+                                Action Type
+                              </Label>
                               <Select
                                 value={section.actionType}
                                 onValueChange={(value) => {
@@ -937,18 +1176,26 @@ export default function GenerateLessons() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="ppt">PowerPoint</SelectItem>
+                                  <SelectItem value="ppt">
+                                    PowerPoint
+                                  </SelectItem>
                                   <SelectItem value="audio">Audio</SelectItem>
                                   <SelectItem value="video">Video</SelectItem>
-                                  <SelectItem value="flashcards">Flashcards</SelectItem>
+                                  <SelectItem value="flashcards">
+                                    Flashcards
+                                  </SelectItem>
                                   <SelectItem value="quiz">Quiz</SelectItem>
-                                  <SelectItem value="discussion">Discussion</SelectItem>
+                                  <SelectItem value="discussion">
+                                    Discussion
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
-                            
+
                             <div className="space-y-2">
-                              <Label htmlFor={`duration-${section.id}`}>Duration (minutes)</Label>
+                              <Label htmlFor={`duration-${section.id}`}>
+                                Duration (minutes)
+                              </Label>
                               <Input
                                 id={`duration-${section.id}`}
                                 type="number"
@@ -957,17 +1204,20 @@ export default function GenerateLessons() {
                                 value={section.duration}
                                 onChange={(e) => {
                                   const newSections = [...teacherSections];
-                                  newSections[index].duration = parseInt(e.target.value) || 5;
+                                  newSections[index].duration =
+                                    parseInt(e.target.value) || 5;
                                   setTeacherSections(newSections);
                                 }}
                               />
                             </div>
                           </div>
-                          
+
                           {/* Difficulty and Teaching Style */}
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor={`difficulty-${section.id}`}>Difficulty Level</Label>
+                              <Label htmlFor={`difficulty-${section.id}`}>
+                                Difficulty Level
+                              </Label>
                               <Select
                                 value={section.difficulty}
                                 onValueChange={(value) => {
@@ -980,20 +1230,29 @@ export default function GenerateLessons() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="beginner">Beginner</SelectItem>
-                                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                                  <SelectItem value="advanced">Advanced</SelectItem>
+                                  <SelectItem value="beginner">
+                                    Beginner
+                                  </SelectItem>
+                                  <SelectItem value="intermediate">
+                                    Intermediate
+                                  </SelectItem>
+                                  <SelectItem value="advanced">
+                                    Advanced
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
-                            
+
                             <div className="space-y-2">
-                              <Label htmlFor={`style-${section.id}`}>Teaching Style</Label>
+                              <Label htmlFor={`style-${section.id}`}>
+                                Teaching Style
+                              </Label>
                               <Select
                                 value={section.teachingStyle}
                                 onValueChange={(value) => {
                                   const newSections = [...teacherSections];
-                                  newSections[index].teachingStyle = value as any;
+                                  newSections[index].teachingStyle =
+                                    value as any;
                                   setTeacherSections(newSections);
                                 }}
                               >
@@ -1001,23 +1260,34 @@ export default function GenerateLessons() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="visual">Visual (with diagrams & images)</SelectItem>
-                                  <SelectItem value="storytelling">Storytelling (narrative approach)</SelectItem>
-                                  <SelectItem value="hands-on">Hands-on (practical exercises)</SelectItem>
-                                  <SelectItem value="discussion">Discussion (interactive dialogue)</SelectItem>
-                                  <SelectItem value="analytical">Analytical (detailed explanations)</SelectItem>
+                                  <SelectItem value="visual">
+                                    Visual (with diagrams & images)
+                                  </SelectItem>
+                                  <SelectItem value="storytelling">
+                                    Storytelling (narrative approach)
+                                  </SelectItem>
+                                  <SelectItem value="hands-on">
+                                    Hands-on (practical exercises)
+                                  </SelectItem>
+                                  <SelectItem value="discussion">
+                                    Discussion (interactive dialogue)
+                                  </SelectItem>
+                                  <SelectItem value="analytical">
+                                    Analytical (detailed explanations)
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
                         </div>
                       ))}
-                      
+
                       {/* Consolidate and Send Buttons */}
                       <div className="space-y-3">
                         <Button
                           onClick={() => {
-                            const consolidated = consolidateSectionsIntoPrompt();
+                            const consolidated =
+                              consolidateSectionsIntoPrompt();
                             setTeacherPrompt(consolidated);
                             setTeacherPromptWithContent(consolidated);
                           }}
@@ -1027,11 +1297,13 @@ export default function GenerateLessons() {
                           <Edit className="mr-2 h-4 w-4" />
                           Consolidate Sections into Prompt
                         </Button>
-                        
+
                         {/* Show consolidated prompt preview */}
                         {teacherPromptWithContent && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h5 className="font-medium mb-2">Consolidated Prompt Preview:</h5>
+                            <h5 className="font-medium mb-2">
+                              Consolidated Prompt Preview:
+                            </h5>
                             <ScrollArea className="h-32">
                               <p className="text-sm leading-relaxed whitespace-pre-wrap text-blue-800">
                                 {teacherPromptWithContent}
@@ -1039,11 +1311,12 @@ export default function GenerateLessons() {
                             </ScrollArea>
                           </div>
                         )}
-                        
+
                         <Button
                           onClick={() => {
                             // First consolidate, then execute
-                            const consolidated = consolidateSectionsIntoPrompt();
+                            const consolidated =
+                              consolidateSectionsIntoPrompt();
                             setTeacherPromptWithContent(consolidated);
                             executeTeacherPromptMutation.mutate();
                           }}
@@ -1075,7 +1348,8 @@ export default function GenerateLessons() {
                     <CardHeader>
                       <CardTitle>Generated Course Content</CardTitle>
                       <CardDescription>
-                        Complete course structure with 5 sections created by the master teacher agent.
+                        Complete course structure with 5 sections created by the
+                        master teacher agent.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -1111,34 +1385,48 @@ export default function GenerateLessons() {
                       </div>
                       <AIProviderInfo />
                       <CardDescription className="flex items-center justify-between mt-3">
-                        <span>Now you can chat with the teacher agent. Teacher responses are automatically read aloud.</span>
+                        <span>
+                          Now you can chat with the teacher agent. Teacher
+                          responses are automatically read aloud.
+                        </span>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={async () => {
                               // Save chat session
-                              const title = prompt("Enter a title for this chat session:", `${courseTitle} - Chat Session`);
+                              const title = prompt(
+                                "Enter a title for this chat session:",
+                                `${courseTitle} - Chat Session`,
+                              );
                               if (title) {
                                 try {
-                                  const response = await apiRequest("POST", "/api/teacher-chat-sessions", {
-                                    title,
-                                    courseTitle,
-                                    targetAudience,
-                                    teachingStyle: globalTeachingStyle,
-                                    expertiseSubject: teacherExpertiseSubject,
-                                    teacherPrompt,
-                                    teacherContent,
-                                    chatHistory: chatMessages,
-                                    selectedFiles,
-                                    selectedFolders
-                                  });
+                                  const response = await apiRequest(
+                                    "POST",
+                                    "/api/teacher-chat-sessions",
+                                    {
+                                      title,
+                                      courseTitle,
+                                      targetAudience,
+                                      teachingStyle: globalTeachingStyle,
+                                      expertiseSubject: teacherExpertiseSubject,
+                                      teacherPrompt,
+                                      teacherContent,
+                                      chatHistory: chatMessages,
+                                      selectedFiles,
+                                      selectedFolders,
+                                    },
+                                  );
                                   const session = await response.json();
                                   alert("Session saved successfully!");
-                                  
+
                                   // Load saved sessions
-                                  const sessionsResponse = await apiRequest("GET", "/api/teacher-chat-sessions");
-                                  const sessions = await sessionsResponse.json();
+                                  const sessionsResponse = await apiRequest(
+                                    "GET",
+                                    "/api/teacher-chat-sessions",
+                                  );
+                                  const sessions =
+                                    await sessionsResponse.json();
                                   setSavedSessions(sessions);
                                 } catch (error) {
                                   console.error("Error saving session:", error);
@@ -1155,8 +1443,14 @@ export default function GenerateLessons() {
                             variant="outline"
                             onClick={async () => {
                               // Toggle saved sessions view
-                              if (!showSavedSessions && savedSessions.length === 0) {
-                                const response = await apiRequest("GET", "/api/teacher-chat-sessions");
+                              if (
+                                !showSavedSessions &&
+                                savedSessions.length === 0
+                              ) {
+                                const response = await apiRequest(
+                                  "GET",
+                                  "/api/teacher-chat-sessions",
+                                );
                                 const sessions = await response.json();
                                 setSavedSessions(sessions);
                               }
@@ -1171,7 +1465,9 @@ export default function GenerateLessons() {
                             variant="outline"
                             onClick={async () => {
                               console.log("Testing speech...");
-                              await speakTeacherResponse("Hello! This is a test of the text to speech system. Can you hear me?");
+                              await speakTeacherResponse(
+                                "Hello! This is a test of the text to speech system. Can you hear me?",
+                              );
                             }}
                           >
                             <Volume2 className="h-4 w-4 mr-1" />
@@ -1187,12 +1483,17 @@ export default function GenerateLessons() {
                           <div className="space-y-3">
                             {chatMessages.length > 0 ? (
                               chatMessages.map((msg, index) => (
-                                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                  <div className={`max-w-[80%] p-3 rounded-lg ${
-                                    msg.role === 'user' 
-                                      ? 'bg-blue-500 text-white' 
-                                      : 'bg-muted text-foreground'
-                                  }`}>
+                                <div
+                                  key={index}
+                                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                >
+                                  <div
+                                    className={`max-w-[80%] p-3 rounded-lg ${
+                                      msg.role === "user"
+                                        ? "bg-blue-500 text-white"
+                                        : "bg-muted text-foreground"
+                                    }`}
+                                  >
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap">
                                       {msg.content}
                                     </p>
@@ -1201,7 +1502,8 @@ export default function GenerateLessons() {
                               ))
                             ) : (
                               <div className="text-center text-muted-foreground text-sm">
-                                Start a conversation with the teacher agent to refine your course content
+                                Start a conversation with the teacher agent to
+                                refine your course content
                               </div>
                             )}
                           </div>
@@ -1216,10 +1518,12 @@ export default function GenerateLessons() {
                             rows={3}
                             className="resize-none"
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
+                              if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
                                 if (chatInput.trim()) {
-                                  chatTeacherMutation.mutate({ message: chatInput.trim() });
+                                  chatTeacherMutation.mutate({
+                                    message: chatInput.trim(),
+                                  });
                                 }
                               }
                             }}
@@ -1227,10 +1531,14 @@ export default function GenerateLessons() {
                           <Button
                             onClick={() => {
                               if (chatInput.trim()) {
-                                chatTeacherMutation.mutate({ message: chatInput.trim() });
+                                chatTeacherMutation.mutate({
+                                  message: chatInput.trim(),
+                                });
                               }
                             }}
-                            disabled={!chatInput.trim() || chatTeacherMutation.isPending}
+                            disabled={
+                              !chatInput.trim() || chatTeacherMutation.isPending
+                            }
                             size="sm"
                             className="shrink-0"
                           >
@@ -1244,25 +1552,38 @@ export default function GenerateLessons() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   {/* Saved Sessions */}
                   {showSavedSessions && (
                     <Card>
                       <CardHeader>
                         <CardTitle>Saved Chat Sessions</CardTitle>
-                        <CardDescription>Load a previous chat session or share it with others</CardDescription>
+                        <CardDescription>
+                          Load a previous chat session or share it with others
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         {savedSessions.length === 0 ? (
-                          <p className="text-muted-foreground">No saved sessions yet</p>
+                          <p className="text-muted-foreground">
+                            No saved sessions yet
+                          </p>
                         ) : (
                           <div className="space-y-2">
                             {savedSessions.map((session: any) => (
-                              <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div
+                                key={session.id}
+                                className="flex items-center justify-between p-3 border rounded-lg"
+                              >
                                 <div className="flex-1">
-                                  <h4 className="font-medium">{session.title}</h4>
+                                  <h4 className="font-medium">
+                                    {session.title}
+                                  </h4>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(session.createdAt).toLocaleDateString()} - {session.chatHistory?.length || 0} messages
+                                    {new Date(
+                                      session.createdAt,
+                                    ).toLocaleDateString()}{" "}
+                                    - {session.chatHistory?.length || 0}{" "}
+                                    messages
                                   </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -1272,12 +1593,24 @@ export default function GenerateLessons() {
                                     onClick={async () => {
                                       // Load session
                                       setCourseTitle(session.courseTitle || "");
-                                      setTargetAudience(session.targetAudience || "");
-                                      setTeacherPrompt(session.teacherPrompt || "");
-                                      setTeacherContent(session.teacherContent || "");
-                                      setChatMessages(session.chatHistory || []);
-                                      setSelectedFiles(session.selectedFiles || []);
-                                      setSelectedFolders(session.selectedFolders || []);
+                                      setTargetAudience(
+                                        session.targetAudience || "",
+                                      );
+                                      setTeacherPrompt(
+                                        session.teacherPrompt || "",
+                                      );
+                                      setTeacherContent(
+                                        session.teacherContent || "",
+                                      );
+                                      setChatMessages(
+                                        session.chatHistory || [],
+                                      );
+                                      setSelectedFiles(
+                                        session.selectedFiles || [],
+                                      );
+                                      setSelectedFolders(
+                                        session.selectedFolders || [],
+                                      );
                                       setShowSavedSessions(false);
                                     }}
                                   >
@@ -1290,31 +1623,51 @@ export default function GenerateLessons() {
                                       // Toggle sharing
                                       const isPublic = session.isPublic === 1;
                                       try {
-                                        const response = await apiRequest("PATCH", `/api/teacher-chat-sessions/${session.id}/share`, {
-                                          isPublic: !isPublic
-                                        });
+                                        const response = await apiRequest(
+                                          "PATCH",
+                                          `/api/teacher-chat-sessions/${session.id}/share`,
+                                          {
+                                            isPublic: !isPublic,
+                                          },
+                                        );
                                         const updated = await response.json();
-                                        
+
                                         if (!isPublic) {
                                           const shareUrl = `${window.location.origin}/shared-chat/${updated.shareId}`;
-                                          navigator.clipboard.writeText(shareUrl);
-                                          alert(`Session is now public! Share URL copied to clipboard:\n${shareUrl}`);
+                                          navigator.clipboard.writeText(
+                                            shareUrl,
+                                          );
+                                          alert(
+                                            `Session is now public! Share URL copied to clipboard:\n${shareUrl}`,
+                                          );
                                         } else {
                                           alert("Session is now private");
                                         }
-                                        
+
                                         // Refresh sessions
-                                        const sessionsResponse = await apiRequest("GET", "/api/teacher-chat-sessions");
-                                        const sessions = await sessionsResponse.json();
+                                        const sessionsResponse =
+                                          await apiRequest(
+                                            "GET",
+                                            "/api/teacher-chat-sessions",
+                                          );
+                                        const sessions =
+                                          await sessionsResponse.json();
                                         setSavedSessions(sessions);
                                       } catch (error) {
-                                        console.error("Error sharing session:", error);
-                                        alert("Failed to update sharing status");
+                                        console.error(
+                                          "Error sharing session:",
+                                          error,
+                                        );
+                                        alert(
+                                          "Failed to update sharing status",
+                                        );
                                       }
                                     }}
                                   >
                                     <Share2 className="h-4 w-4 mr-1" />
-                                    {session.isPublic === 1 ? "Unshare" : "Share"}
+                                    {session.isPublic === 1
+                                      ? "Unshare"
+                                      : "Share"}
                                   </Button>
                                 </div>
                               </div>
@@ -1324,12 +1677,15 @@ export default function GenerateLessons() {
                       </CardContent>
                     </Card>
                   )}
-                  
+
                   {/* Validation Reports Section */}
                   <Card className="mt-4">
                     <CardHeader>
                       <CardTitle>Validation Reports</CardTitle>
-                      <CardDescription>Compare teacher chat sessions with original lesson parameters</CardDescription>
+                      <CardDescription>
+                        Compare teacher chat sessions with original lesson
+                        parameters
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex gap-2">
@@ -1337,12 +1693,18 @@ export default function GenerateLessons() {
                           onClick={async () => {
                             // Load validation reports
                             try {
-                              const response = await apiRequest("GET", "/api/validation-reports");
+                              const response = await apiRequest(
+                                "GET",
+                                "/api/validation-reports",
+                              );
                               const reports = await response.json();
                               setValidationReports(reports);
                               setShowValidationReports(true);
                             } catch (error) {
-                              console.error("Error loading validation reports:", error);
+                              console.error(
+                                "Error loading validation reports:",
+                                error,
+                              );
                             }
                           }}
                           variant="outline"
@@ -1350,47 +1712,67 @@ export default function GenerateLessons() {
                           <History className="h-4 w-4 mr-2" />
                           View Reports
                         </Button>
-                        
+
                         <Button
                           onClick={async () => {
                             if (chatMessages.length === 0) {
                               alert("No chat messages to validate");
                               return;
                             }
-                            
+
                             setIsCreatingReport(true);
                             try {
                               // Create validation report
-                              const response = await apiRequest("POST", "/api/validation-reports/validate", {
-                                reportTitle: `Validation - ${courseTitle || "Lesson"} - ${new Date().toLocaleDateString()}`,
-                                originalParameters: {
-                                  courseTitle,
-                                  targetAudience,
-                                  teachingStyle: globalTeachingStyle,
-                                  expertiseSubject: teacherExpertiseSubject,
-                                  actionTypes: teacherSections.map(s => s.actionType),
-                                  durations: teacherSections.map(s => s.duration),
-                                  difficultyLevels: teacherSections.map(s => s.difficulty)
+                              const response = await apiRequest(
+                                "POST",
+                                "/api/validation-reports/validate",
+                                {
+                                  reportTitle: `Validation - ${courseTitle || "Lesson"} - ${new Date().toLocaleDateString()}`,
+                                  originalParameters: {
+                                    courseTitle,
+                                    targetAudience,
+                                    teachingStyle: globalTeachingStyle,
+                                    expertiseSubject: teacherExpertiseSubject,
+                                    actionTypes: teacherSections.map(
+                                      (s) => s.actionType,
+                                    ),
+                                    durations: teacherSections.map(
+                                      (s) => s.duration,
+                                    ),
+                                    difficultyLevels: teacherSections.map(
+                                      (s) => s.difficulty,
+                                    ),
+                                  },
+                                  chatHistory: chatMessages,
                                 },
-                                chatHistory: chatMessages
-                              });
-                              
+                              );
+
                               const report = await response.json();
-                              alert(`Validation report created! Compliance Score: ${report.complianceScore.toFixed(1)}%`);
-                              
+                              alert(
+                                `Validation report created! Compliance Score: ${report.complianceScore.toFixed(1)}%`,
+                              );
+
                               // Reload reports
-                              const reportsResponse = await apiRequest("GET", "/api/validation-reports");
+                              const reportsResponse = await apiRequest(
+                                "GET",
+                                "/api/validation-reports",
+                              );
                               const reports = await reportsResponse.json();
                               setValidationReports(reports);
                               setShowValidationReports(true);
                             } catch (error) {
-                              console.error("Error creating validation report:", error);
+                              console.error(
+                                "Error creating validation report:",
+                                error,
+                              );
                               alert("Failed to create validation report");
                             } finally {
                               setIsCreatingReport(false);
                             }
                           }}
-                          disabled={isCreatingReport || chatMessages.length === 0}
+                          disabled={
+                            isCreatingReport || chatMessages.length === 0
+                          }
                         >
                           {isCreatingReport ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1400,23 +1782,37 @@ export default function GenerateLessons() {
                           Create Validation Report
                         </Button>
                       </div>
-                      
+
                       {showValidationReports && (
                         <div className="space-y-2">
                           {validationReports.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No validation reports yet</p>
+                            <p className="text-sm text-muted-foreground">
+                              No validation reports yet
+                            </p>
                           ) : (
                             validationReports.map((report: any) => (
-                              <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div
+                                key={report.id}
+                                className="flex items-center justify-between p-3 border rounded-lg"
+                              >
                                 <div className="flex-1">
-                                  <h4 className="font-medium">{report.reportTitle}</h4>
+                                  <h4 className="font-medium">
+                                    {report.reportTitle}
+                                  </h4>
                                   <p className="text-sm text-muted-foreground">
-                                    {new Date(report.createdAt).toLocaleDateString()} - 
-                                    Compliance: <span className={
-                                      report.complianceScore > 80 ? "text-green-600" :
-                                      report.complianceScore > 60 ? "text-yellow-600" :
-                                      "text-red-600"
-                                    }>
+                                    {new Date(
+                                      report.createdAt,
+                                    ).toLocaleDateString()}{" "}
+                                    - Compliance:{" "}
+                                    <span
+                                      className={
+                                        report.complianceScore > 80
+                                          ? "text-green-600"
+                                          : report.complianceScore > 60
+                                            ? "text-yellow-600"
+                                            : "text-red-600"
+                                      }
+                                    >
                                       {report.complianceScore.toFixed(1)}%
                                     </span>
                                   </p>
@@ -1428,10 +1824,13 @@ export default function GenerateLessons() {
                                     onClick={async () => {
                                       // Download PDF
                                       try {
-                                        const response = await fetch(`/api/validation-reports/${report.id}/pdf`);
+                                        const response = await fetch(
+                                          `/api/validation-reports/${report.id}/pdf`,
+                                        );
                                         const blob = await response.blob();
-                                        const url = window.URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
+                                        const url =
+                                          window.URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
                                         a.href = url;
                                         a.download = `validation-report-${report.id}.pdf`;
                                         document.body.appendChild(a);
@@ -1439,7 +1838,10 @@ export default function GenerateLessons() {
                                         document.body.removeChild(a);
                                         window.URL.revokeObjectURL(url);
                                       } catch (error) {
-                                        console.error("Error downloading PDF:", error);
+                                        console.error(
+                                          "Error downloading PDF:",
+                                          error,
+                                        );
                                         alert("Failed to download PDF report");
                                       }
                                     }}
@@ -1452,17 +1854,25 @@ export default function GenerateLessons() {
                                     onClick={async () => {
                                       // View details
                                       try {
-                                        const response = await apiRequest("GET", `/api/validation-reports/${report.id}`);
+                                        const response = await apiRequest(
+                                          "GET",
+                                          `/api/validation-reports/${report.id}`,
+                                        );
                                         const details = await response.json();
-                                        
+
                                         let deviationsText = "Deviations:\n";
                                         details.deviations.forEach((d: any) => {
                                           deviationsText += `- ${d.parameter}: ${d.severity} (Impact: ${d.impact})\n`;
                                         });
-                                        
-                                        alert(`${details.reportTitle}\n\nCompliance Score: ${details.complianceScore.toFixed(1)}%\n\n${deviationsText}`);
+
+                                        alert(
+                                          `${details.reportTitle}\n\nCompliance Score: ${details.complianceScore.toFixed(1)}%\n\n${deviationsText}`,
+                                        );
                                       } catch (error) {
-                                        console.error("Error loading report details:", error);
+                                        console.error(
+                                          "Error loading report details:",
+                                          error,
+                                        );
                                       }
                                     }}
                                   >

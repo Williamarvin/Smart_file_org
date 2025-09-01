@@ -3,7 +3,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, Maximize2, X } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentPreviewProps {
@@ -13,7 +18,12 @@ interface DocumentPreviewProps {
   isEmbedded?: boolean;
 }
 
-export function DocumentPreview({ content, title, className = "", isEmbedded = false }: DocumentPreviewProps) {
+export function DocumentPreview({
+  content,
+  title,
+  className = "",
+  isEmbedded = false,
+}: DocumentPreviewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const { toast } = useToast();
 
@@ -26,11 +36,11 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
   };
 
   const handleDownload = () => {
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([content], { type: "text/plain" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `${title || 'document'}.txt`;
+    a.download = `${title || "document"}.txt`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -38,57 +48,62 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
   };
 
   const formatContent = (text: string) => {
-    const lines = text.split('\n');
+    const lines = text.split("\n");
     const formattedContent = [];
     let inList = false;
     let listItems = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
-      
+
       // Check if this line is a bullet point or numbered item
-      const isBullet = trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*');
+      const isBullet =
+        trimmedLine.startsWith("•") ||
+        trimmedLine.startsWith("-") ||
+        trimmedLine.startsWith("*");
       const isNumbered = /^\d+\./.test(trimmedLine);
       const isListItem = isBullet || isNumbered;
-      
+
       // If we were in a list and this isn't a list item, render the accumulated list
-      if (inList && !isListItem && trimmedLine !== '') {
+      if (inList && !isListItem && trimmedLine !== "") {
         if (listItems.length > 0) {
           formattedContent.push(
             <ul key={`list-${i}`} className="mb-4 ml-2">
               {listItems}
-            </ul>
+            </ul>,
           );
           listItems = [];
         }
         inList = false;
       }
-      
+
       if (isListItem) {
         inList = true;
         let itemText = trimmedLine;
-        
+
         // Remove bullet markers and number prefixes
         if (isBullet) {
-          itemText = trimmedLine.replace(/^[•\-\*]\s*/, '');
+          itemText = trimmedLine.replace(/^[•\-\*]\s*/, "");
         } else if (isNumbered) {
-          itemText = trimmedLine.replace(/^\d+\.\s*/, '');
+          itemText = trimmedLine.replace(/^\d+\.\s*/, "");
         }
-        
+
         listItems.push(
           <li key={`item-${i}`} className="flex items-start mb-2">
             <span className="text-gray-500 mr-3 mt-1">•</span>
-            <span className="text-base text-gray-800 leading-relaxed">{itemText}</span>
-          </li>
+            <span className="text-base text-gray-800 leading-relaxed">
+              {itemText}
+            </span>
+          </li>,
         );
-      } else if (trimmedLine === '') {
+      } else if (trimmedLine === "") {
         // Empty line - add spacing
         if (inList && listItems.length > 0) {
           formattedContent.push(
             <ul key={`list-${i}`} className="mb-4 ml-2">
               {listItems}
-            </ul>
+            </ul>,
           );
           listItems = [];
           inList = false;
@@ -96,40 +111,52 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
         formattedContent.push(<div key={`space-${i}`} className="mb-3" />);
       } else {
         // Regular paragraph - check if it looks like a header or title
-        const isTitle = i === 0 || (trimmedLine.length < 100 && trimmedLine === trimmedLine.toUpperCase());
-        const isSection = trimmedLine.endsWith(':') && trimmedLine.length < 100;
-        
+        const isTitle =
+          i === 0 ||
+          (trimmedLine.length < 100 &&
+            trimmedLine === trimmedLine.toUpperCase());
+        const isSection = trimmedLine.endsWith(":") && trimmedLine.length < 100;
+
         if (isTitle && i === 0) {
           formattedContent.push(
-            <h1 key={`title-${i}`} className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2 border-gray-200">
+            <h1
+              key={`title-${i}`}
+              className="text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2 border-gray-200"
+            >
               {trimmedLine}
-            </h1>
+            </h1>,
           );
         } else if (isSection) {
           formattedContent.push(
-            <h2 key={`section-${i}`} className="text-lg font-semibold text-gray-800 mt-6 mb-3">
+            <h2
+              key={`section-${i}`}
+              className="text-lg font-semibold text-gray-800 mt-6 mb-3"
+            >
               {trimmedLine}
-            </h2>
+            </h2>,
           );
         } else {
           formattedContent.push(
-            <p key={`para-${i}`} className="text-base text-gray-800 mb-4 leading-relaxed">
+            <p
+              key={`para-${i}`}
+              className="text-base text-gray-800 mb-4 leading-relaxed"
+            >
               {trimmedLine}
-            </p>
+            </p>,
           );
         }
       }
     }
-    
+
     // Handle any remaining list items
     if (listItems.length > 0) {
       formattedContent.push(
         <ul key="list-final" className="mb-4 ml-2">
           {listItems}
-        </ul>
+        </ul>,
       );
     }
-    
+
     return formattedContent;
   };
 
@@ -171,11 +198,11 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
       </div>
 
       {/* Document Content - PDF-like styling */}
-      <ScrollArea className={isFullscreen ? "h-[calc(100vh-200px)]" : "h-[500px]"}>
-        <div className="px-12 py-10 bg-white" style={{ minHeight: '600px' }}>
-          <div className="max-w-4xl mx-auto">
-            {formatContent(content)}
-          </div>
+      <ScrollArea
+        className={isFullscreen ? "h-[calc(100vh-200px)]" : "h-[500px]"}
+      >
+        <div className="px-12 py-10 bg-white" style={{ minHeight: "600px" }}>
+          <div className="max-w-4xl mx-auto">{formatContent(content)}</div>
         </div>
       </ScrollArea>
     </>
@@ -184,16 +211,23 @@ export function DocumentPreview({ content, title, className = "", isEmbedded = f
   if (isEmbedded) {
     return (
       <>
-        <Card className={`overflow-hidden border border-gray-300 shadow-lg bg-white ${className}`} 
-              style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
+        <Card
+          className={`overflow-hidden border border-gray-300 shadow-lg bg-white ${className}`}
+          style={{
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+          }}
+        >
           <PreviewContent />
         </Card>
-        
+
         {/* Fullscreen Dialog */}
         <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
           <DialogContent className="max-w-5xl h-[90vh] p-0">
             <DialogHeader className="px-6 pt-6">
-              <DialogTitle className="text-xl">{title || "Document Preview"}</DialogTitle>
+              <DialogTitle className="text-xl">
+                {title || "Document Preview"}
+              </DialogTitle>
               <Button
                 onClick={() => setIsFullscreen(false)}
                 variant="ghost"

@@ -1,14 +1,14 @@
 import { sql } from "drizzle-orm";
-import { 
+import {
   index,
   jsonb,
-  pgTable, 
-  text, 
-  varchar, 
-  timestamp, 
-  integer, 
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  integer,
   real,
-  customType
+  customType,
 } from "drizzle-orm/pg-core";
 
 // Define bytea type for binary data storage
@@ -65,7 +65,9 @@ export const users = pgTable("users", {
 
 // Folders table for hierarchical organization
 export const folders = pgTable("folders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   parentId: varchar("parent_id"), // Self-reference - will add FK later
   path: text("path").notNull(), // Full path like "/Documents/Work/Projects"
@@ -73,25 +75,33 @@ export const folders = pgTable("folders", {
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
 });
 
 export const files = pgTable("files", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   filename: text("filename").notNull(),
   originalName: text("original_name").notNull(),
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
   fileContent: bytea("file_content"), // Store files <50MB in database for faster access
-  folderId: varchar("folder_id").references(() => folders.id, { onDelete: "set null" }), // Files can exist without folders (root level)
+  folderId: varchar("folder_id").references(() => folders.id, {
+    onDelete: "set null",
+  }), // Files can exist without folders (root level)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
   storageType: varchar("storage_type").default("hybrid"), // hybrid: BYTEA (<50MB) + Google Cloud Storage (always)
   processingStatus: text("processing_status").notNull().default("pending"), // pending, processing, completed, error
   processingError: text("processing_error"),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
   // Google Drive specific fields
   googleDriveId: varchar("google_drive_id"), // Google Drive file ID
   googleDriveUrl: text("google_drive_url"), // Original Google Drive URL
@@ -100,8 +110,12 @@ export const files = pgTable("files", {
 });
 
 export const fileMetadata = pgTable("file_metadata", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  fileId: varchar("file_id").notNull().references(() => files.id, { onDelete: "cascade" }),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  fileId: varchar("file_id")
+    .notNull()
+    .references(() => files.id, { onDelete: "cascade" }),
   summary: text("summary"),
   keywords: text("keywords").array(),
   topics: text("topics").array(),
@@ -111,7 +125,7 @@ export const fileMetadata = pgTable("file_metadata", {
   embeddingVector: vector("embedding_vector"), // New optimized vector column
   confidence: real("confidence"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  
+
   // New OpenAI Vector Store fields
   openaiFileId: varchar("openai_file_id"), // OpenAI file ID for vector store
   openaiVectorStoreId: varchar("openai_vector_store_id"), // OpenAI vector store ID
@@ -125,16 +139,22 @@ export const fileMetadata = pgTable("file_metadata", {
 });
 
 export const searchHistory = pgTable("search_history", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   query: text("query").notNull(),
   results: jsonb("results"),
   searchedAt: timestamp("searched_at").defaultNow().notNull(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
 });
 
 // Teacher chat sessions table
 export const teacherChatSessions = pgTable("teacher_chat_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   title: text("title").notNull(), // Session title/name
   courseTitle: text("course_title"), // Associated course title
   targetAudience: text("target_audience"), // Associated target audience
@@ -149,13 +169,19 @@ export const teacherChatSessions = pgTable("teacher_chat_sessions", {
   isPublic: integer("is_public").default(0), // 0 = private, 1 = public
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
 });
 
 // Validation Reports table for comparing chat sessions with original parameters
 export const validationReports = pgTable("validation_reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sessionId: varchar("session_id").references(() => teacherChatSessions.id, { onDelete: "set null" }),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => teacherChatSessions.id, {
+    onDelete: "set null",
+  }),
   originalParameters: jsonb("original_parameters").notNull(), // Original request params
   actualParameters: jsonb("actual_parameters").notNull(), // Parameters from chat session
   deviations: jsonb("deviations").notNull(), // List of deviations found
@@ -164,7 +190,9 @@ export const validationReports = pgTable("validation_reports", {
   reportTitle: text("report_title").notNull(),
   reportData: jsonb("report_data").notNull(), // Full report data
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
 });
 
 export const insertFileSchema = createInsertSchema(files).omit({
@@ -178,10 +206,12 @@ export const insertFileMetadataSchema = createInsertSchema(fileMetadata).omit({
   createdAt: true,
 });
 
-export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit({
-  id: true,
-  searchedAt: true,
-});
+export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit(
+  {
+    id: true,
+    searchedAt: true,
+  },
+);
 
 export const insertFolderSchema = createInsertSchema(folders).omit({
   id: true,
@@ -189,14 +219,18 @@ export const insertFolderSchema = createInsertSchema(folders).omit({
   updatedAt: true,
 });
 
-export const insertTeacherChatSessionSchema = createInsertSchema(teacherChatSessions).omit({
+export const insertTeacherChatSessionSchema = createInsertSchema(
+  teacherChatSessions,
+).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   shareId: true,
 });
 
-export const insertValidationReportSchema = createInsertSchema(validationReports).omit({
+export const insertValidationReportSchema = createInsertSchema(
+  validationReports,
+).omit({
   id: true,
   createdAt: true,
 });
@@ -213,7 +247,10 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
-  parent: one(folders, { fields: [folders.parentId], references: [folders.id] }),
+  parent: one(folders, {
+    fields: [folders.parentId],
+    references: [folders.id],
+  }),
   children: many(folders),
   files: many(files),
   user: one(users, { fields: [folders.userId], references: [users.id] }),
@@ -222,7 +259,10 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
 export const filesRelations = relations(files, ({ one }) => ({
   folder: one(folders, { fields: [files.folderId], references: [folders.id] }),
   user: one(users, { fields: [files.userId], references: [users.id] }),
-  metadata: one(fileMetadata, { fields: [files.id], references: [fileMetadata.fileId] }),
+  metadata: one(fileMetadata, {
+    fields: [files.id],
+    references: [fileMetadata.fileId],
+  }),
 }));
 
 export const fileMetadataRelations = relations(fileMetadata, ({ one }) => ({
@@ -233,15 +273,30 @@ export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   user: one(users, { fields: [searchHistory.userId], references: [users.id] }),
 }));
 
-export const teacherChatSessionsRelations = relations(teacherChatSessions, ({ one, many }) => ({
-  user: one(users, { fields: [teacherChatSessions.userId], references: [users.id] }),
-  validationReports: many(validationReports),
-}));
+export const teacherChatSessionsRelations = relations(
+  teacherChatSessions,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [teacherChatSessions.userId],
+      references: [users.id],
+    }),
+    validationReports: many(validationReports),
+  }),
+);
 
-export const validationReportsRelations = relations(validationReports, ({ one }) => ({
-  user: one(users, { fields: [validationReports.userId], references: [users.id] }),
-  session: one(teacherChatSessions, { fields: [validationReports.sessionId], references: [teacherChatSessions.id] }),
-}));
+export const validationReportsRelations = relations(
+  validationReports,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [validationReports.userId],
+      references: [users.id],
+    }),
+    session: one(teacherChatSessions, {
+      fields: [validationReports.sessionId],
+      references: [teacherChatSessions.id],
+    }),
+  }),
+);
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -254,9 +309,13 @@ export type InsertSearchHistory = z.infer<typeof insertSearchHistorySchema>;
 export type SearchHistory = typeof searchHistory.$inferSelect;
 export type InsertFolder = z.infer<typeof insertFolderSchema>;
 export type Folder = typeof folders.$inferSelect;
-export type InsertTeacherChatSession = z.infer<typeof insertTeacherChatSessionSchema>;
+export type InsertTeacherChatSession = z.infer<
+  typeof insertTeacherChatSessionSchema
+>;
 export type TeacherChatSession = typeof teacherChatSessions.$inferSelect;
-export type InsertValidationReport = z.infer<typeof insertValidationReportSchema>;
+export type InsertValidationReport = z.infer<
+  typeof insertValidationReportSchema
+>;
 export type ValidationReport = typeof validationReports.$inferSelect;
 
 export type FileWithMetadata = File & {

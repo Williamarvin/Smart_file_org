@@ -139,7 +139,13 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["filename", "originalName", "mimeType", "size", "uploadURL"],
+                "required": [
+                  "filename",
+                  "originalName",
+                  "mimeType",
+                  "size",
+                  "uploadURL"
+                ],
                 "properties": {
                   "filename": {
                     "type": "string",
@@ -1197,7 +1203,13 @@
                   },
                   "promptType": {
                     "type": "string",
-                    "enum": ["introduction", "warmup", "content", "practice", "homework"],
+                    "enum": [
+                      "introduction",
+                      "warmup",
+                      "content",
+                      "practice",
+                      "homework"
+                    ],
                     "description": "Type of lesson prompt"
                   },
                   "fileIds": {
@@ -1289,12 +1301,27 @@
                   },
                   "teachingStyle": {
                     "type": "string",
-                    "enum": ["visual", "storytelling", "hands-on", "discussion", "analytical"],
+                    "enum": [
+                      "visual",
+                      "storytelling",
+                      "hands-on",
+                      "discussion",
+                      "analytical"
+                    ],
                     "description": "Global teaching style for the course"
                   },
                   "expertiseSubject": {
                     "type": "string",
-                    "enum": ["mathematics", "science", "language-arts", "social-studies", "computer-science", "arts", "physical-education", "general"],
+                    "enum": [
+                      "mathematics",
+                      "science",
+                      "language-arts",
+                      "social-studies",
+                      "computer-science",
+                      "arts",
+                      "physical-education",
+                      "general"
+                    ],
                     "description": "Teacher's expertise subject area"
                   },
                   "teacherPrompt": {
@@ -1765,13 +1792,28 @@
           },
           "teachingStyle": {
             "type": "string",
-            "enum": ["visual", "storytelling", "hands-on", "discussion", "analytical"],
+            "enum": [
+              "visual",
+              "storytelling",
+              "hands-on",
+              "discussion",
+              "analytical"
+            ],
             "nullable": true,
             "description": "Global teaching style for the course"
           },
           "expertiseSubject": {
             "type": "string",
-            "enum": ["mathematics", "science", "language-arts", "social-studies", "computer-science", "arts", "physical-education", "general"],
+            "enum": [
+              "mathematics",
+              "science",
+              "language-arts",
+              "social-studies",
+              "computer-science",
+              "arts",
+              "physical-education",
+              "general"
+            ],
             "nullable": true,
             "description": "Teacher's expertise subject area"
           },

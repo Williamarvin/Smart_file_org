@@ -11,7 +11,12 @@ interface SearchBarProps {
   query?: string;
 }
 
-export default function SearchBar({ onSearch, isLoading, hasResults, query }: SearchBarProps) {
+export default function SearchBar({
+  onSearch,
+  isLoading,
+  hasResults,
+  query,
+}: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState(query || "");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,7 +27,7 @@ export default function SearchBar({ onSearch, isLoading, hasResults, query }: Se
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    
+
     // Debounced search - search automatically after 500ms of no typing
     setTimeout(() => {
       if (value === searchQuery) {
@@ -52,7 +57,7 @@ export default function SearchBar({ onSearch, isLoading, hasResults, query }: Se
           )}
         </div>
       </form>
-      
+
       {/* Advanced Search Filters */}
       <div className="mt-4 flex flex-wrap gap-2">
         <Badge variant="secondary" className="flex items-center">

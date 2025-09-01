@@ -2,10 +2,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { 
-  FileText, 
-  FileSpreadsheet, 
-  FileImage, 
+import {
+  FileText,
+  FileSpreadsheet,
+  FileImage,
   FileVideo,
   File as FileIcon,
   MoreVertical,
@@ -20,7 +20,7 @@ import {
   List,
   ChevronDown,
   FolderOpen,
-  Move
+  Move,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,7 +52,7 @@ interface FileItem {
   processingError?: string;
   similarity?: number; // Add similarity score for search results
   // Search-related properties
-  searchType?: 'semantic' | 'keyword';
+  searchType?: "semantic" | "keyword";
   searchExplanation?: string;
   matchedContent?: string[];
   metadata?: {
@@ -80,28 +80,32 @@ interface FileGridProps {
 }
 
 const getFileIcon = (mimeType: string) => {
-  if (mimeType.includes('pdf')) return FileText;
-  if (mimeType.includes('word') || mimeType.includes('document')) return FileText;
-  if (mimeType.includes('text')) return FileText;
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return FileSpreadsheet;
-  if (mimeType.includes('image')) return FileImage;
-  if (mimeType.includes('video')) return FileVideo;
+  if (mimeType.includes("pdf")) return FileText;
+  if (mimeType.includes("word") || mimeType.includes("document"))
+    return FileText;
+  if (mimeType.includes("text")) return FileText;
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+    return FileSpreadsheet;
+  if (mimeType.includes("image")) return FileImage;
+  if (mimeType.includes("video")) return FileVideo;
   return FileIcon;
 };
 
 const getFileIconColor = (mimeType: string) => {
-  if (mimeType.includes('pdf')) return 'text-red-600 bg-red-100';
-  if (mimeType.includes('word') || mimeType.includes('document')) return 'text-blue-600 bg-blue-100';
-  if (mimeType.includes('text')) return 'text-gray-600 bg-gray-100';
-  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'text-green-600 bg-green-100';
-  if (mimeType.includes('image')) return 'text-purple-600 bg-purple-100';
-  if (mimeType.includes('video')) return 'text-orange-600 bg-orange-100';
-  return 'text-slate-600 bg-slate-100';
+  if (mimeType.includes("pdf")) return "text-red-600 bg-red-100";
+  if (mimeType.includes("word") || mimeType.includes("document"))
+    return "text-blue-600 bg-blue-100";
+  if (mimeType.includes("text")) return "text-gray-600 bg-gray-100";
+  if (mimeType.includes("spreadsheet") || mimeType.includes("excel"))
+    return "text-green-600 bg-green-100";
+  if (mimeType.includes("image")) return "text-purple-600 bg-purple-100";
+  if (mimeType.includes("video")) return "text-orange-600 bg-orange-100";
+  return "text-slate-600 bg-slate-100";
 };
 
 const formatFileSize = (bytes: number) => {
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  if (bytes === 0) return '0 B';
+  const sizes = ["B", "KB", "MB", "GB"];
+  if (bytes === 0) return "0 B";
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 };
@@ -113,11 +117,12 @@ const formatDate = (dateString: string) => {
   const diffMinutes = Math.floor(diffTime / (1000 * 60));
   const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  if (diffDays === 1) return 'Yesterday';
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60)
+    return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
   return `${Math.ceil(diffDays / 30)} months ago`;
@@ -133,21 +138,21 @@ const isStuckProcessing = (uploadedAt: string) => {
   return hoursSinceUpload > 2; // Consider stuck after 2 hours
 };
 
-export default function FileGrid({ 
-  files, 
-  isLoading, 
-  onDeleteFile, 
+export default function FileGrid({
+  files,
+  isLoading,
+  onDeleteFile,
   onMoveFile,
   onRetryProcessing,
   onMarkFailed,
-  isSearchResults = false, 
+  isSearchResults = false,
   searchQuery,
   isSelectionMode = false,
   selectedFileIds = new Set(),
-  onSelectFile
+  onSelectFile,
 }: FileGridProps) {
   const [, navigate] = useLocation();
-  
+
   if (isLoading) {
     return (
       <Card>
@@ -173,7 +178,7 @@ export default function FileGrid({
               {files.length}
             </Badge>
           </h2>
-          
+
           <div className="flex items-center space-x-3">
             <div className="flex items-center bg-slate-100 rounded-lg p-1">
               <Button variant="ghost" size="sm" className="bg-white shadow-sm">
@@ -183,7 +188,7 @@ export default function FileGrid({
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            
+
             <Select defaultValue="relevance">
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Sort by" />
@@ -206,10 +211,15 @@ export default function FileGrid({
             <AlertDescription className="flex items-center text-blue-800">
               <FileIcon className="mr-2 h-4 w-4" />
               <span className="font-medium">Search Results</span>
-              <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-700">
+              <Badge
+                variant="secondary"
+                className="ml-2 bg-blue-100 text-blue-700"
+              >
                 {files.length}
               </Badge>
-              <span className="ml-2">Found files similar to: "{searchQuery}"</span>
+              <span className="ml-2">
+                Found files similar to: "{searchQuery}"
+              </span>
             </AlertDescription>
           </Alert>
         )}
@@ -218,13 +228,12 @@ export default function FileGrid({
           <div className="text-center py-12">
             <FileIcon className="mx-auto h-12 w-12 text-slate-400 mb-4" />
             <h3 className="text-lg font-medium text-slate-900 mb-2">
-              {isSearchResults ? 'No files found' : 'No files uploaded yet'}
+              {isSearchResults ? "No files found" : "No files uploaded yet"}
             </h3>
             <p className="text-slate-500">
-              {isSearchResults 
-                ? 'Try adjusting your search terms or upload more files.'
-                : 'Upload your first file to get started with intelligent organization.'
-              }
+              {isSearchResults
+                ? "Try adjusting your search terms or upload more files."
+                : "Upload your first file to get started with intelligent organization."}
             </p>
           </div>
         ) : (
@@ -233,12 +242,14 @@ export default function FileGrid({
               {files.map((file) => {
                 const FileIconComponent = getFileIcon(file.mimeType);
                 const iconColors = getFileIconColor(file.mimeType);
-                
+
                 return (
                   <div
                     key={file.id}
                     className={`group border border-slate-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 hover:border-blue-300 ${
-                      isSelectionMode && selectedFileIds.has(file.id) ? 'ring-2 ring-blue-500 border-blue-500' : ''
+                      isSelectionMode && selectedFileIds.has(file.id)
+                        ? "ring-2 ring-blue-500 border-blue-500"
+                        : ""
                     }`}
                   >
                     <div className="flex items-start space-x-3">
@@ -251,16 +262,18 @@ export default function FileGrid({
                           />
                         </div>
                       )}
-                      
+
                       {/* File Icon */}
-                      <div className={`w-12 h-12 ${iconColors} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                        {file.processingStatus === 'processing' ? (
+                      <div
+                        className={`w-12 h-12 ${iconColors} rounded-lg flex items-center justify-center flex-shrink-0`}
+                      >
+                        {file.processingStatus === "processing" ? (
                           <Loader2 className="h-6 w-6 animate-spin" />
                         ) : (
                           <FileIconComponent className="h-6 w-6" />
                         )}
                       </div>
-                      
+
                       {/* File Details */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -268,49 +281,63 @@ export default function FileGrid({
                             {file.originalName}
                           </h3>
                           {/* Enhanced search metadata for dual search results */}
-                          {isSearchResults && file.processingStatus === 'completed' && (
-                            <div className="text-xs flex items-center space-x-2">
-                              {/* Search Type Badge */}
-                              {file.searchType && (
-                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  file.searchType === 'semantic' 
-                                    ? 'bg-purple-100 text-purple-700' 
-                                    : 'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {file.searchType === 'semantic' ? '🧠 AI Match' : '🔍 Keyword'}
-                                </div>
-                              )}
-                              
-                            </div>
-                          )}
+                          {isSearchResults &&
+                            file.processingStatus === "completed" && (
+                              <div className="text-xs flex items-center space-x-2">
+                                {/* Search Type Badge */}
+                                {file.searchType && (
+                                  <div
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      file.searchType === "semantic"
+                                        ? "bg-purple-100 text-purple-700"
+                                        : "bg-blue-100 text-blue-700"
+                                    }`}
+                                  >
+                                    {file.searchType === "semantic"
+                                      ? "🧠 AI Match"
+                                      : "🔍 Keyword"}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                         </div>
-                        
+
                         {/* Search Explanation for AI-powered search results */}
                         {isSearchResults && file.searchExplanation && (
                           <div className="mt-2 text-sm text-slate-600 italic bg-slate-50 p-2 rounded border-l-2 border-blue-200">
-                            <span className="font-medium text-slate-700">Why this matches:</span> {file.searchExplanation}
-                            {file.matchedContent && file.matchedContent.length > 0 && (
-                              <div className="mt-1 text-xs text-slate-500">
-                                <span className="font-medium">Key terms:</span> {file.matchedContent.join(', ')}
-                              </div>
-                            )}
+                            <span className="font-medium text-slate-700">
+                              Why this matches:
+                            </span>{" "}
+                            {file.searchExplanation}
+                            {file.matchedContent &&
+                              file.matchedContent.length > 0 && (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  <span className="font-medium">
+                                    Key terms:
+                                  </span>{" "}
+                                  {file.matchedContent.join(", ")}
+                                </div>
+                              )}
                           </div>
                         )}
-                        
+
                         {/* Processing Status */}
-                        {file.processingStatus === 'processing' && (
+                        {file.processingStatus === "processing" && (
                           <div className="mt-2">
                             {isStuckProcessing(file.uploadedAt) ? (
                               <>
                                 <div className="flex items-center text-sm text-orange-700 mb-2">
                                   <AlertTriangle className="mr-2 h-4 w-4" />
-                                  <span>Processing seems stuck (uploaded {formatDate(file.uploadedAt)})</span>
+                                  <span>
+                                    Processing seems stuck (uploaded{" "}
+                                    {formatDate(file.uploadedAt)})
+                                  </span>
                                 </div>
                                 <div className="mt-3 flex space-x-2">
                                   {onRetryProcessing && (
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
+                                    <Button
+                                      variant="link"
+                                      size="sm"
                                       className="text-blue-600 hover:text-blue-800 p-0"
                                       onClick={() => onRetryProcessing(file.id)}
                                     >
@@ -318,18 +345,18 @@ export default function FileGrid({
                                     </Button>
                                   )}
                                   {onMarkFailed && (
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
+                                    <Button
+                                      variant="link"
+                                      size="sm"
                                       className="text-orange-600 hover:text-orange-800 p-0"
                                       onClick={() => onMarkFailed(file.id)}
                                     >
                                       Mark as Failed
                                     </Button>
                                   )}
-                                  <Button 
-                                    variant="link" 
-                                    size="sm" 
+                                  <Button
+                                    variant="link"
+                                    size="sm"
                                     className="text-red-600 hover:text-red-800 p-0"
                                     onClick={() => onDeleteFile(file.id)}
                                   >
@@ -341,7 +368,10 @@ export default function FileGrid({
                               <>
                                 <div className="flex items-center text-sm text-amber-700 mb-2">
                                   <Bot className="mr-2 h-4 w-4" />
-                                  <span>AI is extracting metadata and generating keywords...</span>
+                                  <span>
+                                    AI is extracting metadata and generating
+                                    keywords...
+                                  </span>
                                 </div>
                                 <Progress value={60} className="h-2" />
                               </>
@@ -350,26 +380,29 @@ export default function FileGrid({
                         )}
 
                         {/* Error Status */}
-                        {file.processingStatus === 'error' && (
+                        {file.processingStatus === "error" && (
                           <div className="mt-2">
                             <div className="flex items-center text-sm text-red-700">
                               <AlertTriangle className="mr-2 h-4 w-4" />
-                              <span>Failed to process: {file.processingError || 'Unknown error'}</span>
+                              <span>
+                                Failed to process:{" "}
+                                {file.processingError || "Unknown error"}
+                              </span>
                             </div>
                             <div className="mt-3 flex space-x-2">
                               {onRetryProcessing && (
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
+                                <Button
+                                  variant="link"
+                                  size="sm"
                                   className="text-blue-600 hover:text-blue-800 p-0"
                                   onClick={() => onRetryProcessing(file.id)}
                                 >
                                   Retry Processing
                                 </Button>
                               )}
-                              <Button 
-                                variant="link" 
-                                size="sm" 
+                              <Button
+                                variant="link"
+                                size="sm"
                                 className="text-red-600 hover:text-red-800 p-0"
                                 onClick={() => onDeleteFile(file.id)}
                               >
@@ -378,101 +411,141 @@ export default function FileGrid({
                             </div>
                           </div>
                         )}
-                        
+
                         {/* AI-Generated Metadata */}
-                        {file.metadata && file.processingStatus === 'completed' && (
-                          <div className="mt-2 space-y-2">
-                            {/* Show transcribed content if available, otherwise show summary */}
-                            {file.metadata.extractedText && !file.metadata.extractedText.startsWith('File reference:') ? (
-                              <>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Badge variant="default" className="text-xs bg-green-600">
-                                    ✓ Transcribed
-                                  </Badge>
-                                  <span className="text-xs text-slate-500">
-                                    {file.metadata.extractedText.length} characters
-                                  </span>
-                                </div>
-                                <p className="text-sm text-slate-700 font-medium line-clamp-3 bg-green-50 p-2 rounded">
-                                  {file.metadata.extractedText.substring(0, 200)}...
-                                </p>
-                                {file.metadata.summary && (
-                                  <p className="text-sm text-slate-600 line-clamp-2 italic">
-                                    Summary: {file.metadata.summary}
+                        {file.metadata &&
+                          file.processingStatus === "completed" && (
+                            <div className="mt-2 space-y-2">
+                              {/* Show transcribed content if available, otherwise show summary */}
+                              {file.metadata.extractedText &&
+                              !file.metadata.extractedText.startsWith(
+                                "File reference:",
+                              ) ? (
+                                <>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs bg-green-600"
+                                    >
+                                      ✓ Transcribed
+                                    </Badge>
+                                    <span className="text-xs text-slate-500">
+                                      {file.metadata.extractedText.length}{" "}
+                                      characters
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-slate-700 font-medium line-clamp-3 bg-green-50 p-2 rounded">
+                                    {file.metadata.extractedText.substring(
+                                      0,
+                                      200,
+                                    )}
+                                    ...
                                   </p>
+                                  {file.metadata.summary && (
+                                    <p className="text-sm text-slate-600 line-clamp-2 italic">
+                                      Summary: {file.metadata.summary}
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {file.metadata.extractedText?.startsWith(
+                                    "File reference:",
+                                  ) && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      ⏳ Pending transcription
+                                    </Badge>
+                                  )}
+                                  <p className="text-sm text-slate-600 line-clamp-2">
+                                    {file.metadata.summary ||
+                                      file.metadata.extractedText}
+                                  </p>
+                                </>
+                              )}
+
+                              {/* Keywords Tags */}
+                              {file.metadata.keywords &&
+                                file.metadata.keywords.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {file.metadata.keywords
+                                      .slice(0, 3)
+                                      .map((keyword, index) => (
+                                        <Badge
+                                          key={index}
+                                          variant="secondary"
+                                          className="text-xs"
+                                        >
+                                          {keyword}
+                                        </Badge>
+                                      ))}
+                                    {file.metadata.keywords.length > 3 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        +{file.metadata.keywords.length - 3}{" "}
+                                        more
+                                      </Badge>
+                                    )}
+                                  </div>
                                 )}
-                              </>
-                            ) : (
-                              <>
-                                {file.metadata.extractedText?.startsWith('File reference:') && (
-                                  <Badge variant="outline" className="text-xs">
-                                    ⏳ Pending transcription
-                                  </Badge>
-                                )}
-                                <p className="text-sm text-slate-600 line-clamp-2">
-                                  {file.metadata.summary || file.metadata.extractedText}
-                                </p>
-                              </>
-                            )}
-                            
-                            {/* Keywords Tags */}
-                            {file.metadata.keywords && file.metadata.keywords.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {file.metadata.keywords.slice(0, 3).map((keyword, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {keyword}
-                                  </Badge>
-                                ))}
-                                {file.metadata.keywords.length > 3 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{file.metadata.keywords.length - 3} more
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
+                            </div>
+                          )}
+
                         {/* File Metadata */}
                         <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-                          <span>{formatFileSize(file.size)} • {file.mimeType.split('/')[1].toUpperCase()}</span>
+                          <span>
+                            {formatFileSize(file.size)} •{" "}
+                            {file.mimeType.split("/")[1].toUpperCase()}
+                          </span>
                           <span>{formatDate(file.uploadedAt)}</span>
                         </div>
                       </div>
-                      
+
                       {/* Actions Menu (hidden in selection mode) */}
                       {!isSelectionMode && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => window.open(file.objectPath, '_blank')}>
-                              <Download className="mr-2 h-4 w-4" />
-                              Download
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/file/${file.id}`)}>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            {onMoveFile && (
-                              <DropdownMenuItem onClick={() => onMoveFile(file.id)}>
-                                <Move className="mr-2 h-4 w-4" />
-                                Move to Folder
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  window.open(file.objectPath, "_blank")
+                                }
+                              >
+                                <Download className="mr-2 h-4 w-4" />
+                                Download
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem 
-                              onClick={() => onDeleteFile(file.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <DropdownMenuItem
+                                onClick={() => navigate(`/file/${file.id}`)}
+                              >
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              {onMoveFile && (
+                                <DropdownMenuItem
+                                  onClick={() => onMoveFile(file.id)}
+                                >
+                                  <Move className="mr-2 h-4 w-4" />
+                                  Move to Folder
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => onDeleteFile(file.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
                     </div>

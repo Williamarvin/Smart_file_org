@@ -1,18 +1,31 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Menu, Sparkles, MessageCircle, User, BookOpen, Bot, Activity } from "lucide-react";
+import {
+  FolderOpen,
+  Upload,
+  BarChart3,
+  Search,
+  Home,
+  Menu,
+  Sparkles,
+  MessageCircle,
+  User,
+  BookOpen,
+  Bot,
+  Activity,
+} from "lucide-react";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function MobileNavigation() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  
+
   // Mock user for display
   const user = {
     firstName: "Demo",
-    lastName: "User", 
+    lastName: "User",
     email: "demo@example.com",
-    profileImageUrl: null
+    profileImageUrl: null,
   };
 
   const navItems = [
@@ -34,7 +47,9 @@ export function MobileNavigation() {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
             <FolderOpen className="text-blue-500 text-xl" />
-            <h1 className="text-lg font-bold text-slate-800">SmartFile Organizer</h1>
+            <h1 className="text-lg font-bold text-slate-800">
+              SmartFile Organizer
+            </h1>
           </div>
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -51,7 +66,7 @@ export function MobileNavigation() {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location === item.path;
-                
+
                 return (
                   <Link
                     key={item.path}
@@ -68,30 +83,33 @@ export function MobileNavigation() {
                   </Link>
                 );
               })}
-              
+
               {/* User section for mobile dropdown */}
               {user && (
                 <div className="pt-4 border-t border-slate-200 mt-4">
                   <div className="flex items-center space-x-3 px-4 py-3 mb-3">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
+                      <AvatarImage
+                        src={user.profileImageUrl || undefined}
+                        alt={user.firstName || "User"}
+                      />
                       <AvatarFallback>
                         <User className="w-4 h-4" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">
-                        {user.firstName && user.lastName 
+                        {user.firstName && user.lastName
                           ? `${user.firstName} ${user.lastName}`
-                          : user.email || "User"
-                        }
+                          : user.email || "User"}
                       </p>
                       {user.email && (
-                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {user.email}
+                        </p>
                       )}
                     </div>
                   </div>
-
                 </div>
               )}
             </div>
@@ -105,7 +123,7 @@ export function MobileNavigation() {
           {navItems.slice(0, 3).map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path;
-            
+
             return (
               <Link
                 key={item.path}

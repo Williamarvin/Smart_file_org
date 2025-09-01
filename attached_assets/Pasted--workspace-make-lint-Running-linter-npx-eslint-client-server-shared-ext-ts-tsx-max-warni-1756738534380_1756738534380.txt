@@ -1,0 +1,831 @@
+~/workspace$ make lint
+Running linter... 
+npx eslint client server shared --ext .ts,.tsx --max-warnings 0
+
+/home/runner/workspace/client/src/components/ai-provider-toggle.tsx
+  1:10  warning  'useState' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  1:20  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/components/document-preview.tsx
+  39:22  error  'Blob' is not defined             no-undef
+  87:48  error  Unnecessary escape character: \*  no-useless-escape
+
+/home/runner/workspace/client/src/components/file-grid.tsx
+   12:3   warning  'Star' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   22:3   warning  'FolderOpen' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  221:41  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`               react/no-unescaped-entities
+  221:55  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`               react/no-unescaped-entities
+
+/home/runner/workspace/client/src/components/file-upload-zone.tsx
+    9:3   warning  'Video' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   31:31  error    'HTMLInputElement' is not defined                                                              no-undef
+   32:33  error    'HTMLInputElement' is not defined                                                              no-undef
+   56:47  error    'FileList' is not defined                                                                      no-undef
+  195:17  warning  'fileCreateResponse' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  242:12  error    'React' is not defined                                                                         no-undef
+  242:30  error    'HTMLInputElement' is not defined                                                              no-undef
+  390:41  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/components/mobile-navigation.tsx
+  6:3  warning  'Search' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/components/navigation.tsx
+  6:3  warning  'Search' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/components/recent-activity.tsx
+   2:45  warning  'History' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+  16:7   warning  'getActivityIcon' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/components/search-bar.tsx
+  17:3   warning  'hasResults' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  22:28  error    'React' is not defined                                                        no-undef
+  27:33  error    'React' is not defined                                                        no-undef
+  27:51  error    'HTMLInputElement' is not defined                                             no-undef
+
+/home/runner/workspace/client/src/components/ui/alert-dialog.tsx
+  49:25  error  'HTMLDivElement' is not defined  no-undef
+  63:25  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/alert.tsx
+  23:3   error  'HTMLDivElement' is not defined        no-undef
+  24:24  error  'HTMLDivElement' is not defined        no-undef
+  36:3   error  'HTMLParagraphElement' is not defined  no-undef
+  37:24  error  'HTMLHeadingElement' is not defined    no-undef
+  48:3   error  'HTMLParagraphElement' is not defined  no-undef
+  49:24  error  'HTMLParagraphElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/badge.tsx
+  27:32  error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  36:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/components/ui/breadcrumb.tsx
+   8:3  error  'HTMLElement' is not defined        no-undef
+  16:3  error  'HTMLOListElement' is not defined   no-undef
+  31:3  error  'HTMLLIElement' is not defined      no-undef
+  43:3  error  'HTMLAnchorElement' is not defined  no-undef
+  61:3  error  'HTMLSpanElement' is not defined    no-undef
+
+/home/runner/workspace/client/src/components/ui/button.tsx
+  37:38  error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  42:33  error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  56:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/components/ui/card.tsx
+   6:3   error  'HTMLDivElement' is not defined  no-undef
+   7:24  error  'HTMLDivElement' is not defined  no-undef
+  21:3   error  'HTMLDivElement' is not defined  no-undef
+  22:24  error  'HTMLDivElement' is not defined  no-undef
+  33:3   error  'HTMLDivElement' is not defined  no-undef
+  34:24  error  'HTMLDivElement' is not defined  no-undef
+  48:3   error  'HTMLDivElement' is not defined  no-undef
+  49:24  error  'HTMLDivElement' is not defined  no-undef
+  60:3   error  'HTMLDivElement' is not defined  no-undef
+  61:24  error  'HTMLDivElement' is not defined  no-undef
+  68:3   error  'HTMLDivElement' is not defined  no-undef
+  69:24  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/carousel.tsx
+   44:3   error  'HTMLDivElement' is not defined     no-undef
+   45:24  error  'HTMLDivElement' is not defined     no-undef
+   87:35  error  'HTMLDivElement' is not defined     no-undef
+  152:3   error  'HTMLDivElement' is not defined     no-undef
+  153:24  error  'HTMLDivElement' is not defined     no-undef
+  174:3   error  'HTMLDivElement' is not defined     no-undef
+  175:24  error  'HTMLDivElement' is not defined     no-undef
+  196:3   error  'HTMLButtonElement' is not defined  no-undef
+  225:3   error  'HTMLButtonElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/chart.tsx
+   38:3  error  'HTMLDivElement' is not defined  no-undef
+  106:3  error  'HTMLDivElement' is not defined  no-undef
+  262:3  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/command.tsx
+   40:52  error  Unknown property 'cmdk-input-wrapper' found  react/no-unknown-property
+  128:25  error  'HTMLSpanElement' is not defined             no-undef
+
+/home/runner/workspace/client/src/components/ui/context-menu.tsx
+  169:25  error  'HTMLSpanElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/dialog.tsx
+  59:25  error  'HTMLDivElement' is not defined  no-undef
+  73:25  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/drawer.tsx
+  61:25  error  'HTMLDivElement' is not defined  no-undef
+  72:25  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/dropdown-menu.tsx
+  172:25  error  'HTMLSpanElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/form.tsx
+   76:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+   77:24  error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  130:3   error    'HTMLParagraphElement' is not defined                                                                                           no-undef
+  131:24  error    'HTMLParagraphElement' is not defined                                                                                           no-undef
+  147:3   error    'HTMLParagraphElement' is not defined                                                                                           no-undef
+  148:24  error    'HTMLParagraphElement' is not defined                                                                                           no-undef
+  171:3   warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/components/ui/input.tsx
+  5:32  error  'HTMLInputElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/menubar.tsx
+  226:25  error  'HTMLSpanElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/navigation-menu.tsx
+  119:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/components/ui/pagination.tsx
+  18:3  error  'HTMLUListElement' is not defined  no-undef
+  30:3  error  'HTMLLIElement' is not defined     no-undef
+
+/home/runner/workspace/client/src/components/ui/resizable.tsx
+  11:4  error  'React' is not defined  no-undef
+  27:4  error  'React' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/sheet.tsx
+  80:25  error  'HTMLDivElement' is not defined  no-undef
+  94:25  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/sidebar.tsx
+   55:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  105:37  error    'KeyboardEvent' is not defined                                                                                                  no-undef
+  172:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  305:3   error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  334:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  370:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  385:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  415:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  433:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  448:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  469:3   error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  492:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  505:3   error    'HTMLUListElement' is not defined                                                                                               no-undef
+  518:3   error    'HTMLLIElement' is not defined                                                                                                  no-undef
+  553:3   error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  612:3   error    'HTMLButtonElement' is not defined                                                                                              no-undef
+  643:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  664:3   error    'HTMLDivElement' is not defined                                                                                                 no-undef
+  702:3   error    'HTMLUListElement' is not defined                                                                                               no-undef
+  719:3   error    'HTMLLIElement' is not defined                                                                                                  no-undef
+  725:3   error    'HTMLAnchorElement' is not defined                                                                                              no-undef
+  778:3   warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/components/ui/skeleton.tsx
+  6:4   error  'React' is not defined           no-undef
+  6:25  error  'HTMLDivElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/table.tsx
+   6:3   error  'HTMLTableElement' is not defined         no-undef
+   7:24  error  'HTMLTableElement' is not defined         no-undef
+  20:3   error  'HTMLTableSectionElement' is not defined  no-undef
+  21:24  error  'HTMLTableSectionElement' is not defined  no-undef
+  28:3   error  'HTMLTableSectionElement' is not defined  no-undef
+  29:24  error  'HTMLTableSectionElement' is not defined  no-undef
+  40:3   error  'HTMLTableSectionElement' is not defined  no-undef
+  41:24  error  'HTMLTableSectionElement' is not defined  no-undef
+  55:3   error  'HTMLTableRowElement' is not defined      no-undef
+  56:24  error  'HTMLTableRowElement' is not defined      no-undef
+  70:3   error  'HTMLTableCellElement' is not defined     no-undef
+  71:26  error  'HTMLTableCellElement' is not defined     no-undef
+  85:3   error  'HTMLTableCellElement' is not defined     no-undef
+  86:26  error  'HTMLTableCellElement' is not defined     no-undef
+  97:3   error  'HTMLTableCaptionElement' is not defined  no-undef
+  98:24  error  'HTMLTableCaptionElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/textarea.tsx
+  6:3  error  'HTMLTextAreaElement' is not defined  no-undef
+
+/home/runner/workspace/client/src/components/ui/toggle.tsx
+  43:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/runner/workspace/client/src/hooks/use-toast.ts
+  15:7  warning  'actionTypes' is assigned a value but only used as a type. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/lib/queryClient.ts
+   3:37  error  'Response' is not defined  no-undef
+  14:12  error  'Response' is not defined  no-undef
+
+/home/runner/workspace/client/src/pages/analysis.tsx
+   25:35  warning  'statsLoading' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   31:40  warning  'filesLoading' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   37:45  warning  'categoriesLoading' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   44:28  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   54:38  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   76:26  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   76:37  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   82:32  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   83:36  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  138:30  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  154:30  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  195:32  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  246:44  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  246:55  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  310:46  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  357:30  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  358:37  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  369:34  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/avatar.tsx
+    8:34  warning  'AvatarImage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   22:3   warning  'Play' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   26:10  warning  'apiRequest' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   46:9   error    'React' is not defined                                                         no-undef
+  154:27  error    'HTMLAudioElement' is not defined                                              no-undef
+  155:62  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  157:14  error    'SpeechSynthesis' is not defined                                               no-undef
+  158:66  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  159:33  error    'HTMLDivElement' is not defined                                                no-undef
+  160:27  error    'HTMLInputElement' is not defined                                              no-undef
+  174:20  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  175:20  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  186:38  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+  218:27  error    'SpeechSynthesisUtterance' is not defined                                      no-undef
+  381:30  error    'React' is not defined                                                         no-undef
+  571:35  warning  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                react/no-unescaped-entities
+
+/home/runner/workspace/client/src/pages/browse.tsx
+     1:31  warning  'useCallback' is defined but never used. Allowed unused vars must match /^_/u                                   @typescript-eslint/no-unused-vars
+    13:3   warning  'Search' is defined but never used. Allowed unused vars must match /^_/u                                        @typescript-eslint/no-unused-vars
+    14:3   warning  'Plus' is defined but never used. Allowed unused vars must match /^_/u                                          @typescript-eslint/no-unused-vars
+    17:3   warning  'Edit3' is defined but never used. Allowed unused vars must match /^_/u                                         @typescript-eslint/no-unused-vars
+    20:3   warning  'Square' is defined but never used. Allowed unused vars must match /^_/u                                        @typescript-eslint/no-unused-vars
+    57:10  warning  'Checkbox' is defined but never used. Allowed unused vars must match /^_/u                                      @typescript-eslint/no-unused-vars
+    68:10  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+    72:10  warning  'countAllFilesInFolder' is defined but never used. Allowed unused vars must match /^_/u                         @typescript-eslint/no-unused-vars
+    75:13  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   135:60  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   160:6   warning  React Hook useEffect has a missing dependency: 'queryClient'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   226:33  error    'HTMLDivElement' is not defined                                                                                 no-undef
+   229:26  error    'IntersectionObserver' is not defined                                                                           no-undef
+   259:47  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   306:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   328:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   350:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   374:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   397:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   435:22  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   603:32  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   615:9   error    Unexpected lexical declaration in case block                                                                    no-case-declarations
+   887:30  warning  'error' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+  1067:72  warning  Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/chat.tsx
+    1:28  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   15:3   warning  'Sparkles' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   45:66  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   50:33  error    'HTMLDivElement' is not defined                                              no-undef
+   60:27  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+   88:23  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  117:22  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  163:30  error    'React' is not defined                                                       no-undef
+  183:35  error    Unnecessary escape character: \*                                             no-useless-escape
+  255:49  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  370:33  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  471:49  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+  511:49  warning  Unexpected any. Specify a different type                                     @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/dashboard.tsx
+    9:3   warning  'Clock' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+   12:3   warning  'User' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+   17:3   warning  'Sparkles' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+   54:10  warning  'categoryFiles' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+   54:25  warning  'setCategoryFiles' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   54:54  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  241:35  warning  'index' is defined but never used. Allowed unused args must match /^_/u                      @typescript-eslint/no-unused-vars
+  270:55  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  278:52  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  316:46  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  326:35  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  326:64  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  374:28  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                              react/no-unescaped-entities
+  374:69  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                              react/no-unescaped-entities
+  378:58  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  386:42  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  386:72  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  408:42  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+  414:57  warning  Unexpected any. Specify a different type                                                     @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/file-preview.tsx
+   88:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  125:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  140:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  160:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  169:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  179:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  181:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  213:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  239:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  247:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  259:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  269:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  281:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  282:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  286:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  302:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  307:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  323:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  324:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  328:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  344:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  354:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  359:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  377:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  384:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  391:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  398:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  402:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  406:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  415:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  417:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  423:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/generate-lessons.tsx
+    26:3   warning  'Play' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+    27:3   warning  'Pause' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+    28:3   warning  'CheckCircle' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    29:3   warning  'Circle' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+    74:9   error    'JSX' is not defined                                                                        no-undef
+   128:52  error    'HTMLAudioElement' is not defined                                                           no-undef
+   132:54  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   134:10  warning  'sessionTitle' is assigned a value but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+   134:24  warning  'setSessionTitle' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   135:10  warning  'shareUrl' is assigned a value but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   135:20  warning  'setShareUrl' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   138:62  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   191:9   warning  'queryClient' is assigned a value but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+   343:40  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   380:23  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   530:23  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   560:23  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   578:29  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+   994:19  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+   994:34  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+  1002:60  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+  1003:30  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+  1009:54  warning  'index' is defined but never used. Allowed unused args must match /^_/u                     @typescript-eslint/no-unused-vars
+  1108:34  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+  1108:58  warning  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                             react/no-unescaped-entities
+  1171:76  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1225:76  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1255:46  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1398:45  error    'prompt' is not defined                                                                     no-undef
+  1420:41  warning  'session' is assigned a value but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  1572:58  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1793:60  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+  1864:72  warning  Unexpected any. Specify a different type                                                    @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/generate.tsx
+    27:3   warning  'Pause' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+    95:31  error    'Blob' is not defined                                                                 no-undef
+    96:28  error    'atob' is not defined                                                                 no-undef
+   108:14  warning  'e' is defined but never used                                                         @typescript-eslint/no-unused-vars
+   114:66  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   123:70  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   130:17  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   131:15  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   132:6   warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   133:22  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   136:45  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   140:46  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   200:23  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   207:31  error    'Blob' is not defined                                                                 no-undef
+   208:28  error    'atob' is not defined                                                                 no-undef
+   219:31  error    'Blob' is not defined                                                                 no-undef
+   220:28  error    'atob' is not defined                                                                 no-undef
+   230:18  warning  'e' is defined but never used                                                         @typescript-eslint/no-unused-vars
+   237:13  warning  'mediaType' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   277:24  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   281:22  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   285:15  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   289:49  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   301:43  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   304:24  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   308:17  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   394:35  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   527:27  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   710:33  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   720:34  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   721:40  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   722:37  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   726:38  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   730:31  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   815:48  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  1032:67  warning  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                       react/no-unescaped-entities
+
+/home/runner/workspace/client/src/pages/home.tsx
+   10:10  warning  'Card' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+   10:16  warning  'CardContent' is defined but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+   25:35  warning  'statsLoading' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   49:15  warning  'error' is defined but never used. Allowed unused args must match /^_/u                  @typescript-eslint/no-unused-vars
+  123:41  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/client/src/pages/processing-status.tsx
+  127:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  151:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  367:26  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  396:26  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  429:24  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  448:17  error    'confirm' is not defined           no-undef
+  466:26  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  486:15  error    'confirm' is not defined           no-undef
+  505:24  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/client/src/pages/upload.tsx
+   29:10  warning  'apiRequest' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+   47:46  error    'File' is not defined                                                                           no-undef
+   48:70  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+   51:10  warning  'processingStartTime' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   56:38  error    'NodeJS' is not defined                                                                         no-undef
+   57:37  error    'NodeJS' is not defined                                                                         no-undef
+   73:30  error    'File' is not defined                                                                           no-undef
+   74:28  error    'FormData' is not defined                                                                       no-undef
+   87:18  warning  'parseError' is defined but never used                                                          @typescript-eslint/no-unused-vars
+  180:12  error    'React' is not defined                                                                          no-undef
+  180:30  error    'HTMLInputElement' is not defined                                                               no-undef
+  205:16  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  211:27  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  214:27  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  401:51  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  461:43  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  611:57  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/aiProvider.ts
+  228:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  230:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  243:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  256:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  258:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/cache.ts
+  10:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/difyService.ts
+   14:27  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+   60:65  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+   96:18  warning  'e' is defined but never used                                                                                          @typescript-eslint/no-unused-vars
+  145:26  error    This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain  no-dupe-else-if
+  153:22  warning  'e' is defined but never used                                                                                          @typescript-eslint/no-unused-vars
+  194:21  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  232:28  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  234:14  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  262:21  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  271:32  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  292:21  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  306:5   warning  'enableMCP' is assigned a value but never used. Allowed unused args must match /^_/u                                   @typescript-eslint/no-unused-vars
+  322:34  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  423:21  warning  Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/driveFileProcessor.ts
+    8:8   warning  'pdfParse' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   35:16  error    Unexpected control character(s) in regular expression: \x00, \x1f           no-control-regex
+   96:11  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  219:33  error    'File' is not defined                                                       no-undef
+  234:48  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  253:26  warning  'e' is defined but never used                                               @typescript-eslint/no-unused-vars
+  265:20  warning  'e' is defined but never used                                               @typescript-eslint/no-unused-vars
+
+/home/runner/workspace/server/enhancedPdfExtractor.ts
+   39:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+   81:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  149:71  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  201:16  warning  'popplerError' is defined but never used  @typescript-eslint/no-unused-vars
+  201:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  209:18  warning  'magickError' is defined but never used   @typescript-eslint/no-unused-vars
+  209:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:21  error    Empty block statement                     no-empty
+  255:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  286:15  error    Empty block statement                     no-empty
+  301:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  312:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/excelProcessor.ts
+     2:10  warning  'nanoid' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+     9:3   warning  'googleDriveService' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+    10:8   warning  'GoogleDriveMetadata' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    22:28  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+    39:14  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+    40:12  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+    83:21  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+    84:19  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   110:25  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   142:44  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   194:46  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   332:11  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   333:15  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   336:23  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   416:23  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   434:42  warning  'colIndex' is defined but never used. Allowed unused args must match /^_/u             @typescript-eslint/no-unused-vars
+   525:40  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   549:14  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   550:27  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   551:39  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   689:32  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   698:26  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   738:11  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   889:45  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   915:11  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   916:15  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   932:29  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+   993:38  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1013:71  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1017:27  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1054:21  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1055:14  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1056:25  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  1131:45  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/excelProcessorFixed.ts
+    4:10  warning  'files' is defined but never used. Allowed unused vars must match /^_/u               @typescript-eslint/no-unused-vars
+   16:16  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   18:29  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   21:11  warning  'FolderHierarchy' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+   42:14  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+   94:25  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  139:7   warning  'totalRows' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  145:44  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  151:19  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  152:19  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  153:19  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  162:21  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  163:21  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  164:21  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  173:25  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  175:28  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  176:37  warning  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/excelWithDriveMetadata.ts
+    2:10  warning  'files' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+    2:17  warning  'folders' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+    3:10  warning  'eq' is defined but never used. Allowed unused vars must match /^_/u                          @typescript-eslint/no-unused-vars
+    3:14  warning  'and' is defined but never used. Allowed unused vars must match /^_/u                         @typescript-eslint/no-unused-vars
+    8:10  warning  'nanoid' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+   19:20  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   20:28  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   22:14  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   23:25  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+   27:41  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  125:38  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  210:17  warning  'extractedContent' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  225:17  warning  'actualStorageType' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  241:13  warning  'actualFileContent' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  276:43  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  341:20  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  342:21  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  345:12  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+  350:39  warning  Unexpected any. Specify a different type                                                      @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/fastStorage.ts
+   7:39  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  14:38  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  22:33  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  60:24  error    Promise executor functions should not be async  no-async-promise-executor
+
+/home/runner/workspace/server/googleDriveService.ts
+    4:8   warning  'path' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  141:21  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  272:21  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/googleVisionOCR.ts
+    2:13  warning  'fs' is defined but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    3:13  warning  'path' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   48:13  warning  'request' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   96:48  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+  138:21  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+  179:21  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/index.ts
+  16:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/nonBlockingStorage.ts
+  217:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/openai.ts
+   84:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  159:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  177:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  199:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  265:23  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  271:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  282:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  297:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  307:3   warning  'fileContext' is defined but never used. Allowed unused args must match /^_/u                    @typescript-eslint/no-unused-vars
+  307:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  421:63  error    Unnecessary escape character: \-                                                                 no-useless-escape
+  445:16  warning  'processContentForVideo' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  447:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  453:18  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  499:16  warning  'generateEnhancedAnimatedVideo' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  674:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  689:34  warning  'reject' is defined but never used. Allowed unused args must match /^_/u                         @typescript-eslint/no-unused-vars
+  768:18  warning  'error' is defined but never used                                                                @typescript-eslint/no-unused-vars
+  778:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  907:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  921:16  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  984:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/pdfGenerator.ts
+   29:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   30:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  200:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  200:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  229:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/routes.ts
+    11:3   warning  'generateSearchEmbedding' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+    12:3   warning  'findSimilarContent' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+    14:3   warning  'chatWithFiles' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+    17:3   warning  'generateRelevanceExplanation' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+    21:10  warning  'difyService' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+    33:10  warning  'ocrService' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+    35:7   warning  'upload' is assigned a value but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+    58:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+    64:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+    65:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+    79:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+   142:32  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   165:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+   180:9   error    Unexpected lexical declaration in case block                                                     no-case-declarations
+   202:19  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   224:41  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   238:48  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   249:52  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   296:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   335:51  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   346:51  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   370:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   381:40  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   414:38  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   462:37  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   501:55  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   585:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   587:13  warning  'userId' is assigned a value but never used. Allowed unused vars must match /^_/u                @typescript-eslint/no-unused-vars
+   649:42  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   678:41  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   695:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   768:44  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   798:59  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   841:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   892:55  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   946:55  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+   995:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1052:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1092:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1140:21  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1150:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1177:44  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1199:58  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1225:61  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1275:59  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1417:58  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1497:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1529:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1581:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1654:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1697:22  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1763:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  1827:20  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2018:11  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2020:20  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2028:11  warning  'originalQuery' is assigned a value but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  2148:23  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2152:28  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2268:18  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2352:47  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2492:37  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2521:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2537:69  error    Unnecessary escape character: \.                                                                 no-useless-escape
+  2556:69  error    Unnecessary escape character: \.                                                                 no-useless-escape
+  2582:52  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2622:52  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2654:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2736:30  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2768:23  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2788:47  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2808:21  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2818:37  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2825:9   warning  'conversationContext' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  2956:21  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2987:15  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  2991:9   warning  'processedCount' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  3054:18  warning  'cleanupBrokenExcelFiles' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  3068:39  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3253:26  warning  'cloudError' is defined but never used                                                           @typescript-eslint/no-unused-vars
+  3363:25  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3395:36  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3444:21  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3457:43  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3469:39  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3484:40  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3514:43  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3535:46  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3548:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3563:52  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3572:35  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3656:33  warning  'f' is defined but never used. Allowed unused args must match /^_/u                              @typescript-eslint/no-unused-vars
+  3676:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3695:60  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3738:25  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3763:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3821:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3891:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  3965:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4075:13  warning  'aiProvider' is assigned a value but never used. Allowed unused vars must match /^_/u            @typescript-eslint/no-unused-vars
+  4167:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4175:9   warning  'provider' is assigned a value but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  4496:55  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4510:28  error    Expected a `const` instead of a literal type assertion                                           @typescript-eslint/prefer-as-const
+  4527:51  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4638:34  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4654:34  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4659:27  error    Expected a `const` instead of a literal type assertion                                           @typescript-eslint/prefer-as-const
+  4690:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4729:53  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4743:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4765:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4786:67  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4800:46  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4813:25  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4838:60  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4841:15  warning  'PDFGenerator' is assigned a value but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  4915:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4927:60  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4946:64  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4961:30  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4978:63  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  4992:56  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5051:17  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5214:49  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5226:50  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5242:15  warning  'objectStorageService' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  5280:54  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5345:18  warning  'error' is defined but never used                                                                @typescript-eslint/no-unused-vars
+  5424:44  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5570:43  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5595:34  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+  5710:29  warning  Unexpected any. Specify a different type                                                         @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/storage.ts
+    26:3   warning  'ilike' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+    30:3   warning  'ne' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+    32:3   warning  'or' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+    33:3   warning  'asc' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+    34:3   warning  'lt' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+   296:35  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   509:5   warning  'userId' is defined but never used. Allowed unused args must match /^_/u                   @typescript-eslint/no-unused-vars
+   512:23  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   526:5   warning  'userId' is defined but never used. Allowed unused args must match /^_/u                   @typescript-eslint/no-unused-vars
+   541:23  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   668:49  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   763:34  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+   824:34  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1271:65  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1338:11  warning  'foldersDeleted' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1577:14  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+  1595:22  warning  Unexpected any. Specify a different type                                                   @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/validationService.ts
+   14:13  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   15:11  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   85:50  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   86:54  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  152:18  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  218:5   warning  'original' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  218:15  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  219:5   warning  'actual' is defined but never used. Allowed unused args must match /^_/u    @typescript-eslint/no-unused-vars
+  219:13  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  235:33  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  235:43  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+
+/home/runner/workspace/server/vectorIndexManager.ts
+   19:16  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  103:24  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  130:5   warning  'metadata' is assigned a value but never used. Allowed unused args must match /^_/u      @typescript-eslint/no-unused-vars
+  130:30  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  215:21  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  252:14  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  314:17  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  315:14  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  444:5   warning  'userFiles' is assigned a value but never used. Allowed unused args must match /^_/u     @typescript-eslint/no-unused-vars
+  462:13  warning  'searchPrompt' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  562:22  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  592:18  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  608:27  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  619:25  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  643:21  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+
+✖ 695 problems (162 errors, 533 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.

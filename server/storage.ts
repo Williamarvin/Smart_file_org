@@ -1,15 +1,15 @@
-import { 
+import {
   users,
-  files, 
-  fileMetadata, 
+  files,
+  fileMetadata,
   searchHistory,
   folders,
   teacherChatSessions,
   validationReports,
   type User,
   type UpsertUser,
-  type File, 
-  type InsertFile, 
+  type File,
+  type InsertFile,
   type FileMetadata,
   type InsertFileMetadata,
   type FileWithMetadata,
@@ -20,41 +20,92 @@ import {
   type FolderWithChildren,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, sql, and, inArray, ne, isNull, or, asc, lt } from "drizzle-orm";
+import {
+  eq,
+  desc,
+  ilike,
+  sql,
+  and,
+  inArray,
+  ne,
+  isNull,
+  or,
+  asc,
+  lt,
+} from "drizzle-orm";
 import { cache } from "./cache";
 
 // Storage interface for cloud-only file management
 
-import type { InsertTeacherChatSession, TeacherChatSession, InsertValidationReport, ValidationReport } from "@shared/schema";
+import type {
+  InsertTeacherChatSession,
+  TeacherChatSession,
+  InsertValidationReport,
+  ValidationReport,
+} from "@shared/schema";
 
 // Utility function to escape special regex characters
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  
+
   // File operations
-  createFile(file: InsertFile, userId: string, rawFileData?: Buffer): Promise<File>;
+  createFile(
+    file: InsertFile,
+    userId: string,
+    rawFileData?: Buffer,
+  ): Promise<File>;
   getFile(id: string, userId: string): Promise<File | undefined>;
-  getFiles(userId: string, limit?: number, offset?: number): Promise<FileWithMetadata[]>;
-  updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void>;
+  getFiles(
+    userId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<FileWithMetadata[]>;
+  updateFileProcessingStatus(
+    id: string,
+    userId: string,
+    status: string,
+    error?: string,
+  ): Promise<void>;
   updateFileProcessedAt(id: string, userId: string): Promise<void>;
   deleteFile(id: string, userId: string): Promise<void>;
-  
+
   // File metadata operations
-  createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata>;
-  getFileMetadata(fileId: string, userId: string): Promise<FileMetadata | undefined>;
-  updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void>;
-  
+  createFileMetadata(
+    metadata: InsertFileMetadata,
+    userId: string,
+  ): Promise<FileMetadata>;
+  getFileMetadata(
+    fileId: string,
+    userId: string,
+  ): Promise<FileMetadata | undefined>;
+  updateFileMetadata(
+    fileId: string,
+    userId: string,
+    metadata: Partial<InsertFileMetadata>,
+  ): Promise<void>;
+
   // Search operations
-  searchFiles(query: string, userId: string, limit?: number): Promise<FileWithMetadata[]>;
-  searchFilesBySimilarity(embedding: number[], userId: string, limit?: number): Promise<FileWithMetadata[]>;
-  createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory>;
-  
+  searchFiles(
+    query: string,
+    userId: string,
+    limit?: number,
+  ): Promise<FileWithMetadata[]>;
+  searchFilesBySimilarity(
+    embedding: number[],
+    userId: string,
+    limit?: number,
+  ): Promise<FileWithMetadata[]>;
+  createSearchHistory(
+    search: InsertSearchHistory,
+    userId: string,
+  ): Promise<SearchHistory>;
+
   // Statistics
   getFileStats(userId: string): Promise<{
     totalFiles: number;
@@ -65,38 +116,76 @@ export interface IStorage {
     byteaSize: number;
     cloudSize: number;
   }>;
-  
+
   // Batch operations
   getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]>;
-  getFilesByCategory(category: string, userId: string, limit?: number): Promise<FileWithMetadata[]>;
+  getFilesByCategory(
+    category: string,
+    userId: string,
+    limit?: number,
+  ): Promise<FileWithMetadata[]>;
   getCategories(userId: string): Promise<{ category: string; count: number }[]>;
-  
+
   // Folder operations
   createFolder(folder: InsertFolder, userId: string): Promise<Folder>;
   getFolder(id: string, userId: string): Promise<Folder | undefined>;
-  getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]>;
+  getFolders(
+    userId: string,
+    parentId?: string | null,
+  ): Promise<FolderWithChildren[]>;
   getAllFolders(userId: string): Promise<Folder[]>;
-  updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void>;
+  updateFolder(
+    id: string,
+    userId: string,
+    updates: Partial<InsertFolder>,
+  ): Promise<void>;
   deleteFolder(id: string, userId: string): Promise<void>;
-  moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void>;
+  moveFolderContents(
+    fromFolderId: string,
+    toFolderId: string | null,
+    userId: string,
+  ): Promise<void>;
   getFolderPath(folderId: string, userId: string): Promise<string>;
-  
+
   // File-folder operations
-  moveFileToFolder(fileId: string, folderId: string | null, userId: string): Promise<void>;
-  getFilesInFolder(folderId: string | null, userId: string): Promise<FileWithMetadata[]>;
-  getFilesByFolder(folderId: string, userId: string): Promise<FileWithMetadata[]>;
-  
+  moveFileToFolder(
+    fileId: string,
+    folderId: string | null,
+    userId: string,
+  ): Promise<void>;
+  getFilesInFolder(
+    folderId: string | null,
+    userId: string,
+  ): Promise<FileWithMetadata[]>;
+  getFilesByFolder(
+    folderId: string,
+    userId: string,
+  ): Promise<FileWithMetadata[]>;
+
   // Teacher chat sessions
-  saveTeacherChatSession(session: InsertTeacherChatSession): Promise<TeacherChatSession>;
+  saveTeacherChatSession(
+    session: InsertTeacherChatSession,
+  ): Promise<TeacherChatSession>;
   getUserTeacherChatSessions(userId: string): Promise<TeacherChatSession[]>;
-  getTeacherChatSessionByShareId(shareId: string): Promise<TeacherChatSession | null>;
-  updateTeacherChatSessionSharing(sessionId: string, userId: string, isPublic: number): Promise<TeacherChatSession>;
+  getTeacherChatSessionByShareId(
+    shareId: string,
+  ): Promise<TeacherChatSession | null>;
+  updateTeacherChatSessionSharing(
+    sessionId: string,
+    userId: string,
+    isPublic: number,
+  ): Promise<TeacherChatSession>;
   deleteTeacherChatSession(sessionId: string, userId: string): Promise<void>;
-  
+
   // Validation reports
-  createValidationReport(report: InsertValidationReport): Promise<ValidationReport>;
+  createValidationReport(
+    report: InsertValidationReport,
+  ): Promise<ValidationReport>;
   getValidationReports(userId: string): Promise<ValidationReport[]>;
-  getValidationReport(reportId: string, userId: string): Promise<ValidationReport | undefined>;
+  getValidationReport(
+    reportId: string,
+    userId: string,
+  ): Promise<ValidationReport | undefined>;
   deleteValidationReport(reportId: string, userId: string): Promise<void>;
 }
 
@@ -122,28 +211,34 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createFile(insertFile: InsertFile, userId: string, rawFileData?: Buffer): Promise<File> {
+  async createFile(
+    insertFile: InsertFile,
+    userId: string,
+    rawFileData?: Buffer,
+  ): Promise<File> {
     // Invalidate cache when new files are created
     cache.invalidatePattern(`files:${userId}:`);
-    
+
     const maxBytea = 10 * 1024 * 1024; // 10MB limit for BYTEA storage
     const shouldStoreBytea = rawFileData && rawFileData.length <= maxBytea;
-    
-    console.log(`Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, BYTEA: ${shouldStoreBytea ? 'yes' : 'no (>10MB)'}`);
-    
+
+    console.log(
+      `Creating file: ${insertFile.filename}, size: ${insertFile.size} bytes, BYTEA: ${shouldStoreBytea ? "yes" : "no (>10MB)"}`,
+    );
+
     // Insert into files table with hybrid storage
     const fileValues = {
       ...insertFile,
       userId,
-      storageType: 'hybrid' as const,
-      processingStatus: insertFile.processingStatus || 'pending' as const,
+      storageType: "hybrid" as const,
+      processingStatus: insertFile.processingStatus || ("pending" as const),
       // Include Google Drive fields if provided
       googleDriveId: insertFile.googleDriveId || null,
       googleDriveUrl: insertFile.googleDriveUrl || null,
       googleDriveMetadata: insertFile.googleDriveMetadata || null,
       lastMetadataSync: insertFile.lastMetadataSync || null,
     };
-    
+
     // Add BYTEA data if file is ≤10MB and we have data
     if (shouldStoreBytea) {
       try {
@@ -155,27 +250,29 @@ export class DatabaseStorage implements IStorage {
           RETURNING *
         `);
         const createdFile = result.rows[0] as File;
-        console.log(`✅ Successfully stored file with BYTEA data: ${insertFile.filename} (${rawFileData.length} bytes)`);
+        console.log(
+          `✅ Successfully stored file with BYTEA data: ${insertFile.filename} (${rawFileData.length} bytes)`,
+        );
         return createdFile;
       } catch (error) {
-        console.error(`❌ Failed to store BYTEA data for ${insertFile.filename}:`, error);
+        console.error(
+          `❌ Failed to store BYTEA data for ${insertFile.filename}:`,
+          error,
+        );
         // Fallback: create without BYTEA data but mark as error
         const [file] = await db
           .insert(files)
           .values({
             ...fileValues,
-            processingStatus: 'error',
-            processingError: `Failed to store file data: ${error}`
+            processingStatus: "error",
+            processingError: `Failed to store file data: ${error}`,
           })
           .returning();
         return file;
       }
     } else {
       // Large files or no data: cloud storage only (no BYTEA)
-      const [file] = await db
-        .insert(files)
-        .values(fileValues)
-        .returning();
+      const [file] = await db.insert(files).values(fileValues).returning();
       return file;
     }
   }
@@ -195,7 +292,7 @@ export class DatabaseStorage implements IStorage {
       FROM files 
       WHERE id = ${id} AND user_id = ${userId}
     `);
-    
+
     const row = result.rows[0] as any;
     if (row?.file_content) {
       const buffer = Buffer.from(row.file_content);
@@ -212,29 +309,39 @@ export class DatabaseStorage implements IStorage {
       FROM files 
       WHERE id = ${id} AND user_id = ${userId}
     `);
-    
-    return !!(result.rows[0]?.has_bytea_data);
+
+    return !!result.rows[0]?.has_bytea_data;
   }
 
   // Store file data in BYTEA (for files ≤10MB)
-  async updateFileData(id: string, userId: string, fileData: Buffer): Promise<void> {
+  async updateFileData(
+    id: string,
+    userId: string,
+    fileData: Buffer,
+  ): Promise<void> {
     const maxBytea = 10 * 1024 * 1024; // 10MB limit
-    
+
     if (fileData.length > maxBytea) {
-      console.log(`File too large for BYTEA storage: ${fileData.length} bytes > ${maxBytea} bytes`);
+      console.log(
+        `File too large for BYTEA storage: ${fileData.length} bytes > ${maxBytea} bytes`,
+      );
       return; // Skip if file is too large
     }
-    
+
     await db.execute(sql`
       UPDATE files 
       SET file_content = ${fileData}
       WHERE id = ${id} AND user_id = ${userId}
     `);
-    
+
     console.log(`Updated BYTEA data for file ${id}: ${fileData.length} bytes`);
   }
 
-  async getFiles(userId: string = "demo-user", limit = 50, offset = 0): Promise<FileWithMetadata[]> {
+  async getFiles(
+    userId: string = "demo-user",
+    limit = 50,
+    offset = 0,
+  ): Promise<FileWithMetadata[]> {
     // Use cache for first page requests (most common)
     const cacheKey = `files:${userId}:${limit}:${offset}`;
     if (offset === 0 && limit <= 50) {
@@ -283,7 +390,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
 
-    const mappedResult = result.map(row => ({
+    const mappedResult = result.map((row) => ({
       id: row.id,
       filename: row.filename,
       originalName: row.originalName,
@@ -303,28 +410,30 @@ export class DatabaseStorage implements IStorage {
       googleDriveMetadata: row.googleDriveMetadata,
       lastMetadataSync: row.lastMetadataSync,
       // Include metadata with extracted text for UI display
-      metadata: row.metadataId ? {
-        id: row.metadataId,
-        fileId: row.id,
-        extractedText: row.metadataExtractedText, // Include for UI display
-        summary: row.metadataSummary,
-        categories: row.metadataCategories,
-        keywords: row.metadataKeywords,
-        topics: row.metadataTopics,
-        confidence: row.metadataConfidence,
-        createdAt: row.metadataCreatedAt || new Date(),
-        embedding: null, // Excluded for performance
-        embeddingVector: null, // Excluded for performance
-        openaiFileId: null,
-        openaiVectorStoreId: null,
-        aiAnalysis: null,
-        categorization: null,
-        namedEntities: null,
-        actionItems: null,
-        keyProcesses: null,
-        organizationPriority: null,
-        relevanceScores: null,
-      } : undefined,
+      metadata: row.metadataId
+        ? {
+            id: row.metadataId,
+            fileId: row.id,
+            extractedText: row.metadataExtractedText, // Include for UI display
+            summary: row.metadataSummary,
+            categories: row.metadataCategories,
+            keywords: row.metadataKeywords,
+            topics: row.metadataTopics,
+            confidence: row.metadataConfidence,
+            createdAt: row.metadataCreatedAt || new Date(),
+            embedding: null, // Excluded for performance
+            embeddingVector: null, // Excluded for performance
+            openaiFileId: null,
+            openaiVectorStoreId: null,
+            aiAnalysis: null,
+            categorization: null,
+            namedEntities: null,
+            actionItems: null,
+            keyProcesses: null,
+            organizationPriority: null,
+            relevanceScores: null,
+          }
+        : undefined,
     }));
 
     // Cache first page results
@@ -335,12 +444,17 @@ export class DatabaseStorage implements IStorage {
     return mappedResult;
   }
 
-  async updateFileProcessingStatus(id: string, userId: string, status: string, error?: string): Promise<void> {
+  async updateFileProcessingStatus(
+    id: string,
+    userId: string,
+    status: string,
+    error?: string,
+  ): Promise<void> {
     await db
       .update(files)
-      .set({ 
+      .set({
         processingStatus: status,
-        processingError: error 
+        processingError: error,
       })
       .where(and(eq(files.id, id), eq(files.userId, userId)));
   }
@@ -348,9 +462,9 @@ export class DatabaseStorage implements IStorage {
   async updateFileProcessedAt(id: string, userId: string): Promise<void> {
     await db
       .update(files)
-      .set({ 
+      .set({
         processedAt: new Date(),
-        processingStatus: "completed"
+        processingStatus: "completed",
       })
       .where(and(eq(files.id, id), eq(files.userId, userId)));
   }
@@ -361,40 +475,45 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(files)
       .where(and(eq(files.id, id), eq(files.userId, userId)));
-    
+
     if (file) {
       // Delete from cloud storage if objectPath exists
       try {
         if (file.objectPath) {
-          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          const objectStorageService = new (
+            await import("./objectStorage")
+          ).ObjectStorageService();
           await objectStorageService.deleteObject(file.objectPath);
         }
       } catch (error) {
         console.error(`Failed to delete file ${id} from cloud storage:`, error);
         // Continue with database deletion even if cloud storage fails
       }
-      
+
       // Delete file metadata first
-      await db
-        .delete(fileMetadata)
-        .where(eq(fileMetadata.fileId, id));
-      
+      await db.delete(fileMetadata).where(eq(fileMetadata.fileId, id));
+
       // Delete file record
-      await db.delete(files).where(and(eq(files.id, id), eq(files.userId, userId)));
-      
+      await db
+        .delete(files)
+        .where(and(eq(files.id, id), eq(files.userId, userId)));
+
       // Invalidate file caches
       cache.invalidatePattern(`files:${userId}:`);
       cache.invalidatePattern(`folders:${userId}:`);
     }
   }
 
-  async createFileMetadata(metadata: InsertFileMetadata, userId: string): Promise<FileMetadata> {
+  async createFileMetadata(
+    metadata: InsertFileMetadata,
+    userId: string,
+  ): Promise<FileMetadata> {
     // If embedding is provided, also set the vector column
     const insertData: any = { ...metadata };
     if (metadata.embedding && Array.isArray(metadata.embedding)) {
       insertData.embeddingVector = metadata.embedding;
     }
-    
+
     const [result] = await db
       .insert(fileMetadata)
       .values(insertData)
@@ -402,7 +521,10 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getFileMetadata(fileId: string, userId: string): Promise<FileMetadata | undefined> {
+  async getFileMetadata(
+    fileId: string,
+    userId: string,
+  ): Promise<FileMetadata | undefined> {
     const [metadata] = await db
       .select()
       .from(fileMetadata)
@@ -410,22 +532,30 @@ export class DatabaseStorage implements IStorage {
     return metadata || undefined;
   }
 
-  async updateFileMetadata(fileId: string, userId: string, metadata: Partial<InsertFileMetadata>): Promise<void> {
+  async updateFileMetadata(
+    fileId: string,
+    userId: string,
+    metadata: Partial<InsertFileMetadata>,
+  ): Promise<void> {
     // If embedding is provided, also update the vector column
     const updateData: any = { ...metadata };
     if (metadata.embedding && Array.isArray(metadata.embedding)) {
       updateData.embeddingVector = metadata.embedding;
     }
-    
+
     await db
       .update(fileMetadata)
       .set(updateData)
       .where(and(eq(fileMetadata.fileId, fileId)));
   }
 
-  async searchFiles(query: string, userId: string, limit = 20): Promise<FileWithMetadata[]> {
+  async searchFiles(
+    query: string,
+    userId: string,
+    limit = 20,
+  ): Promise<FileWithMetadata[]> {
     console.log(`Storage: searching for "${query}" for user ${userId}`);
-    
+
     const result = await db
       .select({
         id: files.id,
@@ -470,15 +600,15 @@ export class DatabaseStorage implements IStorage {
               SELECT 1 FROM unnest(${fileMetadata.categories}) AS category 
               WHERE category ILIKE ${`%${query}%`}
             )
-          )`
-        )
+          )`,
+        ),
       )
       .orderBy(desc(files.uploadedAt))
       .limit(limit);
 
     console.log(`Storage: found ${result.length} raw results`);
-    
-    const mappedResults = result.map(row => ({
+
+    const mappedResults = result.map((row) => ({
       id: row.id,
       filename: row.filename,
       originalName: row.originalName,
@@ -499,14 +629,18 @@ export class DatabaseStorage implements IStorage {
       lastMetadataSync: row.lastMetadataSync,
       metadata: row.metadata || undefined,
     }));
-    
+
     console.log(`Storage: returning ${mappedResults.length} mapped results`);
     return mappedResults;
   }
 
-  async searchFilesBySimilarity(embedding: number[], userId: string = "demo-user", limit = 20): Promise<FileWithMetadata[]> {
+  async searchFilesBySimilarity(
+    embedding: number[],
+    userId: string = "demo-user",
+    limit = 20,
+  ): Promise<FileWithMetadata[]> {
     console.log(`Storage: pgvector semantic search for user ${userId}`);
-    
+
     // Use pgvector for optimized similarity search with proper parameterized queries
     const embeddingVector = JSON.stringify(embedding);
     const result = await db.execute(
@@ -524,10 +658,12 @@ export class DatabaseStorage implements IStorage {
           AND fm.embedding_vector IS NOT NULL
         ORDER BY fm.embedding_vector <=> ${embeddingVector}::vector
         LIMIT ${limit}
-      `
+      `,
     );
 
-    console.log(`Storage: pgvector found ${result.rows.length} files with similarity search`);
+    console.log(
+      `Storage: pgvector found ${result.rows.length} files with similarity search`,
+    );
 
     const mappedResults = result.rows.map((row: any) => ({
       id: row.id,
@@ -573,19 +709,29 @@ export class DatabaseStorage implements IStorage {
       },
     }));
 
-    console.log(`Storage: similarity scores:`, mappedResults.map(f => ({ 
-      filename: f.filename, 
-      similarity: f.similarity.toFixed(3) 
-    })));
+    console.log(
+      `Storage: similarity scores:`,
+      mappedResults.map((f) => ({
+        filename: f.filename,
+        similarity: f.similarity.toFixed(3),
+      })),
+    );
 
     // Filter out results with low similarity (threshold: 0.15 for relevance)
-    const relevantResults = mappedResults.filter(file => file.similarity > 0.15);
-    
-    console.log(`Storage: filtered ${mappedResults.length} results to ${relevantResults.length} relevant files (similarity > 0.15)`);
+    const relevantResults = mappedResults.filter(
+      (file) => file.similarity > 0.15,
+    );
+
+    console.log(
+      `Storage: filtered ${mappedResults.length} results to ${relevantResults.length} relevant files (similarity > 0.15)`,
+    );
     return relevantResults;
   }
 
-  async createSearchHistory(search: InsertSearchHistory, userId: string): Promise<SearchHistory> {
+  async createSearchHistory(
+    search: InsertSearchHistory,
+    userId: string,
+  ): Promise<SearchHistory> {
     const [result] = await db
       .insert(searchHistory)
       .values({ ...search, userId })
@@ -593,7 +739,11 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getFilesByCategory(category: string, userId: string, limit = 20): Promise<FileWithMetadata[]> {
+  async getFilesByCategory(
+    category: string,
+    userId: string,
+    limit = 20,
+  ): Promise<FileWithMetadata[]> {
     const result = await db.execute(
       sql`
         SELECT f.*, fm.*
@@ -607,7 +757,7 @@ export class DatabaseStorage implements IStorage {
         )
         ORDER BY f.uploaded_at DESC
         LIMIT ${limit}
-      `
+      `,
     );
 
     return result.rows.map((row: any) => ({
@@ -629,32 +779,36 @@ export class DatabaseStorage implements IStorage {
       googleDriveUrl: null,
       googleDriveMetadata: null,
       lastMetadataSync: null,
-      metadata: row.file_id ? {
-        id: row.file_id,
-        fileId: row.file_id,
-        extractedText: row.extracted_text,
-        summary: row.summary,
-        keywords: row.keywords,
-        topics: row.topics,
-        categories: row.categories,
-        embedding: row.embedding,
-        embeddingVector: row.embedding_vector,
-        confidence: row.confidence,
-        createdAt: row.created_at,
-        openaiFileId: row.openai_file_id || null,
-        openaiVectorStoreId: row.openai_vector_store_id || null,
-        aiAnalysis: row.ai_analysis || null,
-        categorization: row.categorization || null,
-        namedEntities: row.named_entities || null,
-        actionItems: row.action_items || null,
-        keyProcesses: row.key_processes || null,
-        organizationPriority: row.organization_priority || null,
-        relevanceScores: row.relevance_scores || null,
-      } : undefined,
+      metadata: row.file_id
+        ? {
+            id: row.file_id,
+            fileId: row.file_id,
+            extractedText: row.extracted_text,
+            summary: row.summary,
+            keywords: row.keywords,
+            topics: row.topics,
+            categories: row.categories,
+            embedding: row.embedding,
+            embeddingVector: row.embedding_vector,
+            confidence: row.confidence,
+            createdAt: row.created_at,
+            openaiFileId: row.openai_file_id || null,
+            openaiVectorStoreId: row.openai_vector_store_id || null,
+            aiAnalysis: row.ai_analysis || null,
+            categorization: row.categorization || null,
+            namedEntities: row.named_entities || null,
+            actionItems: row.action_items || null,
+            keyProcesses: row.key_processes || null,
+            organizationPriority: row.organization_priority || null,
+            relevanceScores: row.relevance_scores || null,
+          }
+        : undefined,
     }));
   }
 
-  async getCategories(userId: string): Promise<{ category: string; count: number }[]> {
+  async getCategories(
+    userId: string,
+  ): Promise<{ category: string; count: number }[]> {
     const result = await db.execute(
       sql`
         SELECT unnest(categories) as category, COUNT(*)::int as count
@@ -664,7 +818,7 @@ export class DatabaseStorage implements IStorage {
         AND f.user_id = ${userId}
         GROUP BY unnest(categories)
         ORDER BY COUNT(*) DESC
-      `
+      `,
     );
 
     return result.rows.map((row: any) => ({
@@ -707,9 +861,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getFilesByIds(ids: string[], userId: string): Promise<FileWithMetadata[]> {
+  async getFilesByIds(
+    ids: string[],
+    userId: string,
+  ): Promise<FileWithMetadata[]> {
     if (ids.length === 0) return [];
-    
+
     const result = await db
       .select({
         id: files.id,
@@ -735,7 +892,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(fileMetadata, and(eq(files.id, fileMetadata.fileId)))
       .where(and(inArray(files.id, ids), eq(files.userId, userId)));
 
-    return result.map(row => ({
+    return result.map((row) => ({
       id: row.id,
       filename: row.filename,
       originalName: row.originalName,
@@ -759,19 +916,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Folder operations
-  async createFolder(folderData: InsertFolder, userId: string): Promise<Folder> {
+  async createFolder(
+    folderData: InsertFolder,
+    userId: string,
+  ): Promise<Folder> {
     console.log(`Storage: creating folder for user ${userId}`, folderData);
-    
+
     // Generate unique folder name if there are duplicates
-    const uniqueName = await this.generateUniqueFolderName(folderData.name, folderData.parentId || null, userId);
-    
+    const uniqueName = await this.generateUniqueFolderName(
+      folderData.name,
+      folderData.parentId || null,
+      userId,
+    );
+
     // Build the full path with unique name
     let fullPath = `/${uniqueName}`;
     if (folderData.parentId) {
       const parentPath = await this.getFolderPath(folderData.parentId, userId);
       fullPath = `${parentPath}/${uniqueName}`;
     }
-    
+
     const [folder] = await db
       .insert(folders)
       .values({
@@ -781,23 +945,29 @@ export class DatabaseStorage implements IStorage {
         userId,
       })
       .returning();
-    
+
     return folder;
   }
 
   /**
    * Generate a unique folder name by checking for duplicates and adding incremental suffix
    */
-  async generateUniqueFolderName(baseName: string, parentId: string | null, userId: string): Promise<string> {
+  async generateUniqueFolderName(
+    baseName: string,
+    parentId: string | null,
+    userId: string,
+  ): Promise<string> {
     // Check if base name already exists
     const existingFolder = await db
       .select()
       .from(folders)
-      .where(and(
-        eq(folders.name, baseName),
-        parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
-        eq(folders.userId, userId)
-      ))
+      .where(
+        and(
+          eq(folders.name, baseName),
+          parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
+          eq(folders.userId, userId),
+        ),
+      )
       .limit(1);
 
     if (existingFolder.length === 0) {
@@ -809,13 +979,16 @@ export class DatabaseStorage implements IStorage {
     const similarFolders = await db
       .select()
       .from(folders)
-      .where(and(
-        parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
-        eq(folders.userId, userId)
-      ));
+      .where(
+        and(
+          parentId ? eq(folders.parentId, parentId) : isNull(folders.parentId),
+          eq(folders.userId, userId),
+        ),
+      );
 
-    const baseFolders = similarFolders.filter(folder => 
-      folder.name === baseName || folder.name.startsWith(`${baseName}_`)
+    const baseFolders = similarFolders.filter(
+      (folder) =>
+        folder.name === baseName || folder.name.startsWith(`${baseName}_`),
     );
 
     let highestNumber = 0;
@@ -823,7 +996,9 @@ export class DatabaseStorage implements IStorage {
       if (folder.name === baseName) {
         highestNumber = Math.max(highestNumber, 1);
       } else {
-        const match = folder.name.match(new RegExp(`^${escapeRegExp(baseName)}_(\\d+)$`));
+        const match = folder.name.match(
+          new RegExp(`^${escapeRegExp(baseName)}_(\\d+)$`),
+        );
         if (match) {
           highestNumber = Math.max(highestNumber, parseInt(match[1]));
         }
@@ -838,20 +1013,25 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(folders)
       .where(and(eq(folders.id, id), eq(folders.userId, userId)));
-    
+
     return folder;
   }
 
-  async getFolders(userId: string, parentId?: string | null): Promise<FolderWithChildren[]> {
-    console.log(`Storage: getting folders for user ${userId}, parent: ${parentId}`);
-    
+  async getFolders(
+    userId: string,
+    parentId?: string | null,
+  ): Promise<FolderWithChildren[]> {
+    console.log(
+      `Storage: getting folders for user ${userId}, parent: ${parentId}`,
+    );
+
     // Get all folders for this user in one query
     const allFolders = await db
       .select()
       .from(folders)
       .where(eq(folders.userId, userId))
       .orderBy(folders.name);
-    
+
     // Get all files for this user in one query (excluding BYTEA content)
     const allFiles = await db
       .select({
@@ -876,16 +1056,16 @@ export class DatabaseStorage implements IStorage {
     // Create maps for efficient lookup
     const foldersByParent = new Map<string | null, typeof allFolders>();
     const filesByFolder = new Map<string, typeof allFiles>();
-    
-    allFolders.forEach(folder => {
+
+    allFolders.forEach((folder) => {
       const key = folder.parentId;
       if (!foldersByParent.has(key)) {
         foldersByParent.set(key, []);
       }
       foldersByParent.get(key)!.push(folder);
     });
-    
-    allFiles.forEach(file => {
+
+    allFiles.forEach((file) => {
       const key = file.folderId;
       if (key) {
         if (!filesByFolder.has(key)) {
@@ -897,39 +1077,45 @@ export class DatabaseStorage implements IStorage {
 
     // Get folders for the requested parent
     const requestedFolders = foldersByParent.get(parentId ?? null) || [];
-    
+
     // Build results with children and files
-    const foldersWithChildren: FolderWithChildren[] = requestedFolders.map(folder => ({
-      ...folder,
-      children: foldersByParent.get(folder.id) || [],
-      files: (filesByFolder.get(folder.id) || []).map(file => ({
-        ...file,
-        fileContent: null, // Exclude bytea data for performance
-        googleDriveId: null,
-        googleDriveUrl: null,
-        googleDriveMetadata: null,
-        lastMetadataSync: null,
-      })),
-    }));
-    
+    const foldersWithChildren: FolderWithChildren[] = requestedFolders.map(
+      (folder) => ({
+        ...folder,
+        children: foldersByParent.get(folder.id) || [],
+        files: (filesByFolder.get(folder.id) || []).map((file) => ({
+          ...file,
+          fileContent: null, // Exclude bytea data for performance
+          googleDriveId: null,
+          googleDriveUrl: null,
+          googleDriveMetadata: null,
+          lastMetadataSync: null,
+        })),
+      }),
+    );
+
     return foldersWithChildren;
   }
 
   async getAllFolders(userId: string): Promise<Folder[]> {
     console.log(`Storage: getting all folders for user ${userId}`);
-    
+
     const result = await db
       .select()
       .from(folders)
       .where(eq(folders.userId, userId))
       .orderBy(folders.path);
-    
+
     return result;
   }
 
-  async updateFolder(id: string, userId: string, updates: Partial<InsertFolder>): Promise<void> {
+  async updateFolder(
+    id: string,
+    userId: string,
+    updates: Partial<InsertFolder>,
+  ): Promise<void> {
     console.log(`Storage: updating folder ${id} for user ${userId}`, updates);
-    
+
     // If name is being updated, update the path
     if (updates.name) {
       const folder = await this.getFolder(id, userId);
@@ -942,7 +1128,7 @@ export class DatabaseStorage implements IStorage {
         updates.path = newPath;
       }
     }
-    
+
     await db
       .update(folders)
       .set({
@@ -953,62 +1139,71 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteFolder(id: string, userId: string): Promise<void> {
-    console.log(`Storage: deleting folder ${id} and all its contents for user ${userId}`);
-    
+    console.log(
+      `Storage: deleting folder ${id} and all its contents for user ${userId}`,
+    );
+
     // Recursively delete all subfolders first
     const subfolders = await db
       .select()
       .from(folders)
       .where(and(eq(folders.parentId, id), eq(folders.userId, userId)));
-    
+
     for (const subfolder of subfolders) {
       await this.deleteFolder(subfolder.id, userId);
     }
-    
+
     // Get all files in this folder and delete them from cloud storage and database
     const folderFiles = await db
       .select()
       .from(files)
       .where(and(eq(files.folderId, id), eq(files.userId, userId)));
-    
+
     // Delete files from cloud storage and database
     for (const file of folderFiles) {
       try {
         // Delete from cloud storage if objectPath exists and is not a Google Drive URL
-        if (file.objectPath && !file.objectPath.startsWith('http')) {
-          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+        if (file.objectPath && !file.objectPath.startsWith("http")) {
+          const objectStorageService = new (
+            await import("./objectStorage")
+          ).ObjectStorageService();
           await objectStorageService.deleteObject(file.objectPath);
         }
         // Skip cloud storage deletion for Google Drive files (they start with http/https)
       } catch (error) {
-        console.error(`Failed to delete file ${file.id} from cloud storage:`, error);
+        console.error(
+          `Failed to delete file ${file.id} from cloud storage:`,
+          error,
+        );
         // Continue with database deletion even if cloud storage fails
       }
     }
-    
+
     // Delete all file metadata for files in this folder first
-    const fileIds = folderFiles.map(file => file.id);
+    const fileIds = folderFiles.map((file) => file.id);
     if (fileIds.length > 0) {
       await db
         .delete(fileMetadata)
         .where(inArray(fileMetadata.fileId, fileIds));
     }
-    
+
     // Delete all files in this folder from database
     await db
       .delete(files)
       .where(and(eq(files.folderId, id), eq(files.userId, userId)));
-    
+
     // Delete the folder itself
     await db
       .delete(folders)
       .where(and(eq(folders.id, id), eq(folders.userId, userId)));
-    
+
     // Invalidate all relevant caches after deletion
     if (folderFiles.length > 0) {
       cache.invalidatePattern(`files:${userId}:`);
       cache.invalidatePattern(`folders:${userId}:`);
-      console.log(`Invalidated file caches for user ${userId} after folder deletion`);
+      console.log(
+        `Invalidated file caches for user ${userId} after folder deletion`,
+      );
     }
   }
 
@@ -1016,62 +1211,60 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(files)
-      .where(and(
-        eq(files.userId, userId),
-        isNull(files.folderId)
-      ));
-    
+      .where(and(eq(files.userId, userId), isNull(files.folderId)));
+
     return result[0]?.count || 0;
   }
 
   async deleteOrphanedFiles(userId: string): Promise<number> {
     console.log(`Deleting orphaned files for user ${userId}`);
-    
+
     // Get all orphaned files (files without folder IDs)
     const orphanedFiles = await db
       .select()
       .from(files)
-      .where(and(
-        eq(files.userId, userId),
-        isNull(files.folderId)
-      ));
-    
+      .where(and(eq(files.userId, userId), isNull(files.folderId)));
+
     console.log(`Found ${orphanedFiles.length} orphaned files to delete`);
-    
+
     // Delete files from cloud storage
     for (const file of orphanedFiles) {
       try {
-        if (file.objectPath && !file.objectPath.startsWith('http')) {
-          const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+        if (file.objectPath && !file.objectPath.startsWith("http")) {
+          const objectStorageService = new (
+            await import("./objectStorage")
+          ).ObjectStorageService();
           await objectStorageService.deleteObject(file.objectPath);
         }
       } catch (error) {
-        console.error(`Failed to delete orphaned file ${file.id} from cloud storage:`, error);
+        console.error(
+          `Failed to delete orphaned file ${file.id} from cloud storage:`,
+          error,
+        );
         // Continue with database deletion even if cloud storage fails
       }
     }
-    
+
     // Delete file metadata for orphaned files
-    const fileIds = orphanedFiles.map(file => file.id);
+    const fileIds = orphanedFiles.map((file) => file.id);
     if (fileIds.length > 0) {
       await db
         .delete(fileMetadata)
         .where(inArray(fileMetadata.fileId, fileIds));
     }
-    
+
     // Delete orphaned files from database
     const deleteResult = await db
       .delete(files)
-      .where(and(
-        eq(files.userId, userId),
-        isNull(files.folderId)
-      ))
+      .where(and(eq(files.userId, userId), isNull(files.folderId)))
       .returning({ id: files.id });
-    
+
     // Invalidate caches
     cache.invalidatePattern(`files:${userId}:`);
-    console.log(`Deleted ${deleteResult.length} orphaned files for user ${userId}`);
-    
+    console.log(
+      `Deleted ${deleteResult.length} orphaned files for user ${userId}`,
+    );
+
     return deleteResult.length;
   }
 
@@ -1085,35 +1278,39 @@ export class DatabaseStorage implements IStorage {
       WHERE f.user_id = ${userId}
       AND fm.extracted_text LIKE 'File reference:%'
     `);
-    
+
     return result.rows;
   }
 
-  async deleteAllUserData(userId: string): Promise<{ filesDeleted: number; foldersDeleted: number }> {
+  async deleteAllUserData(
+    userId: string,
+  ): Promise<{ filesDeleted: number; foldersDeleted: number }> {
     console.log(`Deleting ALL data for user ${userId}`);
-    
+
     // Get only file IDs and paths (minimal data) to avoid response size limit
     const filesToDelete = await db
-      .select({ 
-        id: files.id, 
-        objectPath: files.objectPath 
+      .select({
+        id: files.id,
+        objectPath: files.objectPath,
       })
       .from(files)
       .where(eq(files.userId, userId));
-    
+
     console.log(`Found ${filesToDelete.length} files to delete`);
-    
+
     // Process deletion in batches to avoid memory issues
     const BATCH_SIZE = 100;
     for (let i = 0; i < filesToDelete.length; i += BATCH_SIZE) {
       const batch = filesToDelete.slice(i, i + BATCH_SIZE);
-      const batchIds = batch.map(f => f.id);
-      
+      const batchIds = batch.map((f) => f.id);
+
       // Delete cloud storage objects for this batch
       for (const file of batch) {
         try {
-          if (file.objectPath && !file.objectPath.startsWith('http')) {
-            const objectStorageService = new (await import('./objectStorage')).ObjectStorageService();
+          if (file.objectPath && !file.objectPath.startsWith("http")) {
+            const objectStorageService = new (
+              await import("./objectStorage")
+            ).ObjectStorageService();
             await objectStorageService.deleteObject(file.objectPath);
           }
         } catch (error) {
@@ -1121,55 +1318,65 @@ export class DatabaseStorage implements IStorage {
           // Continue with database deletion even if cloud storage fails
         }
       }
-      
+
       // Delete metadata for this batch
       if (batchIds.length > 0) {
         await db
           .delete(fileMetadata)
           .where(inArray(fileMetadata.fileId, batchIds));
       }
-      
+
       // Delete files for this batch
-      await db
-        .delete(files)
-        .where(inArray(files.id, batchIds));
-      
-      console.log(`Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(filesToDelete.length / BATCH_SIZE)}`);
+      await db.delete(files).where(inArray(files.id, batchIds));
+
+      console.log(
+        `Deleted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(filesToDelete.length / BATCH_SIZE)}`,
+      );
     }
-    
+
     // Delete all folders (usually much fewer than files)
     const foldersDeleted = await db
       .delete(folders)
       .where(eq(folders.userId, userId));
-    
+
     // Clear all caches
     cache.invalidatePattern(`files:${userId}:`);
     cache.invalidatePattern(`folders:${userId}:`);
     cache.invalidatePattern(`stats:${userId}`);
     cache.invalidatePattern(`categories:${userId}`);
-    
-    console.log(`Deleted ${filesToDelete.length} files and folders for user ${userId}`);
-    
+
+    console.log(
+      `Deleted ${filesToDelete.length} files and folders for user ${userId}`,
+    );
+
     return {
       filesDeleted: filesToDelete.length,
-      foldersDeleted: 0 // We can't easily count folders without another query
+      foldersDeleted: 0, // We can't easily count folders without another query
     };
   }
 
-  async moveFolderContents(fromFolderId: string, toFolderId: string | null, userId: string): Promise<void> {
-    console.log(`Storage: moving contents from folder ${fromFolderId} to ${toFolderId} for user ${userId}`);
-    
+  async moveFolderContents(
+    fromFolderId: string,
+    toFolderId: string | null,
+    userId: string,
+  ): Promise<void> {
+    console.log(
+      `Storage: moving contents from folder ${fromFolderId} to ${toFolderId} for user ${userId}`,
+    );
+
     // Move all files
     await db
       .update(files)
       .set({ folderId: toFolderId })
       .where(and(eq(files.folderId, fromFolderId), eq(files.userId, userId)));
-    
+
     // Move all subfolders
     await db
       .update(folders)
       .set({ parentId: toFolderId })
-      .where(and(eq(folders.parentId, fromFolderId), eq(folders.userId, userId)));
+      .where(
+        and(eq(folders.parentId, fromFolderId), eq(folders.userId, userId)),
+      );
   }
 
   async getFolderPath(folderId: string, userId: string): Promise<string> {
@@ -1179,18 +1386,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   // File-folder operations
-  async moveFileToFolder(fileId: string, folderId: string | null, userId: string): Promise<void> {
-    console.log(`Storage: moving file ${fileId} to folder ${folderId} for user ${userId}`);
-    
+  async moveFileToFolder(
+    fileId: string,
+    folderId: string | null,
+    userId: string,
+  ): Promise<void> {
+    console.log(
+      `Storage: moving file ${fileId} to folder ${folderId} for user ${userId}`,
+    );
+
     await db
       .update(files)
       .set({ folderId })
       .where(and(eq(files.id, fileId), eq(files.userId, userId)));
   }
 
-  async getFilesInFolder(folderId: string | null, userId: string): Promise<FileWithMetadata[]> {
-    console.log(`Storage: getting files in folder ${folderId} for user ${userId}`);
-    
+  async getFilesInFolder(
+    folderId: string | null,
+    userId: string,
+  ): Promise<FileWithMetadata[]> {
+    console.log(
+      `Storage: getting files in folder ${folderId} for user ${userId}`,
+    );
+
     const query = db
       .select({
         id: files.id,
@@ -1210,14 +1428,18 @@ export class DatabaseStorage implements IStorage {
       })
       .from(files)
       .leftJoin(fileMetadata, eq(files.id, fileMetadata.fileId))
-      .where(and(
-        eq(files.userId, userId),
-        folderId === null ? isNull(files.folderId) : eq(files.folderId, folderId)
-      ))
+      .where(
+        and(
+          eq(files.userId, userId),
+          folderId === null
+            ? isNull(files.folderId)
+            : eq(files.folderId, folderId),
+        ),
+      )
       .orderBy(desc(files.uploadedAt));
 
     const result = await query;
-    return result.map(row => ({
+    return result.map((row) => ({
       ...row,
       fileContent: null, // Not included in API responses
       storageType: row.storageType || null, // Use actual value or default
@@ -1228,66 +1450,88 @@ export class DatabaseStorage implements IStorage {
       lastMetadataSync: null,
     }));
   }
-  
-  async getFilesByFolder(folderId: string, userId: string): Promise<FileWithMetadata[]> {
+
+  async getFilesByFolder(
+    folderId: string,
+    userId: string,
+  ): Promise<FileWithMetadata[]> {
     return this.getFilesInFolder(folderId, userId);
   }
-  
+
   // Teacher chat sessions
-  async saveTeacherChatSession(session: InsertTeacherChatSession): Promise<TeacherChatSession> {
+  async saveTeacherChatSession(
+    session: InsertTeacherChatSession,
+  ): Promise<TeacherChatSession> {
     const [savedSession] = await db
       .insert(teacherChatSessions)
       .values(session)
       .returning();
     return savedSession;
   }
-  
-  async getUserTeacherChatSessions(userId: string): Promise<TeacherChatSession[]> {
+
+  async getUserTeacherChatSessions(
+    userId: string,
+  ): Promise<TeacherChatSession[]> {
     return await db
       .select()
       .from(teacherChatSessions)
       .where(eq(teacherChatSessions.userId, userId))
       .orderBy(desc(teacherChatSessions.createdAt));
   }
-  
-  async getTeacherChatSessionByShareId(shareId: string): Promise<TeacherChatSession | null> {
+
+  async getTeacherChatSessionByShareId(
+    shareId: string,
+  ): Promise<TeacherChatSession | null> {
     const [session] = await db
       .select()
       .from(teacherChatSessions)
       .where(eq(teacherChatSessions.shareId, shareId));
     return session || null;
   }
-  
-  async updateTeacherChatSessionSharing(sessionId: string, userId: string, isPublic: number): Promise<TeacherChatSession> {
+
+  async updateTeacherChatSessionSharing(
+    sessionId: string,
+    userId: string,
+    isPublic: number,
+  ): Promise<TeacherChatSession> {
     const [updated] = await db
       .update(teacherChatSessions)
       .set({ isPublic, updatedAt: new Date() })
-      .where(and(
-        eq(teacherChatSessions.id, sessionId),
-        eq(teacherChatSessions.userId, userId)
-      ))
+      .where(
+        and(
+          eq(teacherChatSessions.id, sessionId),
+          eq(teacherChatSessions.userId, userId),
+        ),
+      )
       .returning();
     return updated;
   }
-  
-  async deleteTeacherChatSession(sessionId: string, userId: string): Promise<void> {
+
+  async deleteTeacherChatSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<void> {
     await db
       .delete(teacherChatSessions)
-      .where(and(
-        eq(teacherChatSessions.id, sessionId),
-        eq(teacherChatSessions.userId, userId)
-      ));
+      .where(
+        and(
+          eq(teacherChatSessions.id, sessionId),
+          eq(teacherChatSessions.userId, userId),
+        ),
+      );
   }
-  
+
   // Validation report methods
-  async createValidationReport(report: InsertValidationReport): Promise<ValidationReport> {
+  async createValidationReport(
+    report: InsertValidationReport,
+  ): Promise<ValidationReport> {
     const [created] = await db
       .insert(validationReports)
       .values(report)
       .returning();
     return created;
   }
-  
+
   async getValidationReports(userId: string): Promise<ValidationReport[]> {
     return await db
       .select()
@@ -1295,58 +1539,66 @@ export class DatabaseStorage implements IStorage {
       .where(eq(validationReports.userId, userId))
       .orderBy(desc(validationReports.createdAt));
   }
-  
-  async getValidationReport(reportId: string, userId: string): Promise<ValidationReport | undefined> {
+
+  async getValidationReport(
+    reportId: string,
+    userId: string,
+  ): Promise<ValidationReport | undefined> {
     const [report] = await db
       .select()
       .from(validationReports)
-      .where(and(
-        eq(validationReports.id, reportId),
-        eq(validationReports.userId, userId)
-      ));
+      .where(
+        and(
+          eq(validationReports.id, reportId),
+          eq(validationReports.userId, userId),
+        ),
+      );
     return report;
   }
-  
-  async deleteValidationReport(reportId: string, userId: string): Promise<void> {
+
+  async deleteValidationReport(
+    reportId: string,
+    userId: string,
+  ): Promise<void> {
     await db
       .delete(validationReports)
-      .where(and(
-        eq(validationReports.id, reportId),
-        eq(validationReports.userId, userId)
-      ));
+      .where(
+        and(
+          eq(validationReports.id, reportId),
+          eq(validationReports.userId, userId),
+        ),
+      );
   }
 
   // Google Drive file processing methods
-  async getFilesByStorageType(storageType: string, userId: string): Promise<any[]> {
+  async getFilesByStorageType(
+    storageType: string,
+    userId: string,
+  ): Promise<any[]> {
     const results = await db
       .select()
       .from(files)
-      .where(
-        and(
-          eq(files.storageType, storageType),
-          eq(files.userId, userId)
-        )
-      );
+      .where(and(eq(files.storageType, storageType), eq(files.userId, userId)));
     return results;
   }
 
-  async updateFileContent(fileId: string, updates: {
-    content?: string;
-    size?: number;
-    processingStatus?: string;
-    processedAt?: Date;
-  }): Promise<void> {
+  async updateFileContent(
+    fileId: string,
+    updates: {
+      content?: string;
+      size?: number;
+      processingStatus?: string;
+      processedAt?: Date;
+    },
+  ): Promise<void> {
     // Map content to fileContent field
     const dbUpdates: any = { ...updates };
     if (updates.content) {
       dbUpdates.fileContent = Buffer.from(updates.content);
       delete dbUpdates.content;
     }
-    
-    await db
-      .update(files)
-      .set(dbUpdates)
-      .where(eq(files.id, fileId));
+
+    await db.update(files).set(dbUpdates).where(eq(files.id, fileId));
   }
 }
 

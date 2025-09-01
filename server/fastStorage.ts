@@ -1,7 +1,7 @@
 // Fast Storage Optimization Module
 // Based on working Smart File Organizer performance strategies
 
-import { performance } from 'perf_hooks';
+import { performance } from "perf_hooks";
 
 // Simple in-memory cache for frequently accessed data
 const cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
@@ -15,19 +15,19 @@ export class FastStorage {
     cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl
+      ttl,
     });
   }
 
   static getCache(key: string): any | null {
     const item = cache.get(key);
     if (!item) return null;
-    
+
     if (Date.now() - item.timestamp > item.ttl) {
       cache.delete(key);
       return null;
     }
-    
+
     return item.data;
   }
 
@@ -36,15 +36,15 @@ export class FastStorage {
       cache.clear();
       return;
     }
-    
+
     const keysToDelete: string[] = [];
     cache.forEach((_, key) => {
       if (key.includes(pattern)) {
         keysToDelete.push(key);
       }
     });
-    
-    keysToDelete.forEach(key => cache.delete(key));
+
+    keysToDelete.forEach((key) => cache.delete(key));
   }
 
   // Compatibility with existing cache system
@@ -53,23 +53,29 @@ export class FastStorage {
   }
 
   // Performance monitoring
-  static measurePerformance<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+  static measurePerformance<T>(
+    operation: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
     return new Promise(async (resolve, reject) => {
       const start = performance.now();
       try {
         const result = await fn();
         const end = performance.now();
         const duration = end - start;
-        
+
         // Only log slow operations
         if (duration > 100) {
           console.log(`⚡ ${operation}: ${duration.toFixed(2)}ms`);
         }
-        
+
         resolve(result);
       } catch (error) {
         const end = performance.now();
-        console.error(`❌ ${operation} failed after ${(end - start).toFixed(2)}ms:`, error);
+        console.error(
+          `❌ ${operation} failed after ${(end - start).toFixed(2)}ms:`,
+          error,
+        );
         reject(error);
       }
     });
@@ -77,9 +83,9 @@ export class FastStorage {
 
   // Optimized file size formatter
   static formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
@@ -88,23 +94,23 @@ export class FastStorage {
   static async batchProcess<T, R>(
     items: T[],
     processor: (item: T) => Promise<R>,
-    batchSize: number = 10
+    batchSize: number = 10,
   ): Promise<R[]> {
     const results: R[] = [];
-    
+
     for (let i = 0; i < items.length; i += batchSize) {
       const batch = items.slice(i, i + batchSize);
       const batchResults = await Promise.all(
-        batch.map(item => processor(item))
+        batch.map((item) => processor(item)),
       );
       results.push(...batchResults);
-      
+
       // Small delay between batches to prevent overwhelming the system
       if (i + batchSize < items.length) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
-    
+
     return results;
   }
 
@@ -116,7 +122,7 @@ export class FastStorage {
       heapTotal: FastStorage.formatFileSize(usage.heapTotal),
       heapUsed: FastStorage.formatFileSize(usage.heapUsed),
       external: FastStorage.formatFileSize(usage.external),
-      cacheSize: cache.size
+      cacheSize: cache.size,
     };
   }
 }

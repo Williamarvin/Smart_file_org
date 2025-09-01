@@ -79,7 +79,7 @@ format:
 	@echo "$(GREEN)Formatting code...$(NC)"
 	npx prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}"
 
-format_code: lint format
+format_code: format lint
 
 # Type checking
 type-check:

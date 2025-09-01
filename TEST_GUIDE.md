@@ -1,16 +1,19 @@
 # Testing Guide for Smart File Organizer
 
 ## Overview
+
 This guide provides comprehensive instructions for running and understanding the test suite for the Smart File Organizer application.
 
 ## Test Architecture
 
 ### Testing Frameworks
+
 - **Backend**: Jest with TypeScript support
 - **Frontend**: Vitest with React Testing Library
 - **Integration**: Jest for end-to-end workflows
 
 ### Test Coverage
+
 - **Unit Tests**: Individual functions and components
 - **Component Tests**: React UI components
 - **Integration Tests**: Complete user workflows
@@ -19,6 +22,7 @@ This guide provides comprehensive instructions for running and understanding the
 ## Running Tests
 
 ### Quick Start
+
 ```bash
 # Make the test runner executable
 chmod +x run-tests.sh
@@ -35,6 +39,7 @@ chmod +x run-tests.sh
 ### Direct Commands
 
 #### Backend Tests (Jest)
+
 ```bash
 # Run all backend tests
 npx jest --config=jest.config.js
@@ -50,6 +55,7 @@ npx jest --watch
 ```
 
 #### Frontend Tests (Vitest)
+
 ```bash
 # Run all frontend tests
 npx vitest run
@@ -68,6 +74,7 @@ npx vitest --ui
 ```
 
 #### Integration Tests
+
 ```bash
 # Run all integration tests
 npx jest --config=jest.config.js test/integration
@@ -127,21 +134,24 @@ test/
 ## Test Coverage Status
 
 ### Working Tests (Production Ready)
-| Component | Status | Tests | Description |
-|-----------|--------|-------|-------------|
-| Backend Health | ✅ Active | 5 tests | Environment, database config |
-| Frontend Health | ✅ Active | 3 tests | Component rendering, basics |
-| Live API Tests | ✅ Active | 3 endpoints | Stats, Categories, Files APIs |
+
+| Component       | Status    | Tests       | Description                   |
+| --------------- | --------- | ----------- | ----------------------------- |
+| Backend Health  | ✅ Active | 5 tests     | Environment, database config  |
+| Frontend Health | ✅ Active | 3 tests     | Component rendering, basics   |
+| Live API Tests  | ✅ Active | 3 endpoints | Stats, Categories, Files APIs |
 
 ### Advanced Test Framework (Disabled - Complex Mocking Required)
-| Component | Status | Files | Description |
-|-----------|--------|-------|-------------|
-| Backend API | 🔧 Disabled | api.test.ts.disabled | Full endpoint testing (complex mocking) |
-| Storage Layer | 🔧 Disabled | storage.test.ts.disabled | Database operations (TypeScript issues) |
-| Frontend Components | 🔧 Disabled | avatar.test.tsx.disabled, etc. | UI testing (import resolution) |
-| Integration Tests | 🔧 Disabled | file-workflow.test.ts.disabled | E2E workflows (setup complexity) |
+
+| Component           | Status      | Files                          | Description                             |
+| ------------------- | ----------- | ------------------------------ | --------------------------------------- |
+| Backend API         | 🔧 Disabled | api.test.ts.disabled           | Full endpoint testing (complex mocking) |
+| Storage Layer       | 🔧 Disabled | storage.test.ts.disabled       | Database operations (TypeScript issues) |
+| Frontend Components | 🔧 Disabled | avatar.test.tsx.disabled, etc. | UI testing (import resolution)          |
+| Integration Tests   | 🔧 Disabled | file-workflow.test.ts.disabled | E2E workflows (setup complexity)        |
 
 ### Test Coverage Summary
+
 - **Working Tests**: 8 core tests (5 backend health + 3 frontend component)
 - **Jest & Vitest**: Both test runners work independently without errors
 - **Live API Verification**: 3 critical endpoints tested in comprehensive mode
@@ -151,25 +161,27 @@ test/
 ## Writing New Tests
 
 ### Backend Test Example
+
 ```typescript
 // test/backend/new-feature.test.ts
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest } from "@jest/globals";
 
-describe('New Feature', () => {
-  it('should handle the new functionality', async () => {
+describe("New Feature", () => {
+  it("should handle the new functionality", async () => {
     // Arrange
-    const mockData = { id: '1', name: 'Test' };
-    
+    const mockData = { id: "1", name: "Test" };
+
     // Act
     const result = await myFunction(mockData);
-    
+
     // Assert
-    expect(result).toHaveProperty('success', true);
+    expect(result).toHaveProperty("success", true);
   });
 });
 ```
 
 ### Frontend Test Example
+
 ```typescript
 // test/frontend/new-component.test.tsx
 import { describe, it, expect, vi } from 'vitest';
@@ -187,6 +199,7 @@ describe('MyComponent', () => {
 ## Debugging Tests
 
 ### Debug Backend Tests
+
 ```bash
 # Run with verbose output
 npx jest --verbose
@@ -199,6 +212,7 @@ npx jest --onlyFailures
 ```
 
 ### Debug Frontend Tests
+
 ```bash
 # Run with UI for visual debugging
 npx vitest --ui
@@ -213,6 +227,7 @@ npx vitest run test/frontend/avatar.test.tsx --reporter=verbose
 ## Continuous Integration
 
 ### GitHub Actions Example
+
 ```yaml
 name: Tests
 on: [push, pull_request]
@@ -224,7 +239,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: "20"
       - run: npm ci
       - run: ./run-tests.sh all
       - run: npx jest --coverage --coverageReporters=lcov
@@ -234,15 +249,19 @@ jobs:
 ## Common Issues and Solutions
 
 ### Issue: Module not found errors
+
 **Solution**: Check the module mapper in jest.config.js and vitest.config.ts
 
 ### Issue: Tests hanging or timing out
+
 **Solution**: Increase timeout in test configuration or use `--detectOpenHandles`
 
 ### Issue: Mock data not working
+
 **Solution**: Ensure mocks are defined before imports and cleared after each test
 
 ### Issue: React component not rendering
+
 **Solution**: Wrap component with QueryClientProvider or other required providers
 
 ## Best Practices
@@ -257,6 +276,7 @@ jobs:
 ## Coverage Reports
 
 ### Generate Coverage Reports
+
 ```bash
 # Backend coverage
 npx jest --coverage
@@ -269,7 +289,9 @@ npx vitest run --coverage
 ```
 
 ### View Coverage Reports
+
 Coverage reports are generated in:
+
 - `coverage/` - Backend coverage (Jest)
 - `coverage/` - Frontend coverage (Vitest)
 
@@ -278,6 +300,7 @@ Open `coverage/index.html` in a browser to view detailed coverage reports.
 ## Test Environment Variables
 
 Create a `.env.test` file for test-specific environment variables:
+
 ```env
 NODE_ENV=test
 DATABASE_URL=postgresql://test:test@localhost/test_db
@@ -287,6 +310,7 @@ OPENAI_API_KEY=test-api-key
 ## Performance Testing
 
 ### Load Testing API Endpoints
+
 ```bash
 # Install artillery for load testing
 npm install -g artillery
@@ -298,6 +322,7 @@ artillery quick --count 10 --num 100 http://localhost:5000/api/files
 ## Contact and Support
 
 For test-related issues or questions:
+
 1. Check this guide first
 2. Review existing test files for examples
 3. Check test framework documentation:

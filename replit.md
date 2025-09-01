@@ -11,6 +11,7 @@ Deployment preference: Multiple options (Replit, Docker, local deployment).
 # System Architecture
 
 ## Frontend Architecture
+
 - **Framework**: React with TypeScript, using Vite.
 - **UI Library**: Shadcn/UI (built on Radix UI) with Tailwind CSS.
 - **State Management**: TanStack Query for server state and caching.
@@ -20,6 +21,7 @@ Deployment preference: Multiple options (Replit, Docker, local deployment).
 - **UX Decisions**: Chat input positioned at the top, manual scroll control in chat.
 
 ## Backend Architecture
+
 - **Framework**: Express.js with TypeScript.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
 - **File Processing**: Asynchronous pipeline for document and video content extraction and transcription, including automatic OCR for scanned PDFs and Whisper AI for video transcription.
@@ -28,12 +30,14 @@ Deployment preference: Multiple options (Replit, Docker, local deployment).
 - **Object Storage**: Google Cloud Storage with custom ACL.
 
 ## Data Storage Architecture
+
 - **Primary Database**: PostgreSQL via Neon serverless.
 - **Vector Store**: PostgreSQL pgvector for vector similarity search with HNSW indexing.
 - **Schema Design**: Tables for `files`, `file_metadata`, `search_history`, and `users`.
 - **File Storage**: Hybrid system utilizing Google Cloud Storage for all files and PostgreSQL BYTEA caching for files ≤10MB.
 
 ## Key Features
+
 - **Multi-Page Navigation**: Dedicated sections for Dashboard, Browse, Upload, Processing Status, and Analysis.
 - **Slideshow Video Generation**: Create MP4 videos with AI-generated slides and OpenAI TTS narration (multiple voice options).
 - **Document & Video Processing Pipeline**: Automated text extraction, video transcription, AI analysis, OCR, and embedding generation.
@@ -57,17 +61,20 @@ Deployment preference: Multiple options (Replit, Docker, local deployment).
 # External Dependencies
 
 ## Cloud Services
+
 - **Neon Database**: Serverless PostgreSQL.
 - **Google Cloud Storage**: Object storage.
 - **OpenAI API**: GPT-4o and Whisper models.
 
 ## Core Libraries
+
 - **Database**: Drizzle ORM.
 - **File Processing**: `pdf-parse`, `mammoth`, `ffmpeg-static`, `multer`, `tesseract.js`.
 - **UI Components**: Shadcn/UI.
 - **PDF Generation**: `pdfkit`.
 
 ## Integration Points
+
 - **Replit Sidecar**: Custom authentication for Google Cloud Storage.
 - **Direct Upload Flow**: Client-side direct uploads to cloud storage.
 - **Processing Queue**: Asynchronous document processing.

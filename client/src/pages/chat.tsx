@@ -6,9 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Send, Bot, User, FileText, Sparkles, Clock } from "lucide-react";
+import {
+  MessageCircle,
+  Send,
+  Bot,
+  User,
+  FileText,
+  Sparkles,
+  Clock,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
+import {
+  AIProviderToggle,
+  AIProviderInfo,
+} from "@/components/ai-provider-toggle";
 import { DocumentPreview } from "@/components/document-preview";
 
 interface ChatMessage {
@@ -24,15 +35,18 @@ export function Chat() {
     {
       id: "welcome",
       type: "assistant",
-      content: "Hello! I'm your AI assistant. I can help you with questions about your uploaded files, search for specific information, or provide insights based on your documents. What would you like to know?",
+      content:
+        "Hello! I'm your AI assistant. I can help you with questions about your uploaded files, search for specific information, or provide insights based on your documents. What would you like to know?",
       timestamp: new Date(),
-    }
+    },
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [conversationContext, setConversationContext] = useState<any>(null);
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-  const currentProviderRef = useRef<'openai' | 'dify'>('dify');
+  const [conversationId, setConversationId] = useState<string | undefined>(
+    undefined,
+  );
+  const currentProviderRef = useRef<"openai" | "dify">("dify");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -42,25 +56,39 @@ export function Chat() {
     refetchInterval: 10000,
   });
 
-  const processedFiles = Array.isArray(files) ? files.filter((file: any) => file.processingStatus === "completed") : [];
+  const processedFiles = Array.isArray(files)
+    ? files.filter((file: any) => file.processingStatus === "completed")
+    : [];
 
   // Chat mutation
   const chatMutation = useMutation({
-    mutationFn: async ({ message, fileIds }: { message: string; fileIds: string[] }) => {
-      const chatHistory = messages.map(m => ({ role: m.type === 'user' ? 'user' : 'assistant', content: m.content }));
-      const response = await apiRequest("POST", "/api/chat", { 
-        message, 
-        fileIds, 
+    mutationFn: async ({
+      message,
+      fileIds,
+    }: {
+      message: string;
+      fileIds: string[];
+    }) => {
+      const chatHistory = messages.map((m) => ({
+        role: m.type === "user" ? "user" : "assistant",
+        content: m.content,
+      }));
+      const response = await apiRequest("POST", "/api/chat", {
+        message,
+        fileIds,
         chatHistory: chatHistory.slice(-10), // Send last 10 messages for context
         conversationContext: conversationContext,
-        conversationId: conversationId && conversationId !== 'null' ? conversationId : undefined // Pass conversation ID for Dify MCP memory
+        conversationId:
+          conversationId && conversationId !== "null"
+            ? conversationId
+            : undefined, // Pass conversation ID for Dify MCP memory
       });
       return response.json();
     },
     onSuccess: (data: any) => {
       // Remove thinking message and add assistant message
-      setMessages(prev => {
-        const filteredMessages = prev.filter(msg => msg.type !== "thinking");
+      setMessages((prev) => {
+        const filteredMessages = prev.filter((msg) => msg.type !== "thinking");
         const assistantMessage: ChatMessage = {
           id: Date.now().toString(),
           type: "assistant",
@@ -70,17 +98,17 @@ export function Chat() {
         };
         return [...filteredMessages, assistantMessage];
       });
-      
+
       // Update conversation context from oversight agent
       if (data.conversationContext) {
         setConversationContext(data.conversationContext);
       }
-      
+
       // Store conversation ID for Dify MCP memory
-      if (data.conversationId && data.conversationId !== 'null') {
+      if (data.conversationId && data.conversationId !== "null") {
         setConversationId(data.conversationId);
       }
-      
+
       // Store current provider
       if (data.provider) {
         currentProviderRef.current = data.provider;
@@ -88,9 +116,12 @@ export function Chat() {
     },
     onError: (error: any) => {
       console.error("Chat error:", error);
-      const errorMessage = error?.response?.data?.error || error?.message || "Failed to get response. Please try again.";
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to get response. Please try again.";
       const errorDetails = error?.response?.data?.details || "";
-      
+
       toast({
         title: "Chat Error",
         description: errorMessage + (errorDetails ? ` (${errorDetails})` : ""),
@@ -109,7 +140,7 @@ export function Chat() {
       content: inputMessage,
       timestamp: new Date(),
     };
-    
+
     // Add thinking message
     const thinkingMessage: ChatMessage = {
       id: `thinking-${Date.now()}`,
@@ -117,8 +148,8 @@ export function Chat() {
       content: "Thinking",
       timestamp: new Date(),
     };
-    
-    setMessages(prev => [...prev, userMessage, thinkingMessage]);
+
+    setMessages((prev) => [...prev, userMessage, thinkingMessage]);
 
     // Send to AI
     chatMutation.mutate({
@@ -137,10 +168,10 @@ export function Chat() {
   };
 
   const toggleFileSelection = (fileId: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(fileId) 
-        ? prev.filter(id => id !== fileId)
-        : [...prev, fileId]
+    setSelectedFiles((prev) =>
+      prev.includes(fileId)
+        ? prev.filter((id) => id !== fileId)
+        : [...prev, fileId],
     );
   };
 
@@ -151,29 +182,38 @@ export function Chat() {
     // Check for document-like patterns
     const hasBulletPoints = /^[•\-\*]\s/m.test(content);
     const hasNumberedList = /^\d+\.\s/m.test(content);
-    const hasMultipleLines = content.split('\n').length > 5;
+    const hasMultipleLines = content.split("\n").length > 5;
     const isLongContent = content.length > 400;
-    
+
     // Check for specific keywords that indicate structured content
-    const hasDocumentKeywords = /summary|overview|analysis|report|course|design|framework|components|structure|key|main|points|section/i.test(content);
-    
+    const hasDocumentKeywords =
+      /summary|overview|analysis|report|course|design|framework|components|structure|key|main|points|section/i.test(
+        content,
+      );
+
     // Show as document if it has structure and is substantial
-    return (hasBulletPoints || hasNumberedList || hasDocumentKeywords) && 
-           (hasMultipleLines || isLongContent);
+    return (
+      (hasBulletPoints || hasNumberedList || hasDocumentKeywords) &&
+      (hasMultipleLines || isLongContent)
+    );
   };
 
   // Helper to extract title from content
   const extractTitle = (content: string): string | undefined => {
     // Try to detect title from first line if it looks like a title
-    const firstLine = content.split('\n')[0].trim();
+    const firstLine = content.split("\n")[0].trim();
     if (firstLine && firstLine.length < 100) {
       // If first line looks like a title (short, possibly ends with colon, or is a header-like phrase)
-      if (firstLine.includes('Summary') || firstLine.includes('Overview') || 
-          firstLine.includes('Analysis') || firstLine.includes('Report')) {
-        return firstLine.replace(/[:#]/g, '').trim();
+      if (
+        firstLine.includes("Summary") ||
+        firstLine.includes("Overview") ||
+        firstLine.includes("Analysis") ||
+        firstLine.includes("Report")
+      ) {
+        return firstLine.replace(/[:#]/g, "").trim();
       }
     }
-    
+
     return undefined;
   };
 
@@ -182,8 +222,12 @@ export function Chat() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Chat with Your Files</h1>
-          <p className="text-slate-600">Ask questions about your documents and get AI-powered insights</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            Chat with Your Files
+          </h1>
+          <p className="text-slate-600">
+            Ask questions about your documents and get AI-powered insights
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 h-[calc(100vh-200px)]">
@@ -204,7 +248,8 @@ export function Chat() {
                   <div className="space-y-3">
                     {processedFiles.length === 0 ? (
                       <p className="text-sm text-slate-500 text-center py-8">
-                        No processed files available. Upload some documents first!
+                        No processed files available. Upload some documents
+                        first!
                       </p>
                     ) : (
                       processedFiles.map((file: any) => (
@@ -229,11 +274,17 @@ export function Chat() {
                               )}
                               {file.metadata?.categories && (
                                 <div className="flex flex-wrap gap-1 mt-2">
-                                  {file.metadata.categories.slice(0, 2).map((category: string) => (
-                                    <Badge key={category} variant="secondary" className="text-xs">
-                                      {category}
-                                    </Badge>
-                                  ))}
+                                  {file.metadata.categories
+                                    .slice(0, 2)
+                                    .map((category: string) => (
+                                      <Badge
+                                        key={category}
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {category}
+                                      </Badge>
+                                    ))}
                                 </div>
                               )}
                             </div>
@@ -243,11 +294,12 @@ export function Chat() {
                     )}
                   </div>
                 </ScrollArea>
-                
+
                 {selectedFiles.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm font-medium text-slate-700 mb-2">
-                      Selected: {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+                      Selected: {selectedFiles.length} file
+                      {selectedFiles.length !== 1 ? "s" : ""}
                     </p>
                     <Button
                       onClick={() => setSelectedFiles([])}
@@ -284,7 +336,7 @@ export function Chat() {
                   <AIProviderInfo />
                 </div>
               </CardHeader>
-              
+
               <CardContent className="flex-1 flex flex-col p-0">
                 {/* Input - Moved to top */}
                 <div className="p-6 border-b bg-white">
@@ -305,17 +357,24 @@ export function Chat() {
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   {selectedFiles.length > 0 && (
                     <div className="mt-3">
                       <p className="text-xs text-slate-600 mb-2">
-                        Context: {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
+                        Context: {selectedFiles.length} file
+                        {selectedFiles.length !== 1 ? "s" : ""} selected
                       </p>
                       <div className="flex flex-wrap gap-1">
                         {selectedFiles.map((fileId) => {
-                          const file = processedFiles.find((f: any) => f.id === fileId);
+                          const file = processedFiles.find(
+                            (f: any) => f.id === fileId,
+                          );
                           return file ? (
-                            <Badge key={fileId} variant="secondary" className="text-xs">
+                            <Badge
+                              key={fileId}
+                              variant="secondary"
+                              className="text-xs"
+                            >
                               {file.originalName}
                             </Badge>
                           ) : null;
@@ -341,34 +400,58 @@ export function Chat() {
                             </div>
                             <div className="p-4 rounded-lg bg-slate-100 text-slate-800">
                               <div className="flex items-center space-x-1">
-                                <span className="text-sm">{message.content}</span>
+                                <span className="text-sm">
+                                  {message.content}
+                                </span>
                                 <span className="inline-flex space-x-1">
-                                  <span className="animate-bounce inline-block" style={{ animationDelay: "0ms" }}>.</span>
-                                  <span className="animate-bounce inline-block" style={{ animationDelay: "150ms" }}>.</span>
-                                  <span className="animate-bounce inline-block" style={{ animationDelay: "300ms" }}>.</span>
+                                  <span
+                                    className="animate-bounce inline-block"
+                                    style={{ animationDelay: "0ms" }}
+                                  >
+                                    .
+                                  </span>
+                                  <span
+                                    className="animate-bounce inline-block"
+                                    style={{ animationDelay: "150ms" }}
+                                  >
+                                    .
+                                  </span>
+                                  <span
+                                    className="animate-bounce inline-block"
+                                    style={{ animationDelay: "300ms" }}
+                                  >
+                                    .
+                                  </span>
                                 </span>
                               </div>
                             </div>
                           </div>
                         ) : (
                           // Regular user or assistant message
-                          <div className={`flex items-start space-x-3 max-w-[80%] ${
-                            message.type === "user" ? "flex-row-reverse space-x-reverse" : ""
-                          }`}>
-                            <div className={`p-2 rounded-full ${
-                              message.type === "user" 
-                                ? "bg-blue-600 text-white" 
-                                : "bg-green-600 text-white"
-                            }`}>
+                          <div
+                            className={`flex items-start space-x-3 max-w-[80%] ${
+                              message.type === "user"
+                                ? "flex-row-reverse space-x-reverse"
+                                : ""
+                            }`}
+                          >
+                            <div
+                              className={`p-2 rounded-full ${
+                                message.type === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-green-600 text-white"
+                              }`}
+                            >
                               {message.type === "user" ? (
                                 <User className="h-4 w-4" />
                               ) : (
                                 <Bot className="h-4 w-4" />
                               )}
                             </div>
-                            
+
                             {/* Check if assistant message should be shown as document */}
-                            {message.type === "assistant" && shouldShowAsDocument(message.content) ? (
+                            {message.type === "assistant" &&
+                            shouldShowAsDocument(message.content) ? (
                               <div className="flex-1 max-w-full">
                                 <DocumentPreview
                                   content={message.content}
@@ -376,48 +459,70 @@ export function Chat() {
                                   isEmbedded={true}
                                   className="shadow-md"
                                 />
-                                {message.relatedFiles && message.relatedFiles.length > 0 && (
-                                  <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                                    <p className="text-xs text-slate-600 mb-1">Source files:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                      {message.relatedFiles.map((fileId) => {
-                                        const file = processedFiles.find((f: any) => f.id === fileId);
-                                        return file ? (
-                                          <Badge key={fileId} variant="secondary" className="text-xs">
-                                            {file.originalName}
-                                          </Badge>
-                                        ) : null;
-                                      })}
+                                {message.relatedFiles &&
+                                  message.relatedFiles.length > 0 && (
+                                    <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                                      <p className="text-xs text-slate-600 mb-1">
+                                        Source files:
+                                      </p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {message.relatedFiles.map((fileId) => {
+                                          const file = processedFiles.find(
+                                            (f: any) => f.id === fileId,
+                                          );
+                                          return file ? (
+                                            <Badge
+                                              key={fileId}
+                                              variant="secondary"
+                                              className="text-xs"
+                                            >
+                                              {file.originalName}
+                                            </Badge>
+                                          ) : null;
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                                 <p className="text-xs mt-2 text-slate-500">
                                   {message.timestamp.toLocaleTimeString()}
                                 </p>
                               </div>
                             ) : (
                               // Regular message display
-                              <div className={`p-4 rounded-lg ${
-                                message.type === "user"
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-slate-100 text-slate-800"
-                              }`}>
-                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                                {message.relatedFiles && message.relatedFiles.length > 0 && (
-                                  <div className="mt-2 pt-2 border-t border-slate-200">
-                                    <p className="text-xs text-slate-600 mb-1">Related files:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                      {message.relatedFiles.map((fileId) => {
-                                        const file = processedFiles.find((f: any) => f.id === fileId);
-                                        return file ? (
-                                          <Badge key={fileId} variant="outline" className="text-xs">
-                                            {file.originalName}
-                                          </Badge>
-                                        ) : null;
-                                      })}
+                              <div
+                                className={`p-4 rounded-lg ${
+                                  message.type === "user"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-100 text-slate-800"
+                                }`}
+                              >
+                                <p className="text-sm whitespace-pre-wrap">
+                                  {message.content}
+                                </p>
+                                {message.relatedFiles &&
+                                  message.relatedFiles.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-slate-200">
+                                      <p className="text-xs text-slate-600 mb-1">
+                                        Related files:
+                                      </p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {message.relatedFiles.map((fileId) => {
+                                          const file = processedFiles.find(
+                                            (f: any) => f.id === fileId,
+                                          );
+                                          return file ? (
+                                            <Badge
+                                              key={fileId}
+                                              variant="outline"
+                                              className="text-xs"
+                                            >
+                                              {file.originalName}
+                                            </Badge>
+                                          ) : null;
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                                 <p className="text-xs mt-2 opacity-70">
                                   {message.timestamp.toLocaleTimeString()}
                                 </p>

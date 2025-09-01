@@ -2,16 +2,30 @@ import { useState, useRef, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, FileText, Video, Brain, CheckCircle, FolderPlus } from "lucide-react";
+import {
+  Plus,
+  Upload,
+  FileText,
+  Video,
+  Brain,
+  CheckCircle,
+  FolderPlus,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface FileUploadZoneProps {
   onUploadSuccess?: () => void;
 }
 
-export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps) {
+export default function FileUploadZone({
+  onUploadSuccess,
+}: FileUploadZoneProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ total: 0, processed: 0, current: "" });
+  const [uploadProgress, setUploadProgress] = useState({
+    total: 0,
+    processed: 0,
+    current: "",
+  });
   const [showAiProcessing, setShowAiProcessing] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,19 +65,19 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       const folderStructure = new Map<string, string[]>(); // path -> files in that folder
       const folderPaths = new Set<string>();
 
-      files.forEach(file => {
+      files.forEach((file) => {
         const fullPath = file.webkitRelativePath || file.name;
-        const pathParts = fullPath.split('/');
-        
+        const pathParts = fullPath.split("/");
+
         // Build all folder paths
-        let currentPath = '';
+        let currentPath = "";
         for (let i = 0; i < pathParts.length - 1; i++) {
-          currentPath += (currentPath ? '/' : '') + pathParts[i];
+          currentPath += (currentPath ? "/" : "") + pathParts[i];
           folderPaths.add(currentPath);
         }
-        
+
         // Add file to its parent folder
-        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentPath = pathParts.slice(0, -1).join("/");
         if (!folderStructure.has(parentPath)) {
           folderStructure.set(parentPath, []);
         }
@@ -71,23 +85,25 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       });
 
       // Create folders first (sorted by depth to create parents first)
-      const sortedFolderPaths = Array.from(folderPaths).sort((a, b) => 
-        a.split('/').length - b.split('/').length
+      const sortedFolderPaths = Array.from(folderPaths).sort(
+        (a, b) => a.split("/").length - b.split("/").length,
       );
 
       const folderIdMap = new Map<string, string>();
-      
+
       for (const folderPath of sortedFolderPaths) {
-        const pathParts = folderPath.split('/');
+        const pathParts = folderPath.split("/");
         const folderName = pathParts[pathParts.length - 1];
-        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentPath = pathParts.slice(0, -1).join("/");
         const parentId = parentPath ? folderIdMap.get(parentPath) : null;
 
         try {
-          console.log(`Creating folder: ${folderName}, path: /${folderPath}, parentId: ${parentId}`);
+          console.log(
+            `Creating folder: ${folderName}, path: /${folderPath}, parentId: ${parentId}`,
+          );
           const response = await apiRequest("POST", "/api/folders", {
             name: folderName,
-            path: '/' + folderPath,
+            path: "/" + folderPath,
             parentId: parentId,
           });
           const folder = await response.json();
@@ -107,20 +123,30 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fullPath = file.webkitRelativePath || file.name;
-        const pathParts = fullPath.split('/');
-        const parentFolderPath = pathParts.slice(0, -1).join('/');
+        const pathParts = fullPath.split("/");
+        const parentFolderPath = pathParts.slice(0, -1).join("/");
         const folderId = folderIdMap.get(parentFolderPath);
 
-        setUploadProgress({ total: files.length, processed: i, current: fullPath });
+        setUploadProgress({
+          total: files.length,
+          processed: i,
+          current: fullPath,
+        });
 
         // Validate file type
         const allowedTypes = [
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain',
-          'video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm', 'video/mkv'
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
+          "video/mp4",
+          "video/avi",
+          "video/mov",
+          "video/wmv",
+          "video/flv",
+          "video/webm",
+          "video/mkv",
         ];
-        
+
         if (!allowedTypes.includes(file.type)) {
           toast({
             title: "Invalid File Type",
@@ -131,11 +157,11 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
 
         // Validate file size
-        const maxSize = file.type.startsWith('video/') ? 524288000 : 104857600;
+        const maxSize = file.type.startsWith("video/") ? 524288000 : 104857600;
         if (file.size > maxSize) {
           toast({
             title: "File Too Large",
-            description: `File "${file.name}" is too large. Max size is ${file.type.startsWith('video/') ? '500MB' : '100MB'}.`,
+            description: `File "${file.name}" is too large. Max size is ${file.type.startsWith("video/") ? "500MB" : "100MB"}.`,
             variant: "destructive",
           });
           continue;
@@ -143,12 +169,16 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
         try {
           console.log(`Uploading file: ${file.name}, folderId: ${folderId}`);
-          
+
           // Get upload URL
-          const uploadUrlResponse = await apiRequest("POST", "/api/files/upload-url", {});
+          const uploadUrlResponse = await apiRequest(
+            "POST",
+            "/api/files/upload-url",
+            {},
+          );
           const { uploadURL } = await uploadUrlResponse.json();
           console.log(`Got upload URL for ${file.name}`);
-          
+
           // Upload to cloud storage
           const uploadResponse = await fetch(uploadURL, {
             method: "PUT",
@@ -170,8 +200,9 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
             uploadURL,
             folderId: folderId || null,
           });
-          console.log(`Created file record for ${file.name} with folderId: ${folderId}`);
-
+          console.log(
+            `Created file record for ${file.name} with folderId: ${folderId}`,
+          );
         } catch (error) {
           console.error(`Error uploading file ${file.name}:`, error);
           toast({
@@ -182,8 +213,12 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
       }
 
-      setUploadProgress({ total: files.length, processed: files.length, current: "" });
-      
+      setUploadProgress({
+        total: files.length,
+        processed: files.length,
+        current: "",
+      });
+
       toast({
         title: "Folder Upload Complete",
         description: `Successfully uploaded ${files.length} files with folder structure preserved.`,
@@ -191,7 +226,6 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
 
       setShowAiProcessing(true);
       onUploadSuccess?.();
-
     } catch (error) {
       console.error("Error uploading folder:", error);
       toast({
@@ -204,7 +238,9 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     }
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -215,20 +251,24 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     try {
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
-        setUploadProgress({ total: fileArray.length, processed: i, current: file.name });
+        setUploadProgress({
+          total: fileArray.length,
+          processed: i,
+          current: file.name,
+        });
         // Validate file type
         const allowedTypes = [
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain',
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
           // Video formats
-          'video/mp4',
-          'video/avi',
-          'video/mov',
-          'video/wmv',
-          'video/flv',
-          'video/webm',
-          'video/mkv'
+          "video/mp4",
+          "video/avi",
+          "video/mov",
+          "video/wmv",
+          "video/flv",
+          "video/webm",
+          "video/mkv",
         ];
         if (!allowedTypes.includes(file.type)) {
           toast({
@@ -240,8 +280,8 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
 
         // Validate file size (100MB for documents, 500MB for videos)
-        const maxSize = file.type.startsWith('video/') ? 524288000 : 104857600; // 500MB for videos, 100MB for documents
-        const maxSizeLabel = file.type.startsWith('video/') ? '500MB' : '100MB';
+        const maxSize = file.type.startsWith("video/") ? 524288000 : 104857600; // 500MB for videos, 100MB for documents
+        const maxSizeLabel = file.type.startsWith("video/") ? "500MB" : "100MB";
         if (file.size > maxSize) {
           toast({
             title: "File Too Large",
@@ -252,7 +292,11 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         }
 
         // Get upload URL
-        const uploadResponse = await apiRequest("POST", "/api/files/upload-url", {});
+        const uploadResponse = await apiRequest(
+          "POST",
+          "/api/files/upload-url",
+          {},
+        );
         const uploadData = await uploadResponse.json();
 
         // Upload file directly
@@ -260,7 +304,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           method: "PUT",
           body: file,
           headers: {
-            'Content-Type': file.type,
+            "Content-Type": file.type,
           },
         });
 
@@ -278,7 +322,11 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         };
 
         await apiRequest("POST", "/api/files", fileData);
-        setUploadProgress({ total: fileArray.length, processed: i + 1, current: "" });
+        setUploadProgress({
+          total: fileArray.length,
+          processed: i + 1,
+          current: "",
+        });
       }
 
       // Invalidate queries to refresh the UI
@@ -298,7 +346,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
     } catch (error) {
       console.error("Error uploading files:", error);
       toast({
-        title: "Upload Error", 
+        title: "Upload Error",
         description: "Failed to upload files. Please try again.",
         variant: "destructive",
       });
@@ -307,10 +355,10 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       setUploadProgress({ total: 0, processed: 0, current: "" });
       // Reset file inputs
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
       if (folderInputRef.current) {
-        folderInputRef.current.value = '';
+        folderInputRef.current.value = "";
       }
     }
   };
@@ -335,7 +383,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         onChange={handleFileChange}
         className="hidden"
       />
-      
+
       <input
         ref={folderInputRef}
         type="file"
@@ -345,7 +393,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
         onChange={(e) => handleFolderUpload(e.target.files!)}
         className="hidden"
       />
-      
+
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button
           onClick={handleFileSelect}
@@ -367,8 +415,14 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
       </div>
 
       <div className="text-sm text-slate-500 space-y-1">
-        <p>Supports PDF, DOCX, TXT files (up to 100MB) and video files (up to 500MB)</p>
-        <p>Video files will be processed using AI transcription for searchable content</p>
+        <p>
+          Supports PDF, DOCX, TXT files (up to 100MB) and video files (up to
+          500MB)
+        </p>
+        <p>
+          Video files will be processed using AI transcription for searchable
+          content
+        </p>
         <p>Click to select multiple files or upload an entire folder</p>
         <p className="text-xs text-blue-600 font-medium">
           💡 Folder uploads preserve the complete directory structure
@@ -380,16 +434,20 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm text-slate-600">
               <span className="font-medium">Upload Progress</span>
-              <span>{uploadProgress.processed}/{uploadProgress.total} files</span>
+              <span>
+                {uploadProgress.processed}/{uploadProgress.total} files
+              </span>
             </div>
-            
+
             <div className="w-full bg-slate-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(uploadProgress.processed / uploadProgress.total) * 100}%` }}
+                style={{
+                  width: `${(uploadProgress.processed / uploadProgress.total) * 100}%`,
+                }}
               />
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <div className="flex items-center gap-1 text-green-600">
@@ -398,10 +456,13 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
                 </div>
                 <div className="flex items-center gap-1 text-blue-600">
                   <Upload className="h-3 w-3" />
-                  <span>Processing: {uploadProgress.total - uploadProgress.processed}</span>
+                  <span>
+                    Processing:{" "}
+                    {uploadProgress.total - uploadProgress.processed}
+                  </span>
                 </div>
               </div>
-              
+
               {uploadProgress.current && (
                 <p className="text-xs text-slate-500 truncate">
                   Currently uploading: {uploadProgress.current}
@@ -420,16 +481,20 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
                 <Brain className="h-4 w-4 text-purple-600" />
                 AI Processing
               </span>
-              <span>{stats.processedFiles}/{stats.totalFiles} files</span>
+              <span>
+                {stats.processedFiles}/{stats.totalFiles} files
+              </span>
             </div>
-            
+
             <div className="w-full bg-slate-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(stats.processedFiles / stats.totalFiles) * 100}%` }}
+                style={{
+                  width: `${(stats.processedFiles / stats.totalFiles) * 100}%`,
+                }}
               />
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1 text-green-600">
@@ -441,7 +506,7 @@ export default function FileUploadZone({ onUploadSuccess }: FileUploadZoneProps)
                   <span>Processing: {stats.processingFiles}</span>
                 </div>
               </div>
-              
+
               {stats.processingFiles === 0 && stats.processedFiles > 0 && (
                 <p className="text-xs text-green-600 font-medium">
                   🎉 All files processed! Ready for search.

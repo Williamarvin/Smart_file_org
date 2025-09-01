@@ -17,7 +17,7 @@ interface ObjectUploaderProps {
     url: string;
   }>;
   onComplete?: (
-    result: UploadResult<Record<string, unknown>, Record<string, unknown>>
+    result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
   ) => void;
   buttonClassName?: string;
   children: ReactNode;
@@ -26,7 +26,7 @@ interface ObjectUploaderProps {
 /**
  * A file upload component that renders as a button and provides a modal interface for
  * file management.
- * 
+ *
  * Features:
  * - Renders as a customizable button that opens a file upload modal
  * - Provides a modal interface for:
@@ -34,10 +34,10 @@ interface ObjectUploaderProps {
  *   - File preview
  *   - Upload progress tracking
  *   - Upload status display
- * 
+ *
  * The component uses Uppy under the hood to handle all file upload functionality.
  * All file management features are automatically handled by the Uppy dashboard modal.
- * 
+ *
  * @param props - Component props
  * @param props.maxNumberOfFiles - Maximum number of files allowed to be uploaded
  *   (default: 1)
@@ -74,7 +74,7 @@ export function ObjectUploader({
       })
       .on("complete", (result) => {
         onComplete?.(result);
-      })
+      }),
   );
 
   return (

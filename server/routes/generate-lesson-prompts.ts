@@ -15,19 +15,23 @@ router.post("/", async (req, res) => {
 
     // Collect content from selected files and folders
     let contentSources: string[] = [];
-    
+
     // Get content from selected files
     if (fileIds.length > 0) {
       const files = await storage.getFiles(userId, 1000);
-      const selectedFiles = files.filter(file => fileIds.includes(file.id));
-      
-      console.log(`Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
-      
+      const selectedFiles = files.filter((file) => fileIds.includes(file.id));
+
+      console.log(
+        `Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`,
+      );
+
       for (const file of selectedFiles) {
         try {
           const metadata = await storage.getFileMetadata(file.id, userId);
           if (metadata?.extractedText) {
-            contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            contentSources.push(
+              `File: ${file.originalName}\n${metadata.extractedText}`,
+            );
           }
         } catch (error) {
           console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -38,45 +42,53 @@ router.post("/", async (req, res) => {
     // Get content from selected folders (including subfolders recursively)
     if (folderIds.length > 0) {
       const allFiles = await storage.getFiles(userId, 1000);
-      
+
       // Function to get all folder IDs recursively
-      const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+      const getAllSubfolderIds = async (
+        parentIds: string[],
+      ): Promise<string[]> => {
         let allFolderIds = [...parentIds];
         const folders = await storage.getAllFolders(userId);
-        
+
         console.log(`Total folders available: ${folders.length}`);
-        
+
         for (const parentId of parentIds) {
-          const subfolders = folders.filter(f => f.parentId === parentId);
-          console.log(`Found ${subfolders.length} direct subfolders for folder ${parentId}`);
-          
+          const subfolders = folders.filter((f) => f.parentId === parentId);
+          console.log(
+            `Found ${subfolders.length} direct subfolders for folder ${parentId}`,
+          );
+
           if (subfolders.length > 0) {
-            const subfolderIds = subfolders.map(f => f.id);
+            const subfolderIds = subfolders.map((f) => f.id);
             allFolderIds = [...allFolderIds, ...subfolderIds];
             // Recursively get subfolders of subfolders
             const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
             allFolderIds = [...allFolderIds, ...deeperSubfolders];
           }
         }
-        
+
         return Array.from(new Set(allFolderIds)); // Remove duplicates
       };
-      
+
       // Get all folder IDs including subfolders
       const allFolderIds = await getAllSubfolderIds(folderIds);
-      console.log(`Processing ${allFolderIds.length} folders (including subfolders)`);
-      
-      const folderFiles = allFiles.filter(file => 
-        file.folderId && allFolderIds.includes(file.folderId)
+      console.log(
+        `Processing ${allFolderIds.length} folders (including subfolders)`,
       );
-      
+
+      const folderFiles = allFiles.filter(
+        (file) => file.folderId && allFolderIds.includes(file.folderId),
+      );
+
       console.log(`Found ${folderFiles.length} files in selected folders`);
-      
+
       for (const file of folderFiles) {
         try {
           const metadata = await storage.getFileMetadata(file.id, userId);
           if (metadata?.extractedText) {
-            contentSources.push(`File: ${file.originalName}\n${metadata.extractedText}`);
+            contentSources.push(
+              `File: ${file.originalName}\n${metadata.extractedText}`,
+            );
           }
         } catch (error) {
           console.error(`Error getting metadata for file ${file.id}:`, error);
@@ -88,14 +100,14 @@ router.post("/", async (req, res) => {
 
     // If no content found, return error
     if (contentSources.length === 0) {
-      return res.status(400).json({ 
-        error: "No content found in selected files and folders" 
+      return res.status(400).json({
+        error: "No content found in selected files and folders",
       });
     }
 
     // Combine all content for context
     const combinedContent = contentSources.join("\n\n---\n\n");
-    
+
     // Generate structured lesson prompts using OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -141,7 +153,7 @@ CRITICAL: Each generated prompt MUST explicitly include the required output form
 - Warm-up prompt must include: "Generate your response as flashcards with front and back content for each card."
 - Content prompt must include: "Generate your response as PowerPoint slides with detailed slide content and speaker notes."
 - Practice prompt must include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
-- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`
+- Homework prompt must include: "Generate your response as quiz questions with answer keys included."`,
         },
         {
           role: "user",
@@ -158,12 +170,12 @@ MANDATORY: Each prompt you generate MUST include explicit output format instruct
 - Practice prompt MUST include: "Generate your response as quiz questions with multiple choice, true/false, or short answer format."
 - Homework prompt MUST include: "Generate your response as quiz questions with answer keys included."
 
-Do not forget to include these format specifications in each individual prompt you create.`
-        }
+Do not forget to include these format specifications in each individual prompt you create.`,
+        },
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 3000
+      max_tokens: 3000,
     });
 
     const result = completion.choices[0].message.content;
@@ -172,13 +184,13 @@ Do not forget to include these format specifications in each individual prompt y
     }
 
     const parsedResult = JSON.parse(result);
-    
+
     res.json(parsedResult);
   } catch (error) {
     console.error("Error generating lesson prompts:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to generate lesson prompts",
-      details: error instanceof Error ? error.message : "Unknown error"
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });

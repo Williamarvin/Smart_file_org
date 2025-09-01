@@ -16,12 +16,14 @@ This guide demonstrates the complete process of using the Master Teacher Agent s
 ## Step 1: Get Available Files and Folders
 
 ### List all files
+
 ```bash
 curl -X GET https://smart-file-organiser.replit.app/api/files \
   -H "Accept: application/json"
 ```
 
 Response example:
+
 ```json
 [
   {
@@ -42,12 +44,14 @@ Response example:
 ```
 
 ### List all folders
+
 ```bash
 curl -X GET https://smart-file-organiser.replit.app/api/folders \
   -H "Accept: application/json"
 ```
 
 Response example:
+
 ```json
 [
   {
@@ -76,6 +80,7 @@ curl -X POST https://smart-file-organiser.replit.app/api/generate-teacher-prompt
 ```
 
 Response - Generated Teacher Prompt with 5 Sections:
+
 ```json
 {
   "teacherPrompt": "## Introduction (5 minutes)\n**Action Type:** PPT\n**Difficulty:** Beginner\n**Teaching Style:** Visual\n\nWelcome to our algebra journey! Today we'll explore the fundamental concepts of algebra that form the foundation of advanced mathematics.\n\n### Key Points:\n- What is algebra and why it matters\n- Variables as unknown quantities\n- Real-world applications in everyday life\n\nUse visual slides showing:\n- Shopping scenarios with unknown prices\n- Sports statistics with variables\n- Simple balance scales to represent equations\n\n---\n\n## Warm-up Activities (10 minutes)\n**Action Type:** Flashcards\n**Difficulty:** Beginner\n**Teaching Style:** Hands-on\n\nLet's activate our mathematical thinking with interactive flashcards!\n\n### Activities:\n1. **Variable Recognition Cards:** Match everyday scenarios to algebraic expressions\n   - \"The cost of x apples at $2 each\" → 2x\n   - \"Your age in 5 years\" → a + 5\n\n2. **Quick Mental Math:** Solve when x = 3\n   - 2x + 1 = ?\n   - x² - 4 = ?\n   - 5x - x = ?\n\n3. **Pattern Recognition:** Find the next term\n   - 2, 4, 6, __ (arithmetic)\n   - 1, 4, 9, __ (quadratic)\n\n---\n\n## Main Content (20 minutes)\n**Action Type:** PPT\n**Difficulty:** Intermediate\n**Teaching Style:** Analytical\n\nNow let's dive deep into core algebraic concepts with structured analysis.\n\n### Section 1: Understanding Variables (7 minutes)\n- Variables as placeholders for unknown values\n- Different types of variables (constants vs. changing)\n- Writing algebraic expressions from word problems\n\n### Section 2: Basic Operations (7 minutes)\n- Adding and subtracting like terms\n- Distributive property: a(b + c) = ab + ac\n- Combining like terms: 3x + 2x = 5x\n\n### Section 3: Solving Simple Equations (6 minutes)\n- One-step equations: x + 5 = 12\n- Two-step equations: 2x - 3 = 7\n- Checking solutions by substitution\n\n**Interactive Examples:**\n- Solve together: \"If 3 notebooks cost $15, how much does one cost?\"\n- Model the thinking process step-by-step\n\n---\n\n## Practice Activities (15 minutes)\n**Action Type:** Quiz\n**Difficulty:** Intermediate\n**Teaching Style:** Hands-on\n\nTime to apply what we've learned through interactive practice!\n\n### Quiz Questions (Progressive Difficulty):\n\n1. **Basic Understanding (3 questions)**\n   - If x = 4, what is 3x + 2?\n   - Simplify: 5a + 3a - 2a\n   - Which expression represents \"twice a number plus 5\"?\n\n2. **Application Problems (4 questions)**\n   - A rectangle has length (x + 3) and width 5. Express its area.\n   - Solve: 2x + 8 = 20\n   - If tickets cost $x each and you buy 4, plus a $3 fee, write the total cost.\n\n3. **Challenge Questions (3 questions)**\n   - Solve: 3(x - 2) = 15\n   - Find x when 2x + 3 = x + 9\n   - A number increased by 7 equals twice the number decreased by 4. Find it.\n\n**Immediate Feedback:** Provide explanations for each answer\n\n---\n\n## Wrap-up & Homework (10 minutes)\n**Action Type:** Discussion\n**Difficulty:** Intermediate\n**Teaching Style:** Discussion\n\nLet's consolidate our learning through reflection and discussion.\n\n### Class Discussion Points:\n1. **Key Takeaways:** What was the most important concept you learned today?\n2. **Real-World Connections:** Share one way you might use algebra this week\n3. **Questions & Clarifications:** What aspects need more explanation?\n\n### Homework Assignment:\n1. **Practice Problems (10 problems)**\n   - 5 basic variable evaluation problems\n   - 3 equation-solving problems\n   - 2 word problems requiring algebraic translation\n\n2. **Reflection Journal:**\n   - Write a paragraph about how algebra relates to your favorite hobby or interest\n   - Identify three situations where variables appear in daily life\n\n3. **Extension Activity (Optional):**\n   - Research a famous mathematician who contributed to algebra\n   - Create your own word problem and swap with a classmate\n\n### Next Lesson Preview:\n- We'll explore graphing linear equations\n- Bring graph paper and colored pencils\n- Think about how x and y can work together\n\n---\n\n**Total Duration:** 60 minutes\n**Teaching Approach:** Progressive difficulty with mixed teaching styles\n**Materials Needed:** Slides, flashcards, quiz platform, notebooks"
@@ -97,6 +102,7 @@ curl -X POST https://smart-file-organiser.replit.app/api/execute-teacher-prompt 
 ```
 
 Response:
+
 ```json
 {
   "content": "Welcome to our algebra class! I'm excited to guide you through this fascinating journey into the world of algebraic thinking. Let me start by sharing why algebra is such a powerful tool...\n\n[Full teacher agent response with natural, conversational teaching style]",
@@ -135,6 +141,7 @@ curl -X POST https://smart-file-organiser.replit.app/api/chat-teacher-agent \
 ```
 
 Response:
+
 ```json
 {
   "response": "Of course! Let me break down the distributive property with visual examples that will make it crystal clear.\n\nImagine you're at a pizza party. The distributive property is like this: if 3 friends each want 2 slices of pepperoni AND 1 slice of cheese, you can calculate the total in two ways:\n\nMethod 1: 3 × (2 + 1) = 3 × 3 = 9 slices\nMethod 2: (3 × 2) + (3 × 1) = 6 + 3 = 9 slices\n\nBoth give the same answer! That's the distributive property: a(b + c) = ab + ac\n\n[More examples with visual descriptions...]"
@@ -167,6 +174,7 @@ curl -X POST https://smart-file-organiser.replit.app/api/teacher-chat-sessions \
 ```
 
 Response:
+
 ```json
 {
   "id": "session-123-abc",
@@ -205,6 +213,7 @@ curl -X POST https://smart-file-organiser.replit.app/api/validation-reports/vali
 ```
 
 Response:
+
 ```json
 {
   "id": "report-456-def",
@@ -238,6 +247,7 @@ curl -X GET https://smart-file-organiser.replit.app/api/validation-reports/repor
 ```
 
 This downloads a PDF report with:
+
 - Compliance score visualization
 - Detailed parameter comparison
 - Deviation analysis
@@ -260,6 +270,7 @@ This downloads a PDF report with:
 ## Key Configuration Parameters
 
 ### Teaching Styles
+
 - `visual`: Use diagrams, charts, visual representations
 - `storytelling`: Narrative approach with examples
 - `hands-on`: Interactive activities and practice
@@ -267,6 +278,7 @@ This downloads a PDF report with:
 - `analytical`: Step-by-step logical breakdown
 
 ### Action Types
+
 - `ppt`: PowerPoint presentation slides
 - `audio`: Audio explanations
 - `video`: Video content
@@ -275,11 +287,13 @@ This downloads a PDF report with:
 - `discussion`: Open dialogue
 
 ### Difficulty Levels
+
 - `beginner`: Foundation concepts
 - `intermediate`: Application and practice
 - `advanced`: Complex problem-solving
 
 ### Expertise Subjects
+
 - `mathematics`
 - `science`
 - `language-arts`

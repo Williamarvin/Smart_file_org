@@ -1,31 +1,32 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 export default {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
+  preset: "ts-jest",
+  testEnvironment: "node",
+  extensionsToTreatAsEsm: [".ts"],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      useESM: true,
-    }],
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        useESM: true,
+      },
+    ],
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@/(.*)$': '<rootDir>/server/$1',
-    '^@shared/(.*)$': '<rootDir>/shared/$1',
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@/(.*)$": "<rootDir>/server/$1",
+    "^@shared/(.*)$": "<rootDir>/shared/$1",
   },
-  roots: ['<rootDir>/test'],
-  testMatch: ['**/test/**/*.test.ts'],
+  roots: ["<rootDir>/test"],
+  testMatch: ["**/test/**/*.test.ts"],
   collectCoverageFrom: [
-    'server/**/*.ts',
-    '!server/index.ts',
-    '!server/vite.ts',
-    '!**/*.d.ts',
+    "server/**/*.ts",
+    "!server/index.ts",
+    "!server/vite.ts",
+    "!**/*.d.ts",
   ],
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  coverageDirectory: "coverage",
+  coverageReporters: ["text", "lcov", "html"],
+  setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
   testTimeout: 30000,
-  transformIgnorePatterns: [
-    'node_modules/(?!(nanoid|@neondatabase)/)'
-  ],
+  transformIgnorePatterns: ["node_modules/(?!(nanoid|@neondatabase)/)"],
 };

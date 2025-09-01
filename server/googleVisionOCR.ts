@@ -1,6 +1,6 @@
-import { ImageAnnotatorClient } from '@google-cloud/vision';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { ImageAnnotatorClient } from "@google-cloud/vision";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 /**
  * Google Cloud Vision API OCR Service
@@ -8,123 +8,154 @@ import * as path from 'path';
  */
 export class GoogleVisionOCR {
   private client: ImageAnnotatorClient;
-  
+
   constructor() {
     // Parse the Google Cloud credentials from environment
     const credentialsJson = process.env.GOOGLE_CLOUD_CREDENTIALS;
     if (!credentialsJson) {
-      throw new Error('GOOGLE_CLOUD_CREDENTIALS environment variable not set');
+      throw new Error("GOOGLE_CLOUD_CREDENTIALS environment variable not set");
     }
-    
+
     const credentials = JSON.parse(credentialsJson);
-    
+
     // Initialize the Vision API client with credentials
     this.client = new ImageAnnotatorClient({
       credentials: credentials,
-      projectId: credentials.project_id
+      projectId: credentials.project_id,
     });
   }
-  
+
   /**
    * Extract text from a PDF using Google Cloud Vision API
    * @param pdfBuffer Buffer containing the PDF file
    * @param filename Name of the PDF file for logging
    * @returns Extracted text from all pages
    */
-  async extractTextFromPDF(pdfBuffer: Buffer, filename: string): Promise<string> {
+  async extractTextFromPDF(
+    pdfBuffer: Buffer,
+    filename: string,
+  ): Promise<string> {
     console.log(`🔍 Starting Google Cloud Vision OCR for: ${filename}`);
-    
+
     try {
       // The Vision API can process PDFs directly
       // We'll use the documentTextDetection method which is optimized for documents
-      
+
       // Convert buffer to base64 for the API
-      const base64Pdf = pdfBuffer.toString('base64');
-      
+      const base64Pdf = pdfBuffer.toString("base64");
+
       // Prepare the request for batch PDF processing
       const request = {
-        requests: [{
-          inputConfig: {
-            content: base64Pdf,
-            mimeType: 'application/pdf'
+        requests: [
+          {
+            inputConfig: {
+              content: base64Pdf,
+              mimeType: "application/pdf",
+            },
+            features: [
+              {
+                type: "DOCUMENT_TEXT_DETECTION" as const,
+                maxResults: 50,
+              },
+            ],
           },
-          features: [{
-            type: 'DOCUMENT_TEXT_DETECTION' as const,
-            maxResults: 50
-          }]
-        }]
+        ],
       };
-      
-      console.log(`📤 Sending PDF to Google Cloud Vision API (${Math.round(pdfBuffer.length / 1024)}KB)...`);
-      
+
+      console.log(
+        `📤 Sending PDF to Google Cloud Vision API (${Math.round(pdfBuffer.length / 1024)}KB)...`,
+      );
+
       // For PDFs, we need to use the async batch annotate files method
       const [operation] = await this.client.asyncBatchAnnotateFiles({
-        requests: [{
-          inputConfig: {
-            content: base64Pdf,
-            mimeType: 'application/pdf'
+        requests: [
+          {
+            inputConfig: {
+              content: base64Pdf,
+              mimeType: "application/pdf",
+            },
+            features: [
+              {
+                type: "DOCUMENT_TEXT_DETECTION",
+              },
+            ],
           },
-          features: [{
-            type: 'DOCUMENT_TEXT_DETECTION'
-          }]
-        }]
+        ],
       });
-      
+
       // Wait for the operation to complete
       console.log(`⏳ Waiting for OCR operation to complete...`);
       const [filesResponse] = await operation.promise();
-      
+
       // Extract text from all pages
-      let fullText = '';
-      
+      let fullText = "";
+
       if (filesResponse.responses && filesResponse.responses.length > 0) {
         for (const response of filesResponse.responses) {
           // The response contains an outputConfig and the actual text responses
           const annotateResponse = response as any;
-          
+
           // Check if we have the text annotations
           if (annotateResponse.responses) {
             for (let i = 0; i < annotateResponse.responses.length; i++) {
               const pageResponse = annotateResponse.responses[i];
-              
+
               if (pageResponse.fullTextAnnotation) {
-                const pageText = pageResponse.fullTextAnnotation.text || '';
+                const pageText = pageResponse.fullTextAnnotation.text || "";
                 if (pageText) {
-                  fullText += pageText + '\n\n';
-                  console.log(`✅ Extracted text from page ${i + 1}: ${pageText.length} characters`);
+                  fullText += pageText + "\n\n";
+                  console.log(
+                    `✅ Extracted text from page ${i + 1}: ${pageText.length} characters`,
+                  );
                 }
               } else if (pageResponse.error) {
-                console.error(`❌ Error on page ${i + 1}:`, pageResponse.error.message);
+                console.error(
+                  `❌ Error on page ${i + 1}:`,
+                  pageResponse.error.message,
+                );
               }
             }
           } else if (annotateResponse.error) {
-            console.error(`❌ Error processing PDF:`, annotateResponse.error.message);
+            console.error(
+              `❌ Error processing PDF:`,
+              annotateResponse.error.message,
+            );
           }
         }
       }
-      
+
       if (fullText.trim().length === 0) {
-        console.warn(`⚠️ No text extracted from PDF. The document may contain only images without text.`);
-        return '';
+        console.warn(
+          `⚠️ No text extracted from PDF. The document may contain only images without text.`,
+        );
+        return "";
       }
-      
-      console.log(`✅ Total OCR extraction: ${fullText.length} characters from ${filename}`);
+
+      console.log(
+        `✅ Total OCR extraction: ${fullText.length} characters from ${filename}`,
+      );
       return fullText.trim();
-      
     } catch (error: any) {
-      console.error(`❌ Google Cloud Vision OCR failed for ${filename}:`, error.message);
-      
+      console.error(
+        `❌ Google Cloud Vision OCR failed for ${filename}:`,
+        error.message,
+      );
+
       // Check if it's a credentials or quota issue
-      if (error.message?.includes('PERMISSION_DENIED')) {
-        throw new Error('Google Cloud Vision API permission denied. Please check your credentials.');
-      } else if (error.message?.includes('RESOURCE_EXHAUSTED')) {
-        throw new Error('Google Cloud Vision API quota exceeded. Please try again later.');
+      if (error.message?.includes("PERMISSION_DENIED")) {
+        throw new Error(
+          "Google Cloud Vision API permission denied. Please check your credentials.",
+        );
+      } else if (error.message?.includes("RESOURCE_EXHAUSTED")) {
+        throw new Error(
+          "Google Cloud Vision API quota exceeded. Please try again later.",
+        );
       }
-      
+
       throw error;
     }
   }
-  
+
   /**
    * Process a single image for OCR (for single page PDFs or images)
    * @param imageBuffer Buffer containing the image
@@ -134,19 +165,19 @@ export class GoogleVisionOCR {
     try {
       const [result] = await this.client.documentTextDetection({
         image: {
-          content: imageBuffer
-        }
+          content: imageBuffer,
+        },
       });
-      
+
       const fullTextAnnotation = result.fullTextAnnotation;
-      
+
       if (fullTextAnnotation && fullTextAnnotation.text) {
         return fullTextAnnotation.text;
       }
-      
-      return '';
+
+      return "";
     } catch (error: any) {
-      console.error('Google Cloud Vision OCR failed for image:', error.message);
+      console.error("Google Cloud Vision OCR failed for image:", error.message);
       throw error;
     }
   }

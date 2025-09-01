@@ -3,7 +3,20 @@ import QuickStats from "@/components/quick-stats";
 import RecentActivity from "@/components/recent-activity";
 import { AIProcessingBar } from "@/components/ai-processing-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Zap, Clock, TrendingUp, FolderOpen, User, GraduationCap, Briefcase, Heart, MessageCircle, Sparkles, PieChart } from "lucide-react";
+import {
+  FileText,
+  Zap,
+  Clock,
+  TrendingUp,
+  FolderOpen,
+  User,
+  GraduationCap,
+  Briefcase,
+  Heart,
+  MessageCircle,
+  Sparkles,
+  PieChart,
+} from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 
@@ -27,7 +40,14 @@ interface FileData {
   uploadedAt: string;
   processingStatus: string;
 }
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import {
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 export function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -58,16 +78,22 @@ export function Dashboard() {
   });
 
   const getCategoryIcon = (category: string) => {
-    if (category.includes("personal") || category.includes("life")) return Heart;
-    if (category.includes("academic") || category.includes("education")) return GraduationCap;
-    if (category.includes("work") || category.includes("business")) return Briefcase;
+    if (category.includes("personal") || category.includes("life"))
+      return Heart;
+    if (category.includes("academic") || category.includes("education"))
+      return GraduationCap;
+    if (category.includes("work") || category.includes("business"))
+      return Briefcase;
     return FolderOpen;
   };
 
   const getCategoryColor = (category: string) => {
-    if (category.includes("personal") || category.includes("life")) return "text-pink-600 bg-pink-100";
-    if (category.includes("academic") || category.includes("education")) return "text-blue-600 bg-blue-100";
-    if (category.includes("work") || category.includes("business")) return "text-green-600 bg-green-100";
+    if (category.includes("personal") || category.includes("life"))
+      return "text-pink-600 bg-pink-100";
+    if (category.includes("academic") || category.includes("education"))
+      return "text-blue-600 bg-blue-100";
+    if (category.includes("work") || category.includes("business"))
+      return "text-green-600 bg-green-100";
     return "text-gray-600 bg-gray-100";
   };
 
@@ -75,7 +101,9 @@ export function Dashboard() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Dashboard</h1>
-        <p className="text-slate-600">Overview of your file management and AI processing</p>
+        <p className="text-slate-600">
+          Overview of your file management and AI processing
+        </p>
       </div>
 
       {/* Quick Actions */}
@@ -89,8 +117,12 @@ export function Dashboard() {
                     <FileText className="text-blue-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">Upload Files</h3>
-                    <p className="text-sm text-slate-600">Add new documents for AI processing</p>
+                    <h3 className="font-semibold text-slate-800">
+                      Upload Files
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      Add new documents for AI processing
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -107,8 +139,12 @@ export function Dashboard() {
                     <Zap className="text-green-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">Browse Files</h3>
-                    <p className="text-sm text-slate-600">Explore and search your documents</p>
+                    <h3 className="font-semibold text-slate-800">
+                      Browse Files
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      Explore and search your documents
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -126,7 +162,9 @@ export function Dashboard() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-800">Analysis</h3>
-                    <p className="text-sm text-slate-600">View insights and statistics</p>
+                    <p className="text-sm text-slate-600">
+                      View insights and statistics
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -143,8 +181,12 @@ export function Dashboard() {
                     <MessageCircle className="text-orange-600 text-xl" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">Chat with Files</h3>
-                    <p className="text-sm text-slate-600">Ask AI about your documents</p>
+                    <h3 className="font-semibold text-slate-800">
+                      Chat with Files
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      Ask AI about your documents
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -156,10 +198,7 @@ export function Dashboard() {
       {/* AI Processing Bar */}
       {stats && stats.totalFiles > 0 && (
         <div className="mb-8">
-          <AIProcessingBar 
-            stats={stats}
-            className="max-w-md mx-auto"
-          />
+          <AIProcessingBar stats={stats} className="max-w-md mx-auto" />
         </div>
       )}
 
@@ -179,36 +218,80 @@ export function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!categories || !Array.isArray(categories) || categories.length === 0 ? (
+              {!categories ||
+              !Array.isArray(categories) ||
+              categories.length === 0 ? (
                 <div className="text-center py-8">
                   <PieChart className="mx-auto text-4xl text-slate-400 mb-2" />
                   <p className="text-slate-500">No data to display</p>
-                  <p className="text-sm text-slate-400">Upload and process files to see distribution</p>
+                  <p className="text-sm text-slate-400">
+                    Upload and process files to see distribution
+                  </p>
                 </div>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
                       <Pie
-                        data={Array.isArray(categories) ? categories.map((cat: { category: string; count: number }, index: number) => {
-                          const totalCount = categories.reduce((sum: number, c: { count: number }) => sum + c.count, 0);
-                          return {
-                            name: cat.category.replace(/[/_]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-                            value: cat.count,
-                            percentage: totalCount > 0 ? ((cat.count / totalCount) * 100).toFixed(1) : '0'
-                          };
-                        }) : []}
+                        data={
+                          Array.isArray(categories)
+                            ? categories.map(
+                                (
+                                  cat: { category: string; count: number },
+                                  index: number,
+                                ) => {
+                                  const totalCount = categories.reduce(
+                                    (sum: number, c: { count: number }) =>
+                                      sum + c.count,
+                                    0,
+                                  );
+                                  return {
+                                    name: cat.category
+                                      .replace(/[/_]/g, " ")
+                                      .replace(/\b\w/g, (l: string) =>
+                                        l.toUpperCase(),
+                                      ),
+                                    value: cat.count,
+                                    percentage:
+                                      totalCount > 0
+                                        ? (
+                                            (cat.count / totalCount) *
+                                            100
+                                          ).toFixed(1)
+                                        : "0",
+                                  };
+                                },
+                              )
+                            : []
+                        }
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }: any) => `${name} (${percentage}%)`}
+                        label={({ name, percentage }: any) =>
+                          `${name} (${percentage}%)`
+                        }
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {Array.isArray(categories) ? categories.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'][index % 7]} />
-                        )) : []}
+                        {Array.isArray(categories)
+                          ? categories.map((entry: any, index: number) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={
+                                  [
+                                    "#3B82F6",
+                                    "#10B981",
+                                    "#F59E0B",
+                                    "#EF4444",
+                                    "#8B5CF6",
+                                    "#06B6D4",
+                                    "#84CC16",
+                                  ][index % 7]
+                                }
+                              />
+                            ))
+                          : []}
                       </Pie>
                       <Tooltip />
                       <Legend />
@@ -234,7 +317,9 @@ export function Dashboard() {
                 <div className="text-center py-6">
                   <FolderOpen className="text-slate-400 text-3xl mx-auto mb-3" />
                   <p className="text-slate-500">No categories yet</p>
-                  <p className="text-sm text-slate-400">Upload files to see categories</p>
+                  <p className="text-sm text-slate-400">
+                    Upload files to see categories
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -242,10 +327,14 @@ export function Dashboard() {
                     const Icon = getCategoryIcon(cat.category);
                     const colorClass = getCategoryColor(cat.category);
                     return (
-                      <div 
+                      <div
                         key={cat.category}
                         onClick={() => {
-                          setSelectedCategory(cat.category === selectedCategory ? null : cat.category);
+                          setSelectedCategory(
+                            cat.category === selectedCategory
+                              ? null
+                              : cat.category,
+                          );
                         }}
                         className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
                       >
@@ -255,14 +344,18 @@ export function Dashboard() {
                           </div>
                           <div>
                             <p className="font-medium text-slate-800 capitalize">
-                              {cat.category.replace(/[/_]/g, ' ')}
+                              {cat.category.replace(/[/_]/g, " ")}
                             </p>
-                            <p className="text-sm text-slate-500">{cat.count} files</p>
+                            <p className="text-sm text-slate-500">
+                              {cat.count} files
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <span className="text-xs text-slate-400">
-                            {selectedCategory === cat.category ? 'Hide' : 'View'}
+                            {selectedCategory === cat.category
+                              ? "Hide"
+                              : "View"}
                           </span>
                         </div>
                       </div>
@@ -278,18 +371,23 @@ export function Dashboard() {
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle className="text-lg">
-                  Files in "{selectedCategory.replace(/[/_]/g, ' ')}"
+                  Files in "{selectedCategory.replace(/[/_]/g, " ")}"
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {!filesByCategory || (filesByCategory as any[]).length === 0 ? (
                   <div className="text-center py-4">
-                    <p className="text-slate-500">No files found in this category</p>
+                    <p className="text-slate-500">
+                      No files found in this category
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {(filesByCategory as any[]).slice(0, 5).map((file: any) => (
-                      <div key={file.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
+                      <div
+                        key={file.id}
+                        className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg"
+                      >
                         <FileText className="text-blue-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-slate-800 truncate">
@@ -299,8 +397,8 @@ export function Dashboard() {
                             {new Date(file.uploadedAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <Link 
-                          href={`/browse?search=${encodeURIComponent(file.originalName.split('.')[0])}`}
+                        <Link
+                          href={`/browse?search=${encodeURIComponent(file.originalName.split(".")[0])}`}
                           className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                         >
                           View
@@ -309,7 +407,7 @@ export function Dashboard() {
                     ))}
                     {(filesByCategory as any[]).length > 5 && (
                       <div className="text-center pt-2">
-                        <Link 
+                        <Link
                           href={`/browse?category=${selectedCategory}`}
                           className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >

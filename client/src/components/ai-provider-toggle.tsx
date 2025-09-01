@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProviderStatus {
-  currentProvider: 'openai' | 'dify';
+  currentProvider: "openai" | "dify";
   providers: {
     openai: {
       available: boolean;
@@ -32,10 +32,10 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
 
   // Fetch current provider status
   const { data: providerStatus, isLoading } = useQuery<ProviderStatus>({
-    queryKey: ['/api/providers/status'],
+    queryKey: ["/api/providers/status"],
     queryFn: async () => {
-      const response = await fetch('/api/providers/status');
-      if (!response.ok) throw new Error('Failed to fetch provider status');
+      const response = await fetch("/api/providers/status");
+      if (!response.ok) throw new Error("Failed to fetch provider status");
       return response.json();
     },
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -43,15 +43,17 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
 
   // Switch provider mutation
   const switchProviderMutation = useMutation({
-    mutationFn: async (provider: 'openai' | 'dify') => {
-      const response = await apiRequest('POST', '/api/providers/switch', { provider });
+    mutationFn: async (provider: "openai" | "dify") => {
+      const response = await apiRequest("POST", "/api/providers/switch", {
+        provider,
+      });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/providers/status'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/providers/status"] });
       toast({
-        title: "Provider switched", 
-        description: `Successfully switched to ${providerStatus?.currentProvider === 'dify' ? 'OpenAI' : 'Dify (with MCP)'}`,
+        title: "Provider switched",
+        description: `Successfully switched to ${providerStatus?.currentProvider === "dify" ? "OpenAI" : "Dify (with MCP)"}`,
       });
     },
     onError: (error) => {
@@ -64,7 +66,7 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
   });
 
   const handleToggle = (checked: boolean) => {
-    const newProvider = checked ? 'openai' : 'dify';  // Swapped: checked now means OpenAI
+    const newProvider = checked ? "openai" : "dify"; // Swapped: checked now means OpenAI
     switchProviderMutation.mutate(newProvider);
   };
 
@@ -77,14 +79,19 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
     );
   }
 
-  const isDify = providerStatus.currentProvider === 'dify';
+  const isDify = providerStatus.currentProvider === "dify";
   const isConfigured = providerStatus.providers.dify.configured;
 
   return (
-    <div className={`flex items-center gap-3 p-2 rounded-lg border bg-card ${className}`}>
+    <div
+      className={`flex items-center gap-3 p-2 rounded-lg border bg-card ${className}`}
+    >
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-green-600" />
-        <Label htmlFor="ai-provider" className="text-sm font-medium cursor-pointer">
+        <Label
+          htmlFor="ai-provider"
+          className="text-sm font-medium cursor-pointer"
+        >
           Dify
         </Label>
         {isDify && (
@@ -93,17 +100,20 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
           </Badge>
         )}
       </div>
-      
+
       <Switch
         id="ai-provider"
-        checked={!isDify}  // Checked means OpenAI (not default)
+        checked={!isDify} // Checked means OpenAI (not default)
         onCheckedChange={handleToggle}
         disabled={switchProviderMutation.isPending || !isConfigured}
       />
-      
+
       <div className="flex items-center gap-2">
         <Bot className="h-4 w-4 text-blue-500" />
-        <Label htmlFor="ai-provider" className="text-sm font-medium cursor-pointer">
+        <Label
+          htmlFor="ai-provider"
+          className="text-sm font-medium cursor-pointer"
+        >
           OpenAI
         </Label>
       </div>
@@ -119,20 +129,24 @@ export function AIProviderToggle({ className = "" }: { className?: string }) {
 
 export function AIProviderInfo() {
   const { data: providerStatus } = useQuery<ProviderStatus>({
-    queryKey: ['/api/providers/status'],
+    queryKey: ["/api/providers/status"],
   });
 
   if (!providerStatus) return null;
 
-  const isDify = providerStatus.currentProvider === 'dify';
+  const isDify = providerStatus.currentProvider === "dify";
 
   return (
     <Card className="p-3 bg-muted/50">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isDify ? <Sparkles className="h-4 w-4 text-green-600" /> : <Bot className="h-4 w-4 text-blue-500" />}
+          {isDify ? (
+            <Sparkles className="h-4 w-4 text-green-600" />
+          ) : (
+            <Bot className="h-4 w-4 text-blue-500" />
+          )}
           <span className="text-sm font-medium">
-            {isDify ? 'Dify MCP (Default)' : 'OpenAI'}
+            {isDify ? "Dify MCP (Default)" : "OpenAI"}
           </span>
         </div>
         {isDify && (
@@ -142,9 +156,9 @@ export function AIProviderInfo() {
         )}
       </div>
       <p className="text-xs text-muted-foreground mt-1">
-        {isDify 
-          ? 'Using Dify with Model Context Protocol - external tools available'
-          : 'Using OpenAI GPT-4 - fast direct responses'}
+        {isDify
+          ? "Using Dify with Model Context Protocol - external tools available"
+          : "Using OpenAI GPT-4 - fast direct responses"}
       </p>
     </Card>
   );

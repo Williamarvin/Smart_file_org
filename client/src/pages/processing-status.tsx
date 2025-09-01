@@ -1,27 +1,27 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AIProcessingBar } from '@/components/ai-processing-bar';
-import { 
-  Clock, 
-  AlertCircle, 
-  CheckCircle, 
-  XCircle, 
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AIProcessingBar } from "@/components/ai-processing-bar";
+import {
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
   RefreshCw,
   Loader2,
   FileText,
   FolderOpen,
   Zap,
-  Eye
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { formatDistanceToNow } from 'date-fns';
+  Eye,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatDistanceToNow } from "date-fns";
 
 interface ProcessingFile {
   id: string;
@@ -48,80 +48,87 @@ interface ProcessingStats {
 export default function ProcessingStatus() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/files/processing-status"],
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       }, 5000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
 
   const { data: stats } = useQuery<ProcessingStats>({
-    queryKey: ['/api/stats'],
-    refetchInterval: autoRefresh ? 5000 : false
+    queryKey: ["/api/stats"],
+    refetchInterval: autoRefresh ? 5000 : false,
   });
 
   // Fetch ALL files for statistics calculation (unfiltered)
   const { data: allFiles = [] } = useQuery<ProcessingFile[]>({
-    queryKey: ['/api/files/processing-status', 'all'],
+    queryKey: ["/api/files/processing-status", "all"],
     queryFn: async () => {
-      const response = await fetch('/api/files/processing-status?status=all', {
-        cache: 'no-cache',
+      const response = await fetch("/api/files/processing-status?status=all", {
+        cache: "no-cache",
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       });
-      if (!response.ok) throw new Error('Failed to fetch processing status');
-      return response.json();
-    },
-    refetchInterval: autoRefresh ? 5000 : false,
-    staleTime: 0,
-    gcTime: 0
-  });
-
-  // Fetch filtered files for display (based on selected status)
-  const { data: filteredFiles = [], isLoading } = useQuery<ProcessingFile[]>({
-    queryKey: ['/api/files/processing-status', selectedStatus],
-    queryFn: async () => {
-      const response = await fetch(`/api/files/processing-status?status=${selectedStatus}`, {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch processing status');
+      if (!response.ok) throw new Error("Failed to fetch processing status");
       return response.json();
     },
     refetchInterval: autoRefresh ? 5000 : false,
     staleTime: 0,
     gcTime: 0,
-    enabled: selectedStatus !== 'all' // Only fetch filtered data when needed
+  });
+
+  // Fetch filtered files for display (based on selected status)
+  const { data: filteredFiles = [], isLoading } = useQuery<ProcessingFile[]>({
+    queryKey: ["/api/files/processing-status", selectedStatus],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/files/processing-status?status=${selectedStatus}`,
+        {
+          cache: "no-cache",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch processing status");
+      return response.json();
+    },
+    refetchInterval: autoRefresh ? 5000 : false,
+    staleTime: 0,
+    gcTime: 0,
+    enabled: selectedStatus !== "all", // Only fetch filtered data when needed
   });
 
   const retryFile = async (fileId: string) => {
     try {
       const response = await fetch(`/api/files/${fileId}/retry-processing`, {
-        method: 'POST'
+        method: "POST",
       });
-      if (!response.ok) throw new Error('Failed to retry');
+      if (!response.ok) throw new Error("Failed to retry");
       toast({
         title: "Processing Restarted",
-        description: "The file will be processed again."
+        description: "The file will be processed again.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/files/processing-status"],
+      });
     } catch (error) {
       toast({
         title: "Retry Failed",
         description: "Could not restart processing for this file.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -129,36 +136,36 @@ export default function ProcessingStatus() {
   const markFailed = async (fileId: string, reason: string) => {
     try {
       const response = await fetch(`/api/files/${fileId}/mark-failed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
       });
-      if (!response.ok) throw new Error('Failed to mark as failed');
+      if (!response.ok) throw new Error("Failed to mark as failed");
       toast({
         title: "Marked as Failed",
-        description: "The file has been marked as failed."
+        description: "The file has been marked as failed.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/files/processing-status"],
+      });
     } catch (error) {
       toast({
         title: "Update Failed",
         description: "Could not update file status.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
-
-
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'processing':
+      case "processing":
         return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-      case 'failed':
+      case "failed":
         return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'stuck':
+      case "stuck":
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
@@ -166,48 +173,57 @@ export default function ProcessingStatus() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       completed: "default",
       processing: "secondary",
       failed: "destructive",
-      stuck: "outline"
+      stuck: "outline",
     };
-    return (
-      <Badge variant={variants[status] || "outline"}>
-        {status}
-      </Badge>
-    );
+    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
   };
 
   const formatDuration = (ms: number) => {
-    if (ms < 1000) return ms + 'ms';
-    if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
-    return (ms / 60000).toFixed(1) + 'min';
+    if (ms < 1000) return ms + "ms";
+    if (ms < 60000) return (ms / 1000).toFixed(1) + "s";
+    return (ms / 60000).toFixed(1) + "min";
   };
 
   // Use the appropriate dataset: filtered for display, all for statistics
-  const displayFiles = selectedStatus === 'all' ? allFiles : filteredFiles;
+  const displayFiles = selectedStatus === "all" ? allFiles : filteredFiles;
 
   // Calculate statistics from ALL files (not filtered)
-  const pendingFiles = allFiles.filter(f => f.processingStatus === 'pending');
-  const processingFiles = allFiles.filter(f => f.processingStatus === 'processing');
-  const stuckFiles = allFiles.filter(f => {
-    if ((f.processingStatus === 'processing' || f.processingStatus === 'pending') && f.processingStartedAt) {
+  const pendingFiles = allFiles.filter((f) => f.processingStatus === "pending");
+  const processingFiles = allFiles.filter(
+    (f) => f.processingStatus === "processing",
+  );
+  const stuckFiles = allFiles.filter((f) => {
+    if (
+      (f.processingStatus === "processing" ||
+        f.processingStatus === "pending") &&
+      f.processingStartedAt
+    ) {
       const startTime = new Date(f.processingStartedAt).getTime();
       const now = Date.now();
-      return (now - startTime) > 2 * 60 * 60 * 1000; // 2 hours
+      return now - startTime > 2 * 60 * 60 * 1000; // 2 hours
     }
     return false;
   });
-  const errorFiles = allFiles.filter(f => f.processingStatus === 'error' || f.processingStatus === 'failed');
-  const completedFiles = allFiles.filter(f => f.processingStatus === 'completed');
-  const skippedFiles = allFiles.filter(f => f.processingStatus === 'skipped');
+  const errorFiles = allFiles.filter(
+    (f) => f.processingStatus === "error" || f.processingStatus === "failed",
+  );
+  const completedFiles = allFiles.filter(
+    (f) => f.processingStatus === "completed",
+  );
+  const skippedFiles = allFiles.filter((f) => f.processingStatus === "skipped");
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -219,8 +235,10 @@ export default function ProcessingStatus() {
             size="sm"
             onClick={() => setAutoRefresh(!autoRefresh)}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            {autoRefresh ? 'Auto-Refresh On' : 'Auto-Refresh Off'}
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${autoRefresh ? "animate-spin" : ""}`}
+            />
+            {autoRefresh ? "Auto-Refresh On" : "Auto-Refresh Off"}
           </Button>
         </div>
       </div>
@@ -228,11 +246,11 @@ export default function ProcessingStatus() {
       {/* AI Processing Bar */}
       {stats && stats.totalFiles > 0 && (
         <div className="mb-8">
-          <AIProcessingBar 
+          <AIProcessingBar
             stats={{
               processedFiles: stats.processedFiles || 0,
               totalFiles: stats.totalFiles || 0,
-              processingFiles: stats.processingFiles || 0
+              processingFiles: stats.processingFiles || 0,
             }}
             className="max-w-lg"
           />
@@ -252,15 +270,17 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-600">Processed</CardTitle>
+            <CardTitle className="text-sm font-medium text-green-600">
+              Processed
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
               {stats?.processedFiles || 0}
             </div>
             {stats && stats.totalFiles > 0 && (
-              <Progress 
-                value={(stats.processedFiles / stats.totalFiles) * 100} 
+              <Progress
+                value={(stats.processedFiles / stats.totalFiles) * 100}
                 className="mt-2 h-2"
               />
             )}
@@ -269,7 +289,9 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Pending
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-600">
@@ -280,7 +302,9 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-600">Processing</CardTitle>
+            <CardTitle className="text-sm font-medium text-blue-600">
+              Processing
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600 flex items-center">
@@ -294,7 +318,9 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-yellow-600">Stuck</CardTitle>
+            <CardTitle className="text-sm font-medium text-yellow-600">
+              Stuck
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
@@ -305,7 +331,9 @@ export default function ProcessingStatus() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-600">Error</CardTitle>
+            <CardTitle className="text-sm font-medium text-red-600">
+              Error
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
@@ -323,19 +351,24 @@ export default function ProcessingStatus() {
               variant="default"
               onClick={async () => {
                 try {
-                  const response = await apiRequest('POST', '/api/files/retry-processing');
+                  const response = await apiRequest(
+                    "POST",
+                    "/api/files/retry-processing",
+                  );
                   const data = await response.json();
                   toast({
                     title: "Retrying Stuck Files",
-                    description: `Retrying ${data.count || processingFiles.length} stuck processing files.`
+                    description: `Retrying ${data.count || processingFiles.length} stuck processing files.`,
                   });
-                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["/api/files/processing-status"],
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
                 } catch (error) {
                   toast({
                     title: "Failed to Retry",
                     description: "Could not retry the stuck processing files.",
-                    variant: "destructive"
+                    variant: "destructive",
                   });
                 }
               }}
@@ -347,19 +380,24 @@ export default function ProcessingStatus() {
               variant="destructive"
               onClick={async () => {
                 try {
-                  const response = await apiRequest('POST', '/api/files/stop-processing');
+                  const response = await apiRequest(
+                    "POST",
+                    "/api/files/stop-processing",
+                  );
                   const data = await response.json();
                   toast({
                     title: "Processing Stopped",
-                    description: `Stopped ${data.count || processingFiles.length} files. You can retry them later.`
+                    description: `Stopped ${data.count || processingFiles.length} files. You can retry them later.`,
                   });
-                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["/api/files/processing-status"],
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
                 } catch (error) {
                   toast({
                     title: "Failed to Stop Processing",
                     description: "Could not stop the processing files.",
-                    variant: "destructive"
+                    variant: "destructive",
                   });
                 }
               }}
@@ -369,25 +407,30 @@ export default function ProcessingStatus() {
             </Button>
           </>
         )}
-        
+
         {errorFiles.length > 0 && (
           <Button
             variant="outline"
             onClick={async () => {
               try {
-                const response = await apiRequest('POST', '/api/files/retry-all-errors');
+                const response = await apiRequest(
+                  "POST",
+                  "/api/files/retry-all-errors",
+                );
                 const data = await response.json();
                 toast({
                   title: "Retry Started",
-                  description: `Retrying ${data.count || errorFiles.length} errored files.`
+                  description: `Retrying ${data.count || errorFiles.length} errored files.`,
                 });
-                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                queryClient.invalidateQueries({
+                  queryKey: ["/api/files/processing-status"],
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
               } catch (error) {
                 toast({
                   title: "Failed to Retry",
                   description: "Could not retry the errored files.",
-                  variant: "destructive"
+                  variant: "destructive",
                 });
               }
             }}
@@ -396,26 +439,35 @@ export default function ProcessingStatus() {
             Retry All Errors ({errorFiles.length})
           </Button>
         )}
-        
+
         {errorFiles.length > 0 && (
           <Button
             variant="ghost"
             onClick={async () => {
-              if (confirm(`This will permanently delete ${errorFiles.length} files that can't be found. Continue?`)) {
+              if (
+                confirm(
+                  `This will permanently delete ${errorFiles.length} files that can't be found. Continue?`,
+                )
+              ) {
                 try {
-                  const response = await apiRequest('DELETE', '/api/files/cleanup-missing');
+                  const response = await apiRequest(
+                    "DELETE",
+                    "/api/files/cleanup-missing",
+                  );
                   const data = await response.json();
                   toast({
                     title: "Cleanup Complete",
-                    description: `Removed ${data.count || errorFiles.length} missing files from the database.`
+                    description: `Removed ${data.count || errorFiles.length} missing files from the database.`,
                   });
-                  queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["/api/files/processing-status"],
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
                 } catch (error) {
                   toast({
                     title: "Cleanup Failed",
                     description: "Could not clean up missing files.",
-                    variant: "destructive"
+                    variant: "destructive",
                   });
                 }
               }
@@ -425,27 +477,36 @@ export default function ProcessingStatus() {
             Clean Up Missing Files
           </Button>
         )}
-        
+
         {/* Comprehensive reprocessing for files missing OpenAI IDs */}
         <Button
           variant="secondary"
           onClick={async () => {
-            if (confirm('This will reprocess files missing OpenAI IDs, treating them like new uploads. You will see the processing activity here. Continue?')) {
+            if (
+              confirm(
+                "This will reprocess files missing OpenAI IDs, treating them like new uploads. You will see the processing activity here. Continue?",
+              )
+            ) {
               try {
-                const response = await apiRequest('POST', '/api/files/reprocess-for-openai');
+                const response = await apiRequest(
+                  "POST",
+                  "/api/files/reprocess-for-openai",
+                );
                 const data = await response.json();
                 toast({
                   title: "Comprehensive Reprocessing Started",
                   description: `Processing ${data.totalFiles} files. Watch this page for progress!`,
-                  duration: 8000
+                  duration: 8000,
                 });
-                queryClient.invalidateQueries({ queryKey: ['/api/files/processing-status'] });
-                queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+                queryClient.invalidateQueries({
+                  queryKey: ["/api/files/processing-status"],
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
               } catch (error) {
                 toast({
                   title: "Failed to Start Reprocessing",
                   description: "Could not start comprehensive reprocessing.",
-                  variant: "destructive"
+                  variant: "destructive",
                 });
               }
             }
@@ -460,7 +521,15 @@ export default function ProcessingStatus() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {['all', 'pending', 'processing', 'stuck', 'error', 'skipped', 'completed'].map(status => (
+        {[
+          "all",
+          "pending",
+          "processing",
+          "stuck",
+          "error",
+          "skipped",
+          "completed",
+        ].map((status) => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
@@ -468,23 +537,24 @@ export default function ProcessingStatus() {
             onClick={() => setSelectedStatus(status)}
           >
             {status.charAt(0).toUpperCase() + status.slice(1)}
-            {status === 'pending' && ` (${pendingFiles.length})`}
-            {status === 'processing' && ` (${processingFiles.length})`}
-            {status === 'stuck' && ` (${stuckFiles.length})`}
-            {status === 'error' && ` (${errorFiles.length})`}
-            {status === 'skipped' && ` (${skippedFiles.length})`}
-            {status === 'completed' && ` (${completedFiles.length})`}
+            {status === "pending" && ` (${pendingFiles.length})`}
+            {status === "processing" && ` (${processingFiles.length})`}
+            {status === "stuck" && ` (${stuckFiles.length})`}
+            {status === "error" && ` (${errorFiles.length})`}
+            {status === "skipped" && ` (${skippedFiles.length})`}
+            {status === "completed" && ` (${completedFiles.length})`}
           </Button>
         ))}
       </div>
 
       {/* Stuck Files Alert */}
-      {stuckFiles.length > 0 && selectedStatus !== 'completed' && (
+      {stuckFiles.length > 0 && selectedStatus !== "completed" && (
         <Alert className="border-yellow-200 bg-yellow-50">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <strong>{stuckFiles.length} files</strong> have been processing for over 2 hours and may be stuck.
-            Consider retrying or marking them as failed.
+            <strong>{stuckFiles.length} files</strong> have been processing for
+            over 2 hours and may be stuck. Consider retrying or marking them as
+            failed.
           </AlertDescription>
         </Alert>
       )}
@@ -493,7 +563,9 @@ export default function ProcessingStatus() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {selectedStatus === 'all' ? 'All Files' : `${selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} Files`}
+            {selectedStatus === "all"
+              ? "All Files"
+              : `${selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} Files`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -507,26 +579,30 @@ export default function ProcessingStatus() {
             </div>
           ) : (
             <div className="space-y-2">
-              {displayFiles.map(file => {
-                const isStuck = file.processingStatus === 'processing' && 
-                  file.processingStartedAt && 
-                  (Date.now() - new Date(file.processingStartedAt).getTime()) > 2 * 60 * 60 * 1000;
-                
+              {displayFiles.map((file) => {
+                const isStuck =
+                  file.processingStatus === "processing" &&
+                  file.processingStartedAt &&
+                  Date.now() - new Date(file.processingStartedAt).getTime() >
+                    2 * 60 * 60 * 1000;
+
                 return (
                   <div
                     key={file.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      {getStatusIcon(isStuck ? 'stuck' : file.processingStatus)}
-                      
+                      {getStatusIcon(isStuck ? "stuck" : file.processingStatus)}
+
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-gray-400" />
                           <span className="font-medium">{file.filename}</span>
-                          {getStatusBadge(isStuck ? 'stuck' : file.processingStatus)}
+                          {getStatusBadge(
+                            isStuck ? "stuck" : file.processingStatus,
+                          )}
                         </div>
-                        
+
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                           <span>{formatFileSize(file.fileSize)}</span>
                           <span>{file.fileType}</span>
@@ -538,7 +614,11 @@ export default function ProcessingStatus() {
                           )}
                           {file.processingStartedAt && (
                             <span>
-                              Started {formatDistanceToNow(new Date(file.processingStartedAt))} ago
+                              Started{" "}
+                              {formatDistanceToNow(
+                                new Date(file.processingStartedAt),
+                              )}{" "}
+                              ago
                             </span>
                           )}
                           {file.processingDuration > 0 && (
@@ -548,7 +628,7 @@ export default function ProcessingStatus() {
                             </span>
                           )}
                         </div>
-                        
+
                         {file.processingError && (
                           <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                             {file.processingError}
@@ -556,7 +636,7 @@ export default function ProcessingStatus() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2">
                       {/* View Details button for all files */}
                       <Button
@@ -567,8 +647,10 @@ export default function ProcessingStatus() {
                         <Eye className="h-4 w-4 mr-1" />
                         Details
                       </Button>
-                      
-                      {(file.processingStatus === 'error' || file.processingStatus === 'failed' || isStuck) && (
+
+                      {(file.processingStatus === "error" ||
+                        file.processingStatus === "failed" ||
+                        isStuck) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -582,7 +664,12 @@ export default function ProcessingStatus() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => markFailed(file.id, 'Processing timeout - stuck for over 2 hours')}
+                          onClick={() =>
+                            markFailed(
+                              file.id,
+                              "Processing timeout - stuck for over 2 hours",
+                            )
+                          }
                         >
                           Mark Failed
                         </Button>

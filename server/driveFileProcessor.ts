@@ -1,18 +1,18 @@
-import { GoogleDriveService } from './googleDriveService';
-import { storage } from './storage';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import { nanoid } from 'nanoid';
-import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
-import { getOpenAIClient } from './openai';
-import { spawn } from 'child_process';
-import ffmpeg from 'ffmpeg-static';
-import { enhancedPdfExtractor } from './enhancedPdfExtractor';
-import { db } from './db';
-import { files } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { GoogleDriveService } from "./googleDriveService";
+import { storage } from "./storage";
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as os from "os";
+import { nanoid } from "nanoid";
+import mammoth from "mammoth";
+import pdfParse from "pdf-parse";
+import { getOpenAIClient } from "./openai";
+import { spawn } from "child_process";
+import ffmpeg from "ffmpeg-static";
+import { enhancedPdfExtractor } from "./enhancedPdfExtractor";
+import { db } from "./db";
+import { files } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Service to download and process files from Google Drive
@@ -24,7 +24,7 @@ export class DriveFileProcessor {
 
   constructor() {
     this.driveService = new GoogleDriveService();
-    this.tempDir = path.join(os.tmpdir(), 'drive-downloads');
+    this.tempDir = path.join(os.tmpdir(), "drive-downloads");
   }
 
   /**
@@ -32,10 +32,10 @@ export class DriveFileProcessor {
    */
   private sanitizeFilename(filename: string): string {
     return filename
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // Replace invalid file system characters
-      .replace(/\r?\n/g, '_') // Replace newlines with underscore
-      .replace(/\s+/g, '_') // Replace multiple spaces with single underscore
-      .replace(/_+/g, '_') // Replace multiple underscores with single underscore
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_") // Replace invalid file system characters
+      .replace(/\r?\n/g, "_") // Replace newlines with underscore
+      .replace(/\s+/g, "_") // Replace multiple spaces with single underscore
+      .replace(/_+/g, "_") // Replace multiple underscores with single underscore
       .trim()
       .substring(0, 100); // Limit length to avoid path too long errors
   }
@@ -48,10 +48,13 @@ export class DriveFileProcessor {
     failed: number;
     skipped: number;
   }> {
-    console.log('Starting Google Drive file processing...');
-    
+    console.log("Starting Google Drive file processing...");
+
     // Get all files with Google Drive storage type
-    const driveFiles = await storage.getFilesByStorageType('google-drive', userId);
+    const driveFiles = await storage.getFilesByStorageType(
+      "google-drive",
+      userId,
+    );
     console.log(`Found ${driveFiles.length} files with Google Drive links`);
 
     let processed = 0;
@@ -64,8 +67,8 @@ export class DriveFileProcessor {
     for (const file of driveFiles) {
       try {
         const result = await this.processSingleFile(file);
-        if (result === 'processed') processed++;
-        else if (result === 'failed') failed++;
+        if (result === "processed") processed++;
+        else if (result === "failed") failed++;
         else skipped++;
       } catch (error) {
         console.error(`Error processing file ${file.id}:`, error);
@@ -77,28 +80,32 @@ export class DriveFileProcessor {
     try {
       await fs.rm(this.tempDir, { recursive: true, force: true });
     } catch (error) {
-      console.error('Error cleaning temp directory:', error);
+      console.error("Error cleaning temp directory:", error);
     }
 
-    console.log(`✅ Drive file processing complete: ${processed} processed, ${failed} failed, ${skipped} skipped`);
+    console.log(
+      `✅ Drive file processing complete: ${processed} processed, ${failed} failed, ${skipped} skipped`,
+    );
     return { processed, failed, skipped };
   }
 
   /**
    * Process a single file from Google Drive
    */
-  private async processSingleFile(file: any): Promise<'processed' | 'failed' | 'skipped'> {
+  private async processSingleFile(
+    file: any,
+  ): Promise<"processed" | "failed" | "skipped"> {
     // Skip if already has real content (not a placeholder)
-    if (file.content && !file.content.startsWith('File reference:')) {
+    if (file.content && !file.content.startsWith("File reference:")) {
       console.log(`Skipping ${file.filename} - already has content`);
-      return 'skipped';
+      return "skipped";
     }
 
     // Get Google Drive URL
     const driveUrl = file.googleDriveUrl || file.url;
     if (!driveUrl) {
       console.log(`Skipping ${file.filename} - no Google Drive URL`);
-      return 'skipped';
+      return "skipped";
     }
 
     console.log(`Processing ${file.filename} from ${driveUrl}`);
@@ -107,112 +114,140 @@ export class DriveFileProcessor {
       // Download file from Google Drive
       const fileBuffer = await this.driveService.downloadFile(driveUrl);
       if (!fileBuffer || fileBuffer.length === 0) {
-        console.error(`Failed to download ${file.filename} - empty or null buffer`);
+        console.error(
+          `Failed to download ${file.filename} - empty or null buffer`,
+        );
         // Mark file as error in database with specific error message
-        const errorMessage = 'Failed to download from Google Drive: Error: Downloaded file is empty';
+        const errorMessage =
+          "Failed to download from Google Drive: Error: Downloaded file is empty";
         // Update processing status through database directly since storage interface doesn't support error messages
-        await db.update(files)
+        await db
+          .update(files)
           .set({
-            processingStatus: 'error',
-            processingError: errorMessage
+            processingStatus: "error",
+            processingError: errorMessage,
           })
           .where(eq(files.id, file.id));
-        console.log(`🔍 File ${file.filename} marked for automatic cleanup - object not found in storage`);
+        console.log(
+          `🔍 File ${file.filename} marked for automatic cleanup - object not found in storage`,
+        );
         throw new Error(errorMessage);
       }
 
       // Ensure temp directory exists
       await fs.mkdir(this.tempDir, { recursive: true });
-      
+
       // Save to temp file with sanitized filename
       const sanitizedFilename = this.sanitizeFilename(file.filename);
-      const tempFilePath = path.join(this.tempDir, `${nanoid()}-${sanitizedFilename}`);
+      const tempFilePath = path.join(
+        this.tempDir,
+        `${nanoid()}-${sanitizedFilename}`,
+      );
       console.log(`💾 Creating temp file: ${tempFilePath}`);
       await fs.writeFile(tempFilePath, fileBuffer);
 
       // Extract content based on file type
-      let extractedContent = '';
+      let extractedContent = "";
       const fileExt = path.extname(file.filename).toLowerCase();
 
-      if (fileExt === '.docx') {
+      if (fileExt === ".docx") {
         // Extract text from DOCX
         const result = await mammoth.extractRawText({ path: tempFilePath });
         extractedContent = result.value;
-        console.log(`✅ Extracted ${extractedContent.length} characters from DOCX`);
-      } else if (fileExt === '.pdf') {
+        console.log(
+          `✅ Extracted ${extractedContent.length} characters from DOCX`,
+        );
+      } else if (fileExt === ".pdf") {
         // Extract text from PDF using enhanced extractor
         const pdfBuffer = await fs.readFile(tempFilePath);
-        extractedContent = await enhancedPdfExtractor.extractText(pdfBuffer, file.filename);
-        console.log(`✅ Enhanced extraction got ${extractedContent.length} characters from PDF`);
-      } else if (fileExt === '.txt' || fileExt === '.md') {
+        extractedContent = await enhancedPdfExtractor.extractText(
+          pdfBuffer,
+          file.filename,
+        );
+        console.log(
+          `✅ Enhanced extraction got ${extractedContent.length} characters from PDF`,
+        );
+      } else if (fileExt === ".txt" || fileExt === ".md") {
         // Read text files directly
-        extractedContent = fileBuffer.toString('utf-8');
-        console.log(`✅ Read ${extractedContent.length} characters from text file`);
-      } else if (['.mp4', '.avi', '.mov', '.mkv'].includes(fileExt)) {
+        extractedContent = fileBuffer.toString("utf-8");
+        console.log(
+          `✅ Read ${extractedContent.length} characters from text file`,
+        );
+      } else if ([".mp4", ".avi", ".mov", ".mkv"].includes(fileExt)) {
         // Transcribe video content using OpenAI Whisper
         try {
-          console.log(`📹 Processing video for transcription: ${file.filename}`);
-          
+          console.log(
+            `📹 Processing video for transcription: ${file.filename}`,
+          );
+
           // Extract audio from video using ffmpeg
           const audioPath = path.join(this.tempDir, `${nanoid()}.mp3`);
-          
+
           await new Promise<void>((resolve, reject) => {
-            const ffmpegPath = ffmpeg || 'ffmpeg';
+            const ffmpegPath = ffmpeg || "ffmpeg";
             const ffmpegProcess = spawn(ffmpegPath, [
-              '-i', tempFilePath,
-              '-vn', // no video
-              '-acodec', 'mp3',
-              '-ab', '128k',
-              '-ar', '44100',
-              '-y', // overwrite output
-              audioPath
+              "-i",
+              tempFilePath,
+              "-vn", // no video
+              "-acodec",
+              "mp3",
+              "-ab",
+              "128k",
+              "-ar",
+              "44100",
+              "-y", // overwrite output
+              audioPath,
             ]);
-            
-            ffmpegProcess.on('close', (code) => {
+
+            ffmpegProcess.on("close", (code) => {
               if (code === 0) {
                 resolve();
               } else {
                 reject(new Error(`FFmpeg exited with code ${code}`));
               }
             });
-            
-            ffmpegProcess.on('error', reject);
+
+            ffmpegProcess.on("error", reject);
           });
-          
+
           console.log(`🎵 Audio extracted, transcribing with Whisper...`);
-          
+
           // Read audio file for Whisper
           const audioBuffer = await fs.readFile(audioPath);
-          
+
           // Create a File object for OpenAI
-          const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mp3' });
-          
+          const audioFile = new File([audioBuffer], "audio.mp3", {
+            type: "audio/mp3",
+          });
+
           // Get OpenAI client and transcribe using Whisper
           const openai = getOpenAIClient();
           const transcription = await openai.audio.transcriptions.create({
             file: audioFile,
             model: "whisper-1",
-            language: "en" // You can make this dynamic based on content
+            language: "en", // You can make this dynamic based on content
           });
-          
+
           // Get video metadata for context
-          let metadataInfo = '';
+          let metadataInfo = "";
           try {
             const metadata = await new Promise<any>((resolve) => {
-              const ffprobeProcess = spawn('ffprobe', [
-                '-v', 'error',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                tempFilePath
+              const ffprobeProcess = spawn("ffprobe", [
+                "-v",
+                "error",
+                "-print_format",
+                "json",
+                "-show_format",
+                "-show_streams",
+                tempFilePath,
               ]);
-              
-              let output = '';
-              ffprobeProcess.stdout.on('data', (data: Buffer) => {
+
+              let output = "";
+              ffprobeProcess.stdout.on("data", (data: Buffer) => {
                 output += data.toString();
               });
-              
-              ffprobeProcess.on('close', () => {
+
+              ffprobeProcess.on("close", () => {
                 try {
                   resolve(JSON.parse(output));
                 } catch (e) {
@@ -220,37 +255,40 @@ export class DriveFileProcessor {
                 }
               });
             });
-            
+
             if (metadata?.format?.duration) {
               const seconds = parseFloat(metadata.format.duration);
               const minutes = Math.floor(seconds / 60);
               const remainingSeconds = Math.floor(seconds % 60);
-              metadataInfo = `Duration: ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+              metadataInfo = `Duration: ${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
             }
           } catch (e) {
             // Ignore metadata errors
           }
-          
+
           // Build content with transcript
-          extractedContent = `Video Title: ${file.filename}\n` +
-            (metadataInfo ? `${metadataInfo}\n` : '') +
+          extractedContent =
+            `Video Title: ${file.filename}\n` +
+            (metadataInfo ? `${metadataInfo}\n` : "") +
             `\n--- Transcript ---\n\n${transcription.text}`;
-          
-          console.log(`✅ Transcribed video - ${transcription.text.length} characters`);
-          
+
+          console.log(
+            `✅ Transcribed video - ${transcription.text.length} characters`,
+          );
+
           // Clean up audio file
           try {
             await fs.unlink(audioPath);
           } catch (error) {
-            console.error('Error deleting audio file:', error);
+            console.error("Error deleting audio file:", error);
           }
         } catch (error) {
           // Fallback if transcription fails
-          console.error('Video transcription error:', error);
+          console.error("Video transcription error:", error);
           extractedContent = `Video file: ${file.filename}\nSize: ${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB\n\nNote: Transcription failed. The video may not contain clear audio or the service may be temporarily unavailable.`;
           console.log(`⚠️ Could not transcribe video, stored basic metadata`);
         }
-      } else if (['.pptx', '.ppt'].includes(fileExt)) {
+      } else if ([".pptx", ".ppt"].includes(fileExt)) {
         // PowerPoint files need special handling - for now, mark as binary
         extractedContent = `PowerPoint presentation: ${file.filename}\nSize: ${fileBuffer.length} bytes`;
         console.log(`✅ Updated PowerPoint file metadata`);
@@ -265,79 +303,105 @@ export class DriveFileProcessor {
         await storage.updateFileContent(file.id, {
           content: extractedContent,
           size: fileBuffer.length,
-          processingStatus: 'completed',
-          processedAt: new Date()
+          processingStatus: "completed",
+          processedAt: new Date(),
         });
-        
+
         // Generate AI metadata from the transcribed content
         try {
-          console.log('🤖 Generating AI metadata from transcribed content...');
-          const { extractFileMetadata } = await import('./openai');
-          const aiMetadata = await extractFileMetadata(extractedContent, file.filename);
-          
+          console.log("🤖 Generating AI metadata from transcribed content...");
+          const { extractFileMetadata } = await import("./openai");
+          const aiMetadata = await extractFileMetadata(
+            extractedContent,
+            file.filename,
+          );
+
           // Check if metadata already exists and update it
           try {
-            const existingMetadata = await storage.getFileMetadata(file.id, file.userId);
+            const existingMetadata = await storage.getFileMetadata(
+              file.id,
+              file.userId,
+            );
             if (existingMetadata) {
               // Update existing metadata with AI-generated content
               await storage.updateFileMetadata(file.id, file.userId, {
                 extractedText: extractedContent,
-                summary: aiMetadata.summary || extractedContent.substring(0, 500),
+                summary:
+                  aiMetadata.summary || extractedContent.substring(0, 500),
                 keywords: aiMetadata.keywords || [],
                 topics: aiMetadata.topics || [],
-                categories: aiMetadata.categories || ['Education']
+                categories: aiMetadata.categories || ["Education"],
               });
               console.log(`✅ Updated existing metadata for ${file.filename}`);
             } else {
               // Only create if file actually exists in database
-              console.log(`⚠️ No existing metadata for ${file.filename}, skipping metadata creation`);
+              console.log(
+                `⚠️ No existing metadata for ${file.filename}, skipping metadata creation`,
+              );
             }
           } catch (metadataError) {
-            console.error(`Metadata error for ${file.filename}:`, metadataError);
+            console.error(
+              `Metadata error for ${file.filename}:`,
+              metadataError,
+            );
             // Don't create new metadata if there's an error, just log it
           }
-          
-          console.log(`✅ Generated AI metadata: ${aiMetadata.summary?.substring(0, 100)}...`);
+
+          console.log(
+            `✅ Generated AI metadata: ${aiMetadata.summary?.substring(0, 100)}...`,
+          );
         } catch (error) {
-          console.error('Error generating AI metadata:', error);
+          console.error("Error generating AI metadata:", error);
           // Don't try to create metadata on error
         }
-        
-        console.log(`✅ Updated ${file.filename} with ${extractedContent.length} characters of content`);
+
+        console.log(
+          `✅ Updated ${file.filename} with ${extractedContent.length} characters of content`,
+        );
       }
 
       // Clean up temp file
       try {
         await fs.unlink(tempFilePath);
       } catch (error) {
-        console.error('Error deleting temp file:', error);
+        console.error("Error deleting temp file:", error);
       }
 
-      return 'processed';
+      return "processed";
     } catch (error) {
       console.error(`Error processing ${file.filename}:`, error);
-      
+
       // Update database to mark file as error
       try {
-        await db.update(files)
+        await db
+          .update(files)
           .set({
-            processingStatus: 'error',
-            processingError: error instanceof Error ? error.message : 'Unknown processing error'
+            processingStatus: "error",
+            processingError:
+              error instanceof Error
+                ? error.message
+                : "Unknown processing error",
           })
           .where(eq(files.id, file.id));
         console.log(`📍 File ${file.filename} marked as error in database`);
       } catch (dbError) {
-        console.error(`Failed to update error status for ${file.filename}:`, dbError);
+        console.error(
+          `Failed to update error status for ${file.filename}:`,
+          dbError,
+        );
       }
-      
-      return 'failed';
+
+      return "failed";
     }
   }
 
   /**
    * Process a specific file by ID
    */
-  public async processFileById(fileId: string, userId: string = "demo-user"): Promise<boolean> {
+  public async processFileById(
+    fileId: string,
+    userId: string = "demo-user",
+  ): Promise<boolean> {
     const file = await storage.getFile(fileId, userId);
     if (!file) {
       throw new Error(`File ${fileId} not found`);
@@ -345,7 +409,7 @@ export class DriveFileProcessor {
 
     const result = await this.processSingleFile(file);
     // processSingleFile now throws on error, so this will only be reached on success
-    return result === 'processed';
+    return result === "processed";
   }
 }
 

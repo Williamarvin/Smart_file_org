@@ -10,7 +10,11 @@ interface AIProcessingBarProps {
   showTitle?: boolean;
 }
 
-export function AIProcessingBar({ stats, className = "", showTitle = true }: AIProcessingBarProps) {
+export function AIProcessingBar({
+  stats,
+  className = "",
+  showTitle = true,
+}: AIProcessingBarProps) {
   if (!stats || stats.totalFiles === 0) return null;
 
   const progressPercentage = (stats.processedFiles / stats.totalFiles) * 100;
@@ -24,17 +28,19 @@ export function AIProcessingBar({ stats, className = "", showTitle = true }: AIP
               <Brain className="h-4 w-4 text-purple-600" />
               AI Processing
             </span>
-            <span>{stats.processedFiles}/{stats.totalFiles} files</span>
+            <span>
+              {stats.processedFiles}/{stats.totalFiles} files
+            </span>
           </div>
         )}
-        
+
         <div className="w-full bg-slate-200 rounded-full h-2">
-          <div 
+          <div
             className="bg-purple-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1 text-green-600">
@@ -46,14 +52,16 @@ export function AIProcessingBar({ stats, className = "", showTitle = true }: AIP
               <span>Processing: {stats.processingFiles}</span>
             </div>
           </div>
-          
+
           {stats.processedFiles === stats.totalFiles && stats.totalFiles > 0 ? (
             <p className="text-xs text-green-600 font-medium">
               🎉 All files processed! Ready for search.
             </p>
-          ) : stats.processingFiles === 0 && stats.processedFiles < stats.totalFiles ? (
+          ) : stats.processingFiles === 0 &&
+            stats.processedFiles < stats.totalFiles ? (
             <p className="text-xs text-amber-600 font-medium">
-              ⚠️ {stats.totalFiles - stats.processedFiles} files pending processing
+              ⚠️ {stats.totalFiles - stats.processedFiles} files pending
+              processing
             </p>
           ) : null}
         </div>

@@ -1,5 +1,5 @@
 // Load environment variables from .env file (for external deployment)
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
 
 import express, { type Request, Response, NextFunction } from "express";
@@ -49,11 +49,11 @@ app.use((req, res, next) => {
       const message = err.message || "Internal Server Error";
 
       // In production, log the error but don't expose internal details
-      if (process.env.NODE_ENV === 'production') {
-        console.error('Production Error:', err);
-        res.status(status).json({ 
+      if (process.env.NODE_ENV === "production") {
+        console.error("Production Error:", err);
+        res.status(status).json({
           message: status === 500 ? "Internal Server Error" : message,
-          error: "An error occurred. Please check server configuration."
+          error: "An error occurred. Please check server configuration.",
         });
       } else {
         res.status(status).json({ message });
@@ -74,20 +74,27 @@ app.use((req, res, next) => {
     // Other ports are firewalled. Default to 5000 if not specified.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || '3000', 10);
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`serving on port ${port}`);
-    });
+    const port = parseInt(process.env.PORT || "3000", 10);
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log(`serving on port ${port}`);
+      },
+    );
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     // In production, log the specific error to help with debugging
-    if (process.env.NODE_ENV === 'production') {
-      console.error('Production startup error - Missing environment variables or configuration');
-      console.error('Please ensure all required secrets are configured in the deployment environment');
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "Production startup error - Missing environment variables or configuration",
+      );
+      console.error(
+        "Please ensure all required secrets are configured in the deployment environment",
+      );
     }
     process.exit(1);
   }

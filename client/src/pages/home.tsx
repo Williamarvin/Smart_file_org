@@ -72,7 +72,13 @@ export default function Home() {
     deleteFileMutation.mutate(fileId);
   };
 
-  const displayFiles = searchQuery ? (Array.isArray(searchResults) ? searchResults : []) : (Array.isArray(files) ? files : []);
+  const displayFiles = searchQuery
+    ? Array.isArray(searchResults)
+      ? searchResults
+      : []
+    : Array.isArray(files)
+      ? files
+      : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -83,10 +89,12 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <FolderOpen className="text-blue-500 text-2xl" />
-                <h1 className="text-xl font-bold text-slate-800">SmartFile Organizer</h1>
+                <h1 className="text-xl font-bold text-slate-800">
+                  SmartFile Organizer
+                </h1>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <button className="text-slate-600 hover:text-slate-800 transition-colors">
                 <Bell className="text-lg" />
@@ -101,8 +109,8 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Bar */}
-        <SearchBar 
-          onSearch={handleSearch} 
+        <SearchBar
+          onSearch={handleSearch}
           isLoading={searchLoading}
           hasResults={Array.isArray(searchResults) && searchResults.length > 0}
           query={searchQuery}
@@ -113,12 +121,14 @@ export default function Home() {
           <div className="lg:col-span-1 space-y-6">
             <FileUploadZone onUploadSuccess={handleFileUploadSuccess} />
             <QuickStats stats={stats as any} />
-            <RecentActivity files={Array.isArray(files) ? files.slice(0, 5) : []} />
+            <RecentActivity
+              files={Array.isArray(files) ? files.slice(0, 5) : []}
+            />
           </div>
 
           {/* Right Column: File Management and Search Results */}
           <div className="lg:col-span-2 space-y-6">
-            <FileGrid 
+            <FileGrid
               files={displayFiles}
               isLoading={filesLoading || searchLoading}
               onDeleteFile={handleDeleteFile}

@@ -1,16 +1,28 @@
 import { Link, useLocation } from "wouter";
-import { FolderOpen, Upload, BarChart3, Search, Home, Sparkles, MessageCircle, User, BookOpen, Bot, Activity } from "lucide-react";
+import {
+  FolderOpen,
+  Upload,
+  BarChart3,
+  Search,
+  Home,
+  Sparkles,
+  MessageCircle,
+  User,
+  BookOpen,
+  Bot,
+  Activity,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Navigation() {
   const [location] = useLocation();
-  
+
   // Mock user for display
   const user = {
     firstName: "Demo",
     lastName: "User",
     email: "demo@example.com",
-    profileImageUrl: null
+    profileImageUrl: null,
   };
 
   const navItems = [
@@ -30,14 +42,16 @@ export function Navigation() {
       <div className="p-6 flex-1">
         <div className="flex items-center space-x-2 mb-8">
           <FolderOpen className="text-blue-500 text-2xl" />
-          <h1 className="text-xl font-bold text-slate-800">SmartFile Organizer</h1>
+          <h1 className="text-xl font-bold text-slate-800">
+            SmartFile Organizer
+          </h1>
         </div>
-        
+
         <div className="space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path;
-            
+
             return (
               <Link
                 key={item.path}
@@ -55,30 +69,31 @@ export function Navigation() {
           })}
         </div>
       </div>
-      
+
       {/* User section at bottom */}
       {user && (
         <div className="p-6 border-t border-slate-200">
           <div className="flex items-center space-x-3 mb-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
+              <AvatarImage
+                src={user.profileImageUrl || undefined}
+                alt={user.firstName || "User"}
+              />
               <AvatarFallback>
                 <User className="w-5 h-5" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-900 truncate">
-                {user.firstName && user.lastName 
+                {user.firstName && user.lastName
                   ? `${user.firstName} ${user.lastName}`
-                  : user.email || "User"
-                }
+                  : user.email || "User"}
               </p>
               {user.email && (
                 <p className="text-xs text-slate-500 truncate">{user.email}</p>
               )}
             </div>
           </div>
-
         </div>
       )}
     </nav>

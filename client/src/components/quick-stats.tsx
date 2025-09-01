@@ -12,8 +12,8 @@ interface QuickStatsProps {
 }
 
 const formatBytes = (bytes: number) => {
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  if (bytes === 0) return '0 B';
+  const sizes = ["B", "KB", "MB", "GB"];
+  if (bytes === 0) return "0 B";
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 };
@@ -45,7 +45,7 @@ export default function QuickStats({ stats }: QuickStatsProps) {
           <BarChart3 className="text-green-500 mr-2" />
           Quick Stats
         </h3>
-        
+
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -54,9 +54,11 @@ export default function QuickStats({ stats }: QuickStatsProps) {
               </div>
               <span className="ml-3 text-slate-700">Total Files</span>
             </div>
-            <span className="font-semibold text-slate-900">{stats.totalFiles}</span>
+            <span className="font-semibold text-slate-900">
+              {stats.totalFiles}
+            </span>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
@@ -64,9 +66,11 @@ export default function QuickStats({ stats }: QuickStatsProps) {
               </div>
               <span className="ml-3 text-slate-700">Processed</span>
             </div>
-            <span className="font-semibold text-slate-900">{stats.processedFiles}</span>
+            <span className="font-semibold text-slate-900">
+              {stats.processedFiles}
+            </span>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -74,9 +78,11 @@ export default function QuickStats({ stats }: QuickStatsProps) {
               </div>
               <span className="ml-3 text-slate-700">Processing</span>
             </div>
-            <span className="font-semibold text-slate-900">{stats.processingFiles}</span>
+            <span className="font-semibold text-slate-900">
+              {stats.processingFiles}
+            </span>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -84,7 +90,9 @@ export default function QuickStats({ stats }: QuickStatsProps) {
               </div>
               <span className="ml-3 text-slate-700">Storage Used</span>
             </div>
-            <span className="font-semibold text-slate-900">{formatBytes(stats.totalSize)}</span>
+            <span className="font-semibold text-slate-900">
+              {formatBytes(stats.totalSize)}
+            </span>
           </div>
         </div>
       </CardContent>
