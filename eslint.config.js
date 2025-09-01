@@ -85,6 +85,13 @@ export default [
         // React global
         React: "readonly",
         JSX: "readonly",
+        // Additional browser globals
+        prompt: "readonly",
+        confirm: "readonly",
+        atob: "readonly",
+        btoa: "readonly",
+        // Node.js types
+        NodeJS: "readonly",
       },
     },
     plugins: {
