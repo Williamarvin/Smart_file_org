@@ -1,6 +1,18 @@
 # Multi-stage build for optimized production image
 FROM node:20-alpine AS builder
 
+# Install build dependencies for canvas and native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    pango-dev \
+    libjpeg-turbo-dev \
+    giflib-dev \
+    librsvg-dev \
+    pixman-dev
+
 # Set working directory
 WORKDIR /app
 
@@ -24,8 +36,15 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install runtime dependencies for canvas and dumb-init
+RUN apk add --no-cache \
+    dumb-init \
+    cairo \
+    pango \
+    libjpeg-turbo \
+    giflib \
+    librsvg \
+    pixman
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

@@ -1,0 +1,82 @@
+/usr/bin/docker buildx build --cache-from type=gha --cache-to type=gha,mode=max --iidfile /home/runner/work/_temp/docker-actions-toolkit-1Zkwil/build-iidfile-341d88d647.txt --attest type=provenance,mode=max,builder-id=https://github.com/Williamarvin/Smart_file_org/actions/runs/17374114530 --tag ***/file-manager:latest --tag ***/file-manager:8b18c0343e71c50d21f6c0aaaff96013d56d99f2 --metadata-file /home/runner/work/_temp/docker-actions-toolkit-1Zkwil/build-metadata-cc51bb21b0.json --push .
+#0 building with "builder-17d276a7-75e5-4ab0-ab1c-884add6becda" instance using docker-container driver
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.66kB done
+#1 DONE 0.0s
+#2 [auth] library/node:pull token for registry-1.docker.io
+#2 DONE 0.0s
+#3 [internal] load metadata for docker.io/library/node:20-alpine
+#3 DONE 0.6s
+#4 [internal] load .dockerignore
+#4 transferring context: 895B done
+#4 DONE 0.0s
+#5 [internal] load build context
+#5 DONE 0.0s
+#6 [builder 1/8] FROM docker.io/library/node:20-alpine@sha256:df02558528d3d3d0d621f112e232611aecfee7cbc654f6b375765f72bb262799
+#6 resolve docker.io/library/node:20-alpine@sha256:df02558528d3d3d0d621f112e232611aecfee7cbc654f6b375765f72bb262799 done
+#6 DONE 0.0s
+#7 importing cache manifest from gha:17269004309570187379
+#7 DONE 0.1s
+#5 [internal] load build context
+#5 transferring context: 87.67MB 0.7s done
+#5 DONE 0.7s
+#6 [builder 1/8] FROM docker.io/library/node:20-alpine@sha256:df02558528d3d3d0d621f112e232611aecfee7cbc654f6b375765f72bb262799
+#6 sha256:a9e48ad1219d4d11c6456a8db0fd5c11af46242d52edf84e17ab84a7bfd93809 445B / 445B 0.1s done
+#6 sha256:54225bd601967a0aa669ec9be621c24d8eeac874b698d55874018070898685c2 1.26MB / 1.26MB 0.2s done
+#6 sha256:8c59d92d6fc9f01af4aaa86824be72b74bd4d940c4c46aa95d9710bfa46c975e 42.99MB / 42.99MB 0.6s done
+#6 sha256:9824c27679d3b27c5e1cb00a73adb6f4f8d556994111c12db3c5d61a0c843df8 3.80MB / 3.80MB 0.2s done
+#6 extracting sha256:9824c27679d3b27c5e1cb00a73adb6f4f8d556994111c12db3c5d61a0c843df8 0.2s done
+#6 extracting sha256:8c59d92d6fc9f01af4aaa86824be72b74bd4d940c4c46aa95d9710bfa46c975e
+#6 extracting sha256:8c59d92d6fc9f01af4aaa86824be72b74bd4d940c4c46aa95d9710bfa46c975e 0.9s done
+#6 DONE 1.6s
+#10 17.24 npm error gyp ERR! find Python - Use the switch --python="/path/to/pythonexecutable"
+#10 17.24 npm error gyp ERR! find Python (accepted by both node-gyp and npm)
+#10 17.24 npm error gyp ERR! find Python - Set the environment variable PYTHON
+#10 17.24 npm error gyp ERR! find Python - Set the npm configuration variable python:
+#10 17.24 npm error gyp ERR! find Python npm config set python "/path/to/pythonexecutable"
+#10 17.24 npm error gyp ERR! find Python For more information consult the documentation at:
+#10 17.24 npm error gyp ERR! find Python https://github.com/nodejs/node-gyp#installation
+#10 17.24 npm error gyp ERR! find Python **********************************************************
+#10 17.24 npm error gyp ERR! find Python 
+#10 17.24 npm error gyp ERR! configure error 
+#10 17.24 npm error gyp ERR! stack Error: Could not find any Python installation to use
+#10 17.24 npm error gyp ERR! stack at PythonFinder.fail (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/find-python.js:306:11)
+#10 17.24 npm error gyp ERR! stack at PythonFinder.findPython (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/find-python.js:164:17)
+#10 17.24 npm error gyp ERR! stack at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+#10 17.24 npm error gyp ERR! stack at async configure (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/configure.js:27:18)
+#10 17.24 npm error gyp ERR! stack at async run (/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js:81:18)
+#10 17.24 npm error gyp ERR! System Linux 6.11.0-1018-azure
+#10 17.24 npm error gyp ERR! command "/usr/local/bin/node" "/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild"
+#10 17.24 npm error gyp ERR! cwd /app/node_modules/canvas
+#10 17.24 npm error gyp ERR! node -v v20.19.4
+#10 17.24 npm error gyp ERR! node-gyp -v v10.1.0
+#10 17.24 npm error gyp ERR! not ok
+#10 17.24 npm notice
+#10 17.24 npm notice New major version of npm available! 10.8.2 -> 11.5.2
+#10 17.24 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.5.2
+#10 17.24 npm notice To update run: npm install -g npm@11.5.2
+#10 17.24 npm notice
+#10 17.24 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-09-01T09_55_37_591Z-debug-0.log
+#10 ERROR: process "/bin/sh -c npm ci --only=production &&     npm cache clean --force" did not complete successfully: exit code: 1
+------
+ > [builder 4/8] RUN npm ci --only=production &&     npm cache clean --force:
+17.24 npm error gyp ERR! cwd /app/node_modules/canvas
+17.24 npm error gyp ERR! node -v v20.19.4
+17.24 npm error gyp ERR! node-gyp -v v10.1.0
+17.24 npm error gyp ERR! not ok
+17.24 npm notice
+17.24 npm notice New major version of npm available! 10.8.2 -> 11.5.2
+17.24 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.5.2
+17.24 npm notice To update run: npm install -g npm@11.5.2
+17.24 npm notice
+17.24 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-09-01T09_55_37_591Z-debug-0.log
+------
+Dockerfile:11
+--------------------
+  10 |     # Install dependencies
+  11 | >>> RUN npm ci --only=production && \
+  12 | >>>     npm cache clean --force
+  13 |     
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm ci --only=production &&     npm cache clean --force" did not complete successfully: exit code: 1
+Error: buildx failed with: ERROR: failed to build: failed to solve: process "/bin/sh -c npm ci --only=production &&     npm cache clean --force" did not complete successfully: exit code: 1
