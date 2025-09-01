@@ -18,8 +18,10 @@ router.post("/", async (req, res) => {
     
     // Get content from selected files
     if (fileIds.length > 0) {
-      const files = await storage.getFiles(userId, 100);
+      const files = await storage.getFiles(userId, 1000);
       const selectedFiles = files.filter(file => fileIds.includes(file.id));
+      
+      console.log(`Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
       
       for (const file of selectedFiles) {
         try {
@@ -33,10 +35,38 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Get content from selected folders (get files in those folders)
+    // Get content from selected folders (including subfolders recursively)
     if (folderIds.length > 0) {
-      const files = await storage.getFiles(userId, 100);
-      const folderFiles = files.filter(file => file.folderId && folderIds.includes(file.folderId));
+      const allFiles = await storage.getFiles(userId, 1000);
+      
+      // Function to get all folder IDs recursively
+      const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
+        let allFolderIds = [...parentIds];
+        const folders = await storage.getFolders(userId);
+        
+        for (const parentId of parentIds) {
+          const subfolders = folders.filter(f => f.parentId === parentId);
+          if (subfolders.length > 0) {
+            const subfolderIds = subfolders.map(f => f.id);
+            allFolderIds = [...allFolderIds, ...subfolderIds];
+            // Recursively get subfolders of subfolders
+            const deeperSubfolders = await getAllSubfolderIds(subfolderIds);
+            allFolderIds = [...allFolderIds, ...deeperSubfolders];
+          }
+        }
+        
+        return Array.from(new Set(allFolderIds)); // Remove duplicates
+      };
+      
+      // Get all folder IDs including subfolders
+      const allFolderIds = await getAllSubfolderIds(folderIds);
+      console.log(`Processing ${allFolderIds.length} folders (including subfolders)`);
+      
+      const folderFiles = allFiles.filter(file => 
+        file.folderId && allFolderIds.includes(file.folderId)
+      );
+      
+      console.log(`Found ${folderFiles.length} files in selected folders`);
       
       for (const file of folderFiles) {
         try {
@@ -49,6 +79,8 @@ router.post("/", async (req, res) => {
         }
       }
     }
+
+    console.log(`Total content sources found: ${contentSources.length}`);
 
     // If no content found, return error
     if (contentSources.length === 0) {
