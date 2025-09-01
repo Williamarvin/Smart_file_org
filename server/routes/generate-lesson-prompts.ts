@@ -42,10 +42,14 @@ router.post("/", async (req, res) => {
       // Function to get all folder IDs recursively
       const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
         let allFolderIds = [...parentIds];
-        const folders = await storage.getFolders(userId);
+        const folders = await storage.getAllFolders(userId);
+        
+        console.log(`Total folders available: ${folders.length}`);
         
         for (const parentId of parentIds) {
           const subfolders = folders.filter(f => f.parentId === parentId);
+          console.log(`Found ${subfolders.length} direct subfolders for folder ${parentId}`);
+          
           if (subfolders.length > 0) {
             const subfolderIds = subfolders.map(f => f.id);
             allFolderIds = [...allFolderIds, ...subfolderIds];

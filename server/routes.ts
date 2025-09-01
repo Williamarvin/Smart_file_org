@@ -3362,7 +3362,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         // Get all folder IDs including subfolders
         const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
           let allFolderIds = [...parentIds];
-          const folders = await storage.getFolders(userId);
+          const folders = await storage.getAllFolders(userId);
           
           for (const parentId of parentIds) {
             const subfolders = folders.filter(f => f.parentId === parentId);
@@ -3435,7 +3435,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       
       // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
-        const files = await storage.getFiles(userId, 500); // Increased limit
+        const files = await storage.getFiles(userId, 1000); // Increased limit
         const selectedFiles = files.filter(file => fileIds.includes(file.id));
         
         console.log(`Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
@@ -3462,7 +3462,7 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
         // Function to get all folder IDs recursively
         const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
           let allFolderIds = [...parentIds];
-          const folders = await storage.getFolders(userId);
+          const folders = await storage.getAllFolders(userId);
           
           for (const parentId of parentIds) {
             const subfolders = folders.filter(f => f.parentId === parentId);
@@ -3620,7 +3620,7 @@ Do not forget to include these format specifications in each individual prompt y
       
       // Get content from selected files - be more flexible about status
       if (fileIds.length > 0) {
-        const files = await storage.getFiles(userId, 500); // Increased limit
+        const files = await storage.getFiles(userId, 1000); // Increased limit
         const selectedFiles = files.filter(file => fileIds.includes(file.id));
         
         console.log(`Teacher prompt: Found ${selectedFiles.length} selected files out of ${fileIds.length} requested`);
@@ -3647,7 +3647,7 @@ Do not forget to include these format specifications in each individual prompt y
         // Function to get all folder IDs recursively
         const getAllSubfolderIds = async (parentIds: string[]): Promise<string[]> => {
           let allFolderIds = [...parentIds];
-          const folders = await storage.getFolders(userId);
+          const folders = await storage.getAllFolders(userId);
           
           for (const parentId of parentIds) {
             const subfolders = folders.filter(f => f.parentId === parentId);
@@ -3710,7 +3710,7 @@ Do not forget to include these format specifications in each individual prompt y
       }
       
       if (folderIds.length > 0) {
-        const allFolders = await storage.getFolders(userId);
+        const allFolders = await storage.getAllFolders(userId);
         const selectedFolderNames = allFolders
           .filter(folder => folderIds.includes(folder.id))
           .map(folder => `• ${folder.name}`);
