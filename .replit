@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["ffmpeg", "glibcLocales", "jq", "libGL", "libGLU", "libyaml", "poppler", "poppler_utils", "tesseract", "docker"]
+packages = ["docker", "ffmpeg", "glibcLocales", "jq", "libGL", "libGLU", "libyaml", "poppler", "poppler_utils", "tesseract"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -88,6 +88,7 @@ localPort = 46549
 externalPort = 8008
 
 [agent]
+integrations = ["javascript_openai==1.0.0"]
 
 [objectStorage]
 defaultBucketID = "replit-objstore-66462a0e-61f7-48ee-844e-b50098909575"

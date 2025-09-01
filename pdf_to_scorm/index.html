@@ -6,561 +6,565 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --secondary: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
       --bg: #ffffff;
-      --fg: #1a1a1a;
-      --muted: #666;
-      --accent: #0b6efd;
-      --maxw: 820px;
+      --fg: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --card: #f9fafb;
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     }
+    
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    html, body { height: 100%; margin: 0; }
+    
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      color: var(--fg);
-      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
+      color: var(--fg);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
     }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--bg);
+      min-height: 100vh;
+      box-shadow: var(--shadow-lg);
+    }
+    
     header {
-      position: sticky;
-      top: 0;
-      background: white;
-      border-bottom: 1px solid #eee;
-      padding: 12px 16px;
-      z-index: 10;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
     }
+    
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+    
     header h1 {
       margin: 0;
-      font-size: clamp(18px, 3.5vw, 24px);
+      font-size: 2.5rem;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
     }
-    main {
-      max-width: var(--maxw);
-      margin: 0 auto;
-      padding: 16px;
+    
+    header .subtitle {
+      margin: 0.5rem 0 0 0;
+      font-size: 1.1rem;
+      opacity: 0.9;
+      position: relative;
+      z-index: 1;
     }
-    article p {
-      margin: 0 0 1em 0;
-      white-space: pre-wrap;
+    
+    .progress-container {
+      background: var(--card);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
     }
-    .meta {
+    
+    .progress-bar {
+      background: #e5e7eb;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    
+    .progress-fill {
+      background: linear-gradient(90deg, var(--secondary), var(--primary));
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+    
+    .progress-text {
+      font-size: 0.875rem;
       color: var(--muted);
-      font-size: 0.9em;
-      margin-bottom: 1rem;
+      text-align: center;
     }
+    
+    main {
+      padding: 2rem;
+    }
+    
+    .intro-section {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      border-left: 4px solid var(--primary);
+    }
+    
+    .intro-section h2 {
+      margin-top: 0;
+      color: var(--primary);
+    }
+    
+    .objectives {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+    
+    .objectives h3 {
+      margin-top: 0;
+      color: #92400e;
+    }
+    
+    .objectives ul {
+      margin: 0;
+      padding-left: 1.5rem;
+    }
+    
+    .objectives li {
+      margin-bottom: 0.5rem;
+      color: #a16207;
+    }
+    
+    .content-section {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+    
+    .content-section h2 {
+      margin-top: 0;
+      color: var(--primary);
+      font-size: 1.5rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    
+    .section-content {
+      font-size: 1.1rem;
+      line-height: 1.7;
+    }
+    
+    .quiz-section {
+      background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      margin: 2rem 0;
+    }
+    
+    .quiz-question {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+    }
+    
+    .quiz-question h3 {
+      margin-top: 0;
+      color: var(--fg);
+    }
+    
+    .quiz-options {
+      margin: 1rem 0;
+    }
+    
+    .quiz-option {
+      display: block;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      background: var(--card);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .quiz-option:hover {
+      background: #f3f4f6;
+      border-color: var(--primary);
+    }
+    
+    .quiz-option input {
+      margin-right: 0.75rem;
+    }
+    
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      background: var(--primary-light);
+      transform: translateY(-1px);
+    }
+    
+    .btn:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .quiz-feedback {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 6px;
+    }
+    
+    .quiz-feedback.correct {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    
+    .quiz-feedback.incorrect {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    
+    .activity-section {
+      background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      margin: 2rem 0;
+    }
+    
+    .activity-section h3 {
+      margin-top: 0;
+      color: #7c3aed;
+    }
+    
+    .summary-section {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      margin: 2rem 0;
+      text-align: center;
+    }
+    
+    .summary-section h3 {
+      margin-top: 0;
+      color: #065f46;
+    }
+    
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0f1115;
-        --fg: #e6e6e6;
-        --muted: #aaa;
-        --accent: #4da3ff;
+        --bg: #111827;
+        --fg: #f9fafb;
+        --muted: #9ca3af;
+        --border: #374151;
+        --card: #1f2937;
       }
-      header { background: #0f1115; border-color: #222; }
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        padding: 1.5rem;
+      }
+      
+      header h1 {
+        font-size: 2rem;
+      }
+      
+      main {
+        padding: 1rem;
+      }
+      
+      .content-section, .intro-section {
+        padding: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Lesson Plan 2 - Argument Construction</h1>
-  </header>
-  <main>
-    <div class="meta">Automatically converted from PDF • Generated 2025-09-01 16:53</div>
-    <article>
-      <p>Lesson Plan – Introduction to Debate  
-Date:  27/08/2024 Class:  Beginner &amp; Intermedia te  Tutor:  Muhammad Nasir Hussain 
- 
-Themes: (Highlight selected ones) 
-●
- 
-Children
- 
-&amp;
- 
-Family
- 
-●
- 
-School/Education
- 
-●
- 
-Health
- 
-&amp;
- Wellness 
-●
- 
-Philosophy/Ethics
+  <div class="container">
+    <header>
+      <h1>Lesson Plan 2 - Argument Construction</h1>
+      <p class="subtitle">Enhanced with AI • Interactive Learning Experience</p>
+    </header>
+    
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <div class="progress-text">0% Complete</div>
+    </div>
+    
+    <main>
+      <div class="intro-section">
+        <h2>Welcome to Your Learning Journey</h2>
+        <p>Welcome to an interactive introduction to debate. In this module, you will learn a simple, reliable structure to build strong arguments and practice comparing ideas so you can speak with clarity and confidence. Whether you are a beginner or intermediate learner, you will finish with a ready-to-use toolkit for class debates.</p>
+      </div>
+      
+      <div class="objectives">
+        <h3>🎯 Learning Objectives</h3>
+        <ul>
+          <li>Build clear arguments using the ARESW framework (Assertion, Reason, Evidence, Significance, Weighing).</li><li>Differentiate between claim, reasoning, evidence, impact, and weighing in any argument.</li><li>Apply weighing to compare outcomes across stakeholders, timeframes, and magnitudes.</li><li>Deliver concise, 60–90 second speeches using structured notes.</li><li>Give and receive targeted feedback on argument quality and clarity.</li>
+        </ul>
+      </div>
+      
+      
+        <section class="content-section" id="section-0">
+            <h2>What Is Debate and Why It Matters</h2>
+            <div class="section-content">
+                Debate is a structured way to compare ideas and make decisions. It builds critical thinking, empathy, collaboration, and quick, confident speaking. In this lesson, you will use a simple argument structure and practice turning ideas into short, persuasive speeches.
+            </div>
+        </section>
+        
+        <section class="content-section" id="section-1">
+            <h2>The ARESW Framework</h2>
+            <div class="section-content">
+                Use ARESW to construct every argument:<br>- Assertion: Your claim or main idea (what you want the audience to accept).<br>- Reason: Why the claim should be true (the logic that links to the claim).<br>- Evidence: Proof supporting the reason (facts, data, examples, expert sources).<br>- Significance: Why it matters (who is affected, how big the effect is, and why we should care).<br>- Weighing: Compare your outcome against the other side’s outcomes to show yours is better or more important.<br>Example (motion: THW ban smoking in Hong Kong):<br>- Assertion: Banning smoking will save the city money.<br>- Reason: Smoking causes health problems that increase demand on the public health system.<br>- Evidence: Health authorities report that for every death caused by smoking, many more live with serious smoking-related illnesses (cancer, heart disease, COPD, etc.).<br>- Significance: Fewer patients means lower public costs and faster access to care for those in need.<br>- Weighing: Savings can be redirected to scholarships and expanded services, benefiting more people over a longer time than the short-term inconvenience to smokers.
+            </div>
+        </section>
+        
+        <section class="content-section" id="section-2">
+            <h2>How to Weigh Competing Arguments</h2>
+            <div class="section-content">
+                Weighing explains why your outcome is superior. Compare using:<br>- Magnitude: How big is the benefit or harm?<br>- Probability: How likely is the outcome?<br>- Timeframe: How soon will it happen and for how long?<br>- Reversibility: Can the harm be undone if we are wrong?<br>- Stakeholders: Who is affected most (children, vulnerable groups, taxpayers, patients, etc.)?<br>Tip: Use clear phrases—&quot;Even if their benefit exists, ours helps more people sooner,&quot; or &quot;Our harm is less likely and reversible; theirs is widespread and long-lasting.&quot;
+            </div>
+        </section>
+        
+        <section class="content-section" id="section-3">
+            <h2>Build an Argument: Step-by-Step Template</h2>
+            <div class="section-content">
+                Use this sentence frame to draft a 60–90 second point:<br>1) Assertion: I support/oppose the motion because [claim].<br>2) Reason: This is because [reason explaining the mechanism].<br>3) Evidence: For example/According to [source or example], [evidence].<br>4) Significance: As a result, [who] experience(s) [impact], which matters because [why it changes decisions or outcomes].<br>5) Weighing: Compared to the other side, our outcome is better because it is [bigger/more likely/sooner/affects more vulnerable people/less risky].
+            </div>
+        </section>
+        
+        <section class="content-section" id="section-4">
+            <h2>Practice Motions and Idea Starters</h2>
+            <div class="section-content">
+                Try these motions using ARESW:<br>- THW ban alcohol: Consider public health costs vs. individual liberty and black markets.<br>- This House, as schools, will ban all contact sports (e.g., boxing, rugby): Consider student safety, skill development, culture, and alternatives.<br>Beginner scaffold: Start with one strong ARESW argument on one side.<br>Intermediate extension: Build two ARESW arguments and prepare one refutation using weighing.
+            </div>
+        </section>
+        
+        <section class="content-section" id="section-5">
+            <h2>Lesson Flow and Timing (Guide)</h2>
+            <div class="section-content">
+                Suggested timing:<br>- Argument Construction (ARES): 20 minutes<br>- Weighing: 10 minutes<br>- Drill Session (ARESW practice): 20 minutes<br>- Debate Drill (construct and present 1 argument): 20 minutes<br>Tip: Keep speeches short and focused. Use the template and highlight the weighing in your final sentence.
+            </div>
+        </section>
+        
+      
+      
+      <div class="quiz-section">
+        <h3>🧠 Knowledge Check</h3>
+        
+        <div class="quiz-question" data-quiz="0">
+            <h3>Which sequence correctly describes ARES?</h3>
+            <div class="quiz-options">
+                
+            <label class="quiz-option">
+                <input type="radio" name="quiz-0" value="0" data-correct="True">
+                <span>Assertion, Reason, Evidence, Significance</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-0" value="1" data-correct="False">
+                <span>Assertion, Evidence, Reason, Significance</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-0" value="2" data-correct="False">
+                <span>Argument, Refutation, Evidence, Summary</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-0" value="3" data-correct="False">
+                <span>Analysis, Reason, Example, Summary</span>
+            </label>
+            
+            </div>
+            <button type="button" class="btn quiz-submit" onclick="checkAnswer(0)">Submit Answer</button>
+            <div class="quiz-feedback" style="display: none;">
+                <p class="explanation">ARES stands for Assertion (claim), Reason (logic), Evidence (proof), Significance (impact).</p>
+            </div>
+        </div>
+        
+        <div class="quiz-question" data-quiz="1">
+            <h3>Which of the following is the best example of Evidence?</h3>
+            <div class="quiz-options">
+                
+            <label class="quiz-option">
+                <input type="radio" name="quiz-1" value="0" data-correct="False">
+                <span>Smoking is bad for society.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-1" value="1" data-correct="True">
+                <span>A 2023 public health report found smoking-related illnesses increased hospital admissions by 15%.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-1" value="2" data-correct="False">
+                <span>Therefore, we should ban smoking.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-1" value="3" data-correct="False">
+                <span>This affects many people.</span>
+            </label>
+            
+            </div>
+            <button type="button" class="btn quiz-submit" onclick="checkAnswer(1)">Submit Answer</button>
+            <div class="quiz-feedback" style="display: none;">
+                <p class="explanation">Evidence is verifiable support such as data, studies, or expert testimony.</p>
+            </div>
+        </div>
+        
+        <div class="quiz-question" data-quiz="2">
+            <h3>What is the purpose of Weighing in a debate?</h3>
+            <div class="quiz-options">
+                
+            <label class="quiz-option">
+                <input type="radio" name="quiz-2" value="0" data-correct="False">
+                <span>Summarize the definitions of key terms.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-2" value="1" data-correct="True">
+                <span>Compare outcomes to show why your side matters more or is preferable.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-2" value="2" data-correct="False">
+                <span>Repeat your evidence more loudly.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-2" value="3" data-correct="False">
+                <span>Avoid discussing the opponent’s points.</span>
+            </label>
+            
+            </div>
+            <button type="button" class="btn quiz-submit" onclick="checkAnswer(2)">Submit Answer</button>
+            <div class="quiz-feedback" style="display: none;">
+                <p class="explanation">Weighing compares impacts across size, likelihood, timeframe, and stakeholders to justify prioritization.</p>
+            </div>
+        </div>
+        
+        <div class="quiz-question" data-quiz="3">
+            <h3>In the argument &quot;Ban smoking will save money because fewer people will need treatment,&quot; which part is Significance?</h3>
+            <div class="quiz-options">
+                
+            <label class="quiz-option">
+                <input type="radio" name="quiz-3" value="0" data-correct="False">
+                <span>Ban smoking will save money.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-3" value="1" data-correct="True">
+                <span>Because fewer people will need treatment.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-3" value="2" data-correct="False">
+                <span>According to doctors, smoking causes COPD and heart disease.</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-3" value="3" data-correct="False">
+                <span>Therefore, my side wins the debate.</span>
+            </label>
+            
+            </div>
+            <button type="button" class="btn quiz-submit" onclick="checkAnswer(3)">Submit Answer</button>
+            <div class="quiz-feedback" style="display: none;">
+                <p class="explanation">Significance explains why the claim matters: fewer patients means cost savings and improved access.</p>
+            </div>
+        </div>
+        
+        <div class="quiz-question" data-quiz="4">
+            <h3>You say: &quot;Schools should ban contact sports because they cause concussions. A study shows 1 in 5 athletes reported symptoms last season.&quot; What is missing to complete ARESW?</h3>
+            <div class="quiz-options">
+                
+            <label class="quiz-option">
+                <input type="radio" name="quiz-4" value="0" data-correct="False">
+                <span>Assertion</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-4" value="1" data-correct="False">
+                <span>Reason</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-4" value="2" data-correct="False">
+                <span>Evidence</span>
+            </label>
+            
+            <label class="quiz-option">
+                <input type="radio" name="quiz-4" value="3" data-correct="True">
+                <span>Significance and Weighing</span>
+            </label>
+            
+            </div>
+            <button type="button" class="btn quiz-submit" onclick="checkAnswer(4)">Submit Answer</button>
+            <div class="quiz-feedback" style="display: none;">
+                <p class="explanation">You have assertion, reason, and evidence. Add significance (why this matters) and weighing (why it outweighs the benefits).</p>
+            </div>
+        </div>
+        
+      </div>
+      
+      
+      
+      <div class="activity-section">
+        <h3>🚀 ARESW Mini-Debate Ladder</h3>
+        <p>Goal: Build and present one complete ARESW argument, then compare using weighing.
+Steps:
+1) Choose a motion: THW ban alcohol OR Schools will ban all contact sports.
+2) Individual (5 minutes): Draft one ARESW argument using the template. Highlight your weighing sentence.
+3) Pair work (6 minutes): Partner A presents for 60–90 seconds. Partner B asks one clarification question and gives 1 strength and 1 suggestion. Switch roles.
+4) Switch sides (6 minutes): Each partner now builds a quick ARESW for the opposite side with a new weighing angle.
+5) Share-out (5 minutes): Volunteers present to the class. Peers vote on which argument had clearer weighing and why.
+Optional checklist for feedback: Clear assertion, logical reason, credible evidence, concrete significance (who/how big/how soon), explicit weighing (magnitude/probability/timeframe/stakeholders).</p>
+      </div>
+      
+      
+      <div class="summary-section">
+        <h3>✨ Summary & Next Steps</h3>
+        <p>Strong debate points follow a simple path: make a clear claim, explain why it’s true, back it with proof, show why it matters, and compare outcomes to prove priority. Use ARESW to keep arguments focused and persuasive. With practice on real motions, your delivery, critical thinking, and confidence will grow.</p>
+      </div>
+    </main>
+  </div>
   
-●
- 
-History
- 
-&amp;
- Culture 
-●
- 
-Social
- 
-Issues
- 
-●
- 
-Global
- Politics/IR 
-●
- 
-Big
- 
-Tech
- 
-&amp;
- 
-A.I.
- 
-●
- 
-Media
- 
-&amp;
- Journalism 
-●
- 
-Economics
- 
-●
- 
-Environmental
- 
-●
- 
-Sports
-  
-Key Learning Focus (Highlight selected ones) 
-●
- 
-Confidence
- 
-●
- 
-Delivery/Style
- 
- 
-●
- 
-Empathy
- 
-●
- 
-Critical-
- thinking  
-●
- 
-Quick-
- thinking 
-●
- 
-Problem-
- solving 
-●
- 
-Creativity
- 
-●
- 
-Collaboration
- 
-Debate Skill (Highlight selected ones) 
-●
- 
-Claim
- 
-●
- 
-Warrant
- 
-●
- 
-Impact
- 
-●
- 
-Research
- 
-●
- 
-Refutation
- 
-●
- 
-Advanced
- Strategies 
-●
- 
-Remarks
- 
-(
-specify
- other skills): Structure 
- 
-Materials: 
-❖
- 
-PPT
- 
-https://docs.google.com/presentation/d/1xLNX6YoGrZAVBUh6qxwnMILOUDrCiLr4f7jw2gGGsE4/edit# 
-slide=id.g2f3ffa1e492_0_234 
-Time Alloc ation: 
--
- 
-Argumen t
- 
-Cons truction
- 
-(ARE S)
- 
--
- 
-20
- 
-minut es
- 
- 
--
- 
-Weighing
- 
--
- 
-10
- 
-minut es
- 
--
- 
-Drill
- 
-Session
- 
--
- 
-20
- 
-minut es
- 
- 
--
- 
-Deba te
- 
-Drill
- 
-(Cons truct
- 
-1
- 
-Argumen t)
- 
--
- 
-20
- 
-minut es
-  
-Lesson Run-thr ough: Argumen t Cons truction  
-Details: Argumen t Cons truction – A.R.E.S     
-A.R.E.S
- 
-1.
- 
-Assertion/Idea
- 
-2.
- 
-Reason/ Analy sis
- 
-3.
- 
-Evidence/Case
- 
-study
- 
-4.
- 
-Signific ance/Impacts
- 
-  </p><p> 
-●
- 
-Assertion:
- 
-The
- 
-claim
- 
-or
- 
-outcome
- 
-(eg.
- 
-Reducing
- 
-Poverty)
- 
-●
- 
-Reason:
- 
-Explain
- 
-why
- 
-your
- 
-claim
- 
-is
- 
-valid
- 
-●
- 
-Evidence:
- 
-Provide
- 
-proof
- 
-to
- 
-support
- 
-your
- 
-assertion
- 
-●
- 
-Signific ance:
- 
-Explain
- 
-how
- 
-your
- 
-poin t
- 
-affects
- 
-other s,
- 
-such
- 
-as
- 
-wha t
- 
-is
- 
-the
- impact on stakeholder s. (maybe some thing good that happens if your argumen t is followed or some thing bad that happens if your argumen t is ignor ed)  
-EXAMPLE
- 
-Motion:
- 
-THW
- 
-ban
- 
-smoking
- 
-in
- 
-Hong
- 
-Kong
- 
- 
-●
- 
-Assertion:
- 
-This
- 
-will
- 
-save
- 
-the
- 
-city
- 
-mone y.
- 
-●
- 
-Reason:
- 
-Smoking
- 
-leads
- 
-to
- 
-man y
- 
-health
- 
-problems
- 
-that
- 
-cause
- 
-people
- 
-to
- 
-need
- care in the HK public healthc are system. 
-●
- 
-Evidence:
- 
-According
- 
-to
- 
-the
- 
-CDC,
- 
-“For
- 
-every
- 
-person
- 
-who
- 
-dies
- 
-because
- 
-of
- smoking , at least 30 people live with a serious smoking-r elated illness. Smoking causes cancer , heart disease, stroke, lung diseases, diabe tes, and chronic obstructiv e pulmonar y disease (COPD), which includes emph ysema and chronic bronchitis. ” 
-●
- 
-Signific ance:
- 
-If
- 
-HK
- 
-bans
- 
-smoking ,
- 
-less
- 
-people
- 
-will
- 
-suffer
- 
-from
- 
-these
- 
-horrible
- diseases, thus reducing the amoun t of patients needing care in the HK public healthc are system. This will save the city lots of mone y, as well as making care more accessible in a reasonable amoun t of time for those who need it.   
-Weighing     Weighing: Explain why this outcome is superior to other potential outcomes. 
- 
-EXAMPLE
- 
-Motion:
- 
-THW
- 
-ban
- 
-smoking
- 
-in
- 
-Hong
- 
-Kong
- 
- Weighing: This outcome is import ant because when the city has more mone y, they can spend on impr oving the overall quality of life of everyone within the city through 
-scholar ships
- 
-for
- 
-the
- 
-poor ,
- 
-free
- 
-healthc are
- 
-for
- 
-the
- 
-needy
- 
-etc.
-  
-Drill Session   Motion: THW Ban Alcohol  Have studen t s use A.R.E.S.W and mak e an argumen t on the aforemen tioned topic. The aim of this drill is to mak e sure that the studen ts under stand the difference between all. This drill allows them to better under stand this structur e and enables them to use this structur e usefully in deba tes.  </p><p> 
-Deba te Practice Vocabular y Motion: This house as schools will ban all contact sports (e.g. boxing , rugb y)   Task: Establish as man y argumen ts on the given topic using A.R.E.S.W and presen t Infron t of the class  Instructions:   
-●
- 
-Brains torm
- 
-and
- 
-presen t
- 
-your
- 
-argumen ts
- 
-to
- 
-the
- 
-class.
- 
- 
- 
- 
-Vocabular y: Signific ance, Evidence, Argumen ts, Contact Sports 
- 
- 
-Lesson
- 
-Plan
- 
-developed
- 
-by:
- 
-Muhammad
- 
-Nasir
- 
-Hussain</p>
-    </article>
-  </main>
   <script>
   
     ;(function(){
-      // Minimal SCORM 1.2 API adapter
+      // Enhanced SCORM 1.2 API adapter with progress tracking
       var API = null;
+      var progress = 0;
+      var totalSections = 6;
+      var completedSections = new Set();
+      
       function findAPI(win) {
         var n = 0;
         while (win && !win.API && win.parent && win.parent !== win && n < 500) {
@@ -568,26 +572,77 @@ Hussain</p>
         }
         return win.API || null;
       }
+      
+      function updateProgress() {
+        progress = Math.round((completedSections.size / totalSections) * 100);
+        document.querySelector('.progress-fill').style.width = progress + '%';
+        document.querySelector('.progress-text').textContent = progress + '% Complete';
+        
+        if (API) {
+          try {
+            API.LMSSetValue("cmi.core.score.raw", progress.toString());
+            API.LMSSetValue("cmi.core.lesson_status", progress === 100 ? "completed" : "incomplete");
+            API.LMSCommit("");
+          } catch(e){}
+        }
+      }
+      
+      function markSectionComplete(sectionId) {
+        completedSections.add(sectionId);
+        updateProgress();
+      }
+      
       function init() {
         try {
           API = findAPI(window) || (window.opener && findAPI(window.opener)) || null;
-          if (!API) return;
-          // Initialize session
-          try { API.LMSInitialize(""); } catch(e){}
-          // Set status to completed if not already set
-          try {
-            var status = API.LMSGetValue("cmi.core.lesson_status");
-            if (!status || status === "not attempted" || status === "unknown" ) {
-              API.LMSSetValue("cmi.core.lesson_status","completed");
-            }
-            API.LMSCommit("");
-          } catch(e){}
+          if (API) {
+            try { API.LMSInitialize(""); } catch(e){}
+            updateProgress();
+          }
+          
+          // Section intersection observer for auto-completion
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting && entry.intersectionRatio > 0.8) {
+                setTimeout(() => markSectionComplete(entry.target.id), 2000);
+              }
+            });
+          }, { threshold: 0.8 });
+          
+          document.querySelectorAll('.content-section').forEach(section => {
+            observer.observe(section);
+          });
+          
           // Handle unload
           window.addEventListener("beforeunload", function(){
             try { API && API.LMSFinish(""); } catch(e){}
           });
         } catch(e){}
       }
+      
+      // Quiz functionality
+      window.checkAnswer = function(quizIndex) {
+        const question = document.querySelector(`[data-quiz="${quizIndex}"]`);
+        const selected = question.querySelector('input[name="quiz-' + quizIndex + '"]:checked');
+        const feedback = question.querySelector('.quiz-feedback');
+        const submit = question.querySelector('.quiz-submit');
+        
+        if (!selected) {
+          alert('Please select an answer');
+          return;
+        }
+        
+        const isCorrect = selected.dataset.correct === 'true';
+        feedback.style.display = 'block';
+        feedback.className = 'quiz-feedback ' + (isCorrect ? 'correct' : 'incorrect');
+        submit.disabled = true;
+        submit.textContent = isCorrect ? 'Correct!' : 'Try Again';
+        
+        if (isCorrect) {
+          markSectionComplete('quiz-' + quizIndex);
+        }
+      };
+      
       if (document.readyState === "complete" || document.readyState === "interactive") {
         setTimeout(init, 0);
       } else {
