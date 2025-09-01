@@ -2584,8 +2584,27 @@ Content: ${text.slice(0, 3000)}${text.length > 3000 ? "..." : ""}`;
       
       console.log(`Received response from AI provider, length: ${result.response?.length || 0}, conversationId: ${result.conversationId}`);
       
+      // Check if we got a valid response
+      if (!result.response || result.response === "No response generated" || result.response.length < 5) {
+        console.error('Invalid or empty response from AI provider:', result);
+        
+        // Log more details for debugging
+        console.log('Provider:', aiProvider.getProvider(userId));
+        console.log('Message:', message);
+        console.log('Files count:', fileIds.length);
+        
+        // Return a helpful error response
+        res.status(500).json({
+          error: "The AI service did not generate a proper response.",
+          suggestion: "This might be due to API configuration issues. Try switching to OpenAI provider or check your Dify API settings.",
+          response: "I apologize, but I couldn't generate a proper response. Please try again or switch to a different AI provider.",
+          provider: aiProvider.getProvider(userId)
+        });
+        return;
+      }
+      
       res.json({ 
-        response: result.response,
+        response: result.response || "No response generated",
         relatedFiles: fileIds,
         conversationContext: { topic: "General conversation", messages: chatHistory.length },
         provider: aiProvider.getProvider(userId),

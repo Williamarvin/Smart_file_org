@@ -111,6 +111,9 @@ export class DifyService {
         const text = await response.text();
         const lines = text.split('\n');
         let fullAnswer = '';
+        let conversationId = '';
+        
+        // Parse streaming response from Dify
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -119,8 +122,23 @@ export class DifyService {
             
             try {
               const parsed = JSON.parse(data);
+              
+              // Try different possible field names for the answer
               if (parsed.answer) {
                 fullAnswer += parsed.answer;
+              } else if (parsed.message) {
+                fullAnswer += parsed.message;
+              } else if (parsed.text) {
+                fullAnswer += parsed.text;
+              } else if (parsed.content) {
+                fullAnswer += parsed.content;
+              } else if (parsed.event === 'message' && parsed.answer) {
+                fullAnswer += parsed.answer;
+              }
+              
+              // Capture conversation ID if present
+              if (parsed.conversation_id) {
+                conversationId = parsed.conversation_id;
               }
             } catch (e) {
               // Skip invalid JSON lines
@@ -128,11 +146,31 @@ export class DifyService {
           }
         }
         
-        return { answer: fullAnswer || 'No response generated' };
+        // Log only if debugging is needed
+        if (!fullAnswer && process.env.DEBUG === 'true') {
+          console.error('No answer found in Dify streaming response. Full response:', text.substring(0, 500));
+        }
+        
+        return { 
+          answer: fullAnswer || 'No response generated',
+          conversation_id: conversationId
+        };
       } else {
         // Handle regular JSON response
         const data = await response.json();
-        return data;
+        // Log only if debugging is needed
+        if (process.env.DEBUG === 'true') {
+          console.log('Dify JSON response keys:', Object.keys(data));
+        }
+        
+        // Try to extract answer from various possible fields
+        const answer = data.answer || data.message || data.text || data.content || 
+                       data.response || data.output || 'No response generated';
+        
+        return {
+          ...data,
+          answer: answer
+        };
       }
     } catch (error: any) {
       console.error('Dify chat completion error:', error);
