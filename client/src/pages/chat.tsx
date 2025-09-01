@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Send, Bot, User, FileText, Sparkles, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AIProviderToggle, AIProviderInfo } from "@/components/ai-provider-toggle";
+import { DocumentPreview } from "@/components/document-preview";
 
 interface ChatMessage {
   id: string;
@@ -144,6 +145,38 @@ export function Chat() {
   };
 
   // Removed auto-scroll to prevent unwanted scrolling behavior
+
+  // Helper function to detect if content should be shown in document preview
+  const shouldShowAsDocument = (content: string): boolean => {
+    // Check for document-like patterns
+    const hasHeaders = /^#{1,3}\s/m.test(content);
+    const hasBulletPoints = /^[•\-\*]\s/m.test(content);
+    const hasNumberedList = /^\d+\.\s/m.test(content);
+    const hasBoldText = /\*\*.*?\*\*/g.test(content);
+    const hasMultipleSections = (content.match(/^#{1,3}\s/gm) || []).length > 1;
+    const isLongContent = content.length > 500;
+    
+    // Check for specific keywords that indicate structured content
+    const hasDocumentKeywords = /summary|overview|analysis|report|course|design|framework|components|structure/i.test(content);
+    
+    // Show as document if it has structure and is substantial
+    return (hasHeaders || (hasBulletPoints && hasDocumentKeywords)) && 
+           (hasMultipleSections || isLongContent || hasDocumentKeywords);
+  };
+
+  // Helper to extract title from content
+  const extractTitle = (content: string): string | undefined => {
+    const firstHeader = content.match(/^#\s+(.+)$/m);
+    if (firstHeader) return firstHeader[1];
+    
+    // Try to detect title from first line if it looks like a title
+    const firstLine = content.split('\n')[0];
+    if (firstLine && firstLine.length < 100 && !firstLine.includes(':')) {
+      return firstLine;
+    }
+    
+    return undefined;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
@@ -334,31 +367,63 @@ export function Chat() {
                                 <Bot className="h-4 w-4" />
                               )}
                             </div>
-                            <div className={`p-4 rounded-lg ${
-                              message.type === "user"
-                                ? "bg-blue-600 text-white"
-                                : "bg-slate-100 text-slate-800"
-                            }`}>
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              {message.relatedFiles && message.relatedFiles.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-slate-200">
-                                  <p className="text-xs text-slate-600 mb-1">Related files:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {message.relatedFiles.map((fileId) => {
-                                      const file = processedFiles.find((f: any) => f.id === fileId);
-                                      return file ? (
-                                        <Badge key={fileId} variant="outline" className="text-xs">
-                                          {file.originalName}
-                                        </Badge>
-                                      ) : null;
-                                    })}
+                            
+                            {/* Check if assistant message should be shown as document */}
+                            {message.type === "assistant" && shouldShowAsDocument(message.content) ? (
+                              <div className="flex-1 max-w-full">
+                                <DocumentPreview
+                                  content={message.content}
+                                  title={extractTitle(message.content)}
+                                  isEmbedded={true}
+                                  className="shadow-md"
+                                />
+                                {message.relatedFiles && message.relatedFiles.length > 0 && (
+                                  <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                                    <p className="text-xs text-slate-600 mb-1">Source files:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {message.relatedFiles.map((fileId) => {
+                                        const file = processedFiles.find((f: any) => f.id === fileId);
+                                        return file ? (
+                                          <Badge key={fileId} variant="secondary" className="text-xs">
+                                            {file.originalName}
+                                          </Badge>
+                                        ) : null;
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              <p className="text-xs mt-2 opacity-70">
-                                {message.timestamp.toLocaleTimeString()}
-                              </p>
-                            </div>
+                                )}
+                                <p className="text-xs mt-2 text-slate-500">
+                                  {message.timestamp.toLocaleTimeString()}
+                                </p>
+                              </div>
+                            ) : (
+                              // Regular message display
+                              <div className={`p-4 rounded-lg ${
+                                message.type === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-slate-100 text-slate-800"
+                              }`}>
+                                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                {message.relatedFiles && message.relatedFiles.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-slate-200">
+                                    <p className="text-xs text-slate-600 mb-1">Related files:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {message.relatedFiles.map((fileId) => {
+                                        const file = processedFiles.find((f: any) => f.id === fileId);
+                                        return file ? (
+                                          <Badge key={fileId} variant="outline" className="text-xs">
+                                            {file.originalName}
+                                          </Badge>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                                <p className="text-xs mt-2 opacity-70">
+                                  {message.timestamp.toLocaleTimeString()}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
