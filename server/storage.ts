@@ -441,6 +441,10 @@ export class DatabaseStorage implements IStorage {
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
+        googleDriveId: files.googleDriveId,
+        googleDriveUrl: files.googleDriveUrl,
+        googleDriveMetadata: files.googleDriveMetadata,
+        lastMetadataSync: files.lastMetadataSync,
         metadata: fileMetadata,
       })
       .from(files)
@@ -721,6 +725,10 @@ export class DatabaseStorage implements IStorage {
         processingStatus: files.processingStatus,
         processingError: files.processingError,
         userId: files.userId,
+        googleDriveId: files.googleDriveId,
+        googleDriveUrl: files.googleDriveUrl,
+        googleDriveMetadata: files.googleDriveMetadata,
+        lastMetadataSync: files.lastMetadataSync,
         metadata: fileMetadata,
       })
       .from(files)

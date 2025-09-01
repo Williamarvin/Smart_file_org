@@ -218,7 +218,7 @@ export class ExcelWithDriveMetadataService {
           googleDriveUrl: googleDriveUrl,
           googleDriveMetadata: googleDriveMetadataJson,
           lastMetadataSync: googleDriveMetadataJson ? new Date() : null
-        }, userId, downloadedFileBuffer); // Pass the downloaded buffer for BYTEA storage
+        }, userId, downloadedFileBuffer || undefined); // Pass the downloaded buffer for BYTEA storage
 
         if (downloadedFileBuffer) {
           console.log(`💾 Stored file data for ${filename} in BYTEA storage (${downloadedFileBuffer.length} bytes)`);

@@ -53,6 +53,7 @@
     "@types/jest": "^30.0.0",
     "@types/memoizee": "^0.4.12",
     "@types/multer": "^2.0.0",
+    "@types/node-fetch": "^2.6.13",
     "@types/passport": "^1.0.17",
     "@types/pdf-parse": "^1.1.5",
     "@types/pdfkit": "^0.17.2",

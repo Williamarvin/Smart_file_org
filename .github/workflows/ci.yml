@@ -33,6 +33,9 @@ jobs:
       - name: Check Prettier formatting
         run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,css,md}" || true
 
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest

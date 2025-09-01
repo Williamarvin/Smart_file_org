@@ -139,7 +139,7 @@ export class AIProviderService {
         : "No specific files selected. User is asking a general question.";
       
       // Build messages array for OpenAI
-      const openAIMessages = [];
+      const openAIMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
       
       // Add system message
       const systemContent = systemPrompt || `You are a helpful AI assistant that can answer questions about uploaded documents. 
@@ -160,7 +160,7 @@ ${context}`;
       // Add conversation messages
       messages.forEach(msg => {
         openAIMessages.push({ 
-          role: msg.role as 'user' | 'assistant' | 'system', 
+          role: msg.role, 
           content: msg.content 
         });
       });

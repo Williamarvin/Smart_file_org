@@ -226,7 +226,7 @@ export default function GenerateLessons() {
     queryKey: ["/api/files"],
   });
 
-  const { data: folders = [], isLoading: foldersLoading } = useQuery({
+  const { data: folders = [], isLoading: foldersLoading } = useQuery<Folder[]>({
     queryKey: ["/api/folders"],
   });
 

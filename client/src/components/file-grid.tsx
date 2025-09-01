@@ -51,6 +51,10 @@ interface FileItem {
   processingStatus: string;
   processingError?: string;
   similarity?: number; // Add similarity score for search results
+  // Search-related properties
+  searchType?: 'semantic' | 'keyword';
+  searchExplanation?: string;
+  matchedContent?: string[];
   metadata?: {
     summary?: string;
     keywords?: string[];
