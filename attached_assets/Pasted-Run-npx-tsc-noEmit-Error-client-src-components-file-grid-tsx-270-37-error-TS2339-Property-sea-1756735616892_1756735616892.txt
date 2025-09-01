@@ -1,0 +1,37 @@
+Run npx tsc --noEmit
+Error: client/src/components/file-grid.tsx(270,37): error TS2339: Property 'searchType' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(272,40): error TS2339: Property 'searchType' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(276,41): error TS2339: Property 'searchType' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(285,50): error TS2339: Property 'searchExplanation' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(287,105): error TS2339: Property 'searchExplanation' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(288,35): error TS2339: Property 'matchedContent' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(288,58): error TS2339: Property 'matchedContent' does not exist on type 'FileItem'.
+Error: client/src/components/file-grid.tsx(290,87): error TS2339: Property 'matchedContent' does not exist on type 'FileItem'.
+Error: client/src/pages/generate-lessons.tsx(236,11): error TS18046: 'folders' is of type 'unknown'.
+Error: client/src/pages/generate-lessons.tsx(245,24): error TS18046: 'folders' is of type 'unknown'.
+Error: server/aiProvider.ts(170,9): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(body: ChatCompletionCreateParamsNonStreaming, options?: RequestOptions | undefined): APIPromise<ChatCompletion>', gave the following error.
+    Type '{ role: string; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+      Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+        Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 2 of 3, '(body: ChatCompletionCreateParamsStreaming, options?: RequestOptions | undefined): APIPromise<Stream<ChatCompletionChunk>>', gave the following error.
+    Type '{ role: string; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+      Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+        Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+  Overload 3 of 3, '(body: ChatCompletionCreateParamsBase, options?: RequestOptions | undefined): APIPromise<ChatCompletion | Stream<...>>', gave the following error.
+    Type '{ role: string; content: string; }[]' is not assignable to type 'ChatCompletionMessageParam[]'.
+      Type '{ role: string; content: string; }' is not assignable to type 'ChatCompletionMessageParam'.
+        Property 'name' is missing in type '{ role: string; content: string; }' but required in type 'ChatCompletionFunctionMessageParam'.
+Error: server/difyService.ts(1,19): error TS7016: Could not find a declaration file for module 'node-fetch'. '/home/runner/work/Smart_file_org/Smart_file_org/node_modules/node-fetch/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/node-fetch` if it exists or add a new declaration (.d.ts) file containing `declare module 'node-fetch';`
+Error: server/excelWithDriveMetadata.ts(221,20): error TS2345: Argument of type 'Buffer | null' is not assignable to parameter of type 'Buffer | undefined'.
+  Type 'null' is not assignable to type 'Buffer | undefined'.
+Error: server/storage.ts(492,26): error TS2339: Property 'googleDriveId' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(493,27): error TS2339: Property 'googleDriveUrl' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(494,32): error TS2339: Property 'googleDriveMetadata' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(495,29): error TS2339: Property 'lastMetadataSync' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(745,26): error TS2339: Property 'googleDriveId' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(746,27): error TS2339: Property 'googleDriveUrl' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(747,32): error TS2339: Property 'googleDriveMetadata' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: server/storage.ts(748,29): error TS2339: Property 'lastMetadataSync' does not exist on type '{ id: string; filename: string; originalName: string; mimeType: string; size: number; objectPath: string; folderId: string | null; uploadedAt: Date; processedAt: Date | null; storageType: string | null; processingStatus: string; processingError: string | null; userId: string; metadata: { ...; } | null; }'.
+Error: Process completed with exit code 2.
