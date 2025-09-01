@@ -2479,12 +2479,10 @@ ${file.fileContent.toString()}`;
       res.json(transformedResults);
     } catch (error) {
       console.error("❌ Enhanced search error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Search failed",
-          message: error instanceof Error ? error.message : "Unknown error",
-        });
+      res.status(500).json({
+        error: "Search failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
