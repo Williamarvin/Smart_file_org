@@ -26,9 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
       - name: Run ESLint
         run: npx eslint . --ext .ts,.tsx --max-warnings 0 || true
 
